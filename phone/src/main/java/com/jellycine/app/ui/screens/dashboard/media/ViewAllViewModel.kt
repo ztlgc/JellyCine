@@ -195,6 +195,10 @@ class ViewAllViewModel @Inject constructor(
                             recursive = true,
                             fields = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,CriticRating,ProductionYear,Overview,UserData"
                         )
+                        ContentType.HOME_MEDIA -> mediaRepository.getUserItems(
+                            parentId = parentId, recursive = false, limit = pageSize,
+                            startIndex = currentPage * pageSize, sortBy = "SortName", sortOrder = "Ascending"
+                        )
                         ContentType.ALL -> mediaRepository.getUserItems(
                             parentId = parentId,
                             genres = selectedGenres,
@@ -347,7 +351,7 @@ data class ViewAllUiState(
 )
 
 enum class ContentType {
-    ALL, MOVIES, SERIES, EPISODES, MOVIES_GENRE, TVSHOWS_GENRE, SEERR_STUDIO, SEERR_NETWORK, AWARD
+    ALL, HOME_MEDIA, MOVIES, SERIES, EPISODES, MOVIES_GENRE, TVSHOWS_GENRE, SEERR_STUDIO, SEERR_NETWORK, AWARD
 }
 
 fun ContentType.isSeerrCatalog(): Boolean =

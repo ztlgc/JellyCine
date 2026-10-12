@@ -658,4 +658,16 @@
     <string name="detail_person_no_related_titles">No related titles available.</string>
     <string name="detail_person_read_more">Read more</string>
     <string name="detail_person_read_less">Read less</string>
+    <string name="home_media_library">Home videos &amp; photos</string>
+    <string name="home_media_back">Back</string>
+    <string name="home_media_refresh">Refresh</string>
+    <string name="home_media_load_error">Unable to load this folder</string>
+    <string name="home_media_retry">Retry</string>
+    <string name="home_media_empty">This folder is empty</string>
+    <string name="home_media_more">Load more</string>
+    <string name="home_media_previous">Previous photo</string>
+    <string name="home_media_next">Next photo</string>
+    <string name="home_media_unsupported">Unsupported item</string>
+    <string name="home_other_videos">Other videos</string>
+    <string name="home_other_videos_empty">No home videos and photos libraries</string>
 </resources>

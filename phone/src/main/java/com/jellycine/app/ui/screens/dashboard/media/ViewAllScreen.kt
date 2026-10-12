@@ -151,6 +151,7 @@ fun ViewAllScreen(
             ContentType.SERIES, ContentType.TVSHOWS_GENRE -> "Series"
             ContentType.ALL -> "Movie,Series"
             ContentType.EPISODES,
+            ContentType.HOME_MEDIA,
             ContentType.SEERR_STUDIO,
             ContentType.SEERR_NETWORK,
             ContentType.AWARD -> null

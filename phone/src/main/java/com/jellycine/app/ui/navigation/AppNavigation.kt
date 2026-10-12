@@ -23,7 +23,6 @@ import com.jellycine.app.ui.screens.detail.DetailScreenContainer
 import com.jellycine.app.ui.screens.detail.PersonScreenContainer
 import com.jellycine.app.ui.screens.dashboard.settings.DownloadsScreen
 import com.jellycine.app.ui.screens.dashboard.settings.CacheSettingsScreen
-import com.jellycine.app.ui.screens.dashboard.settings.ConnectionsSettingsScreen
 import com.jellycine.app.ui.screens.admin.ServerInfoScreen
 import com.jellycine.app.ui.screens.dashboard.settings.AboutScreen
 import com.jellycine.app.ui.screens.dashboard.settings.PlayerSettingsScreen
@@ -218,9 +217,6 @@ fun AppNavigation() {
                     onNavigateToInterfaceSettings = {
                         navController.navigate("interface_settings")
                     },
-                    onNavigateToConnections = {
-                        navController.navigate("connections_settings")
-                    },
                     onNavigateToDownloads = {
                         navController.navigate("downloads")
                     },
@@ -279,6 +275,25 @@ fun AppNavigation() {
                         navController.navigate("player/$itemId")
                     }
                 )
+            }
+
+            composable("library-player") {
+                val queue = androidx.compose.runtime.saveable.rememberSaveable {
+                    navController.previousBackStackEntry?.savedStateHandle?.remove<ArrayList<String>>("libraryQueue")?.toList().orEmpty()
+                }
+                var index by androidx.compose.runtime.saveable.rememberSaveable { mutableIntStateOf(0) }
+                val current = queue.getOrNull(index)
+                if (current != null) {
+                    PlayerScreen(mediaId = current, onBackPressed = { navController.popBackStack() },
+                        onPlaybackCompleted = { completed -> if (completed == current) {
+                            if (index < queue.lastIndex) index++ else navController.popBackStack()
+                        } },
+                        previousEpisodeId = queue.getOrNull(index - 1),
+                        onWatchPreviousEpisode = { id -> if (queue.getOrNull(index - 1) == id) index-- },
+                        nextEpisodeId = queue.getOrNull(index + 1),
+                        onWatchNextEpisode = { id -> if (queue.getOrNull(index + 1) == id) index++ }
+                    )
+                } else LaunchedEffect(Unit) { navController.popBackStack() }
             }
 
             composable(
@@ -428,6 +443,7 @@ fun AppNavigation() {
                 } ?: "View All"
 
                 val contentType = when (contentTypeString.uppercase()) {
+                    "HOME_MEDIA" -> com.jellycine.app.ui.screens.dashboard.media.ContentType.HOME_MEDIA
                     "MOVIES" -> com.jellycine.app.ui.screens.dashboard.media.ContentType.MOVIES
                     "SERIES" -> com.jellycine.app.ui.screens.dashboard.media.ContentType.SERIES
                     "EPISODES" -> com.jellycine.app.ui.screens.dashboard.media.ContentType.EPISODES
@@ -439,6 +455,25 @@ fun AppNavigation() {
                     else -> com.jellycine.app.ui.screens.dashboard.media.ContentType.ALL
                 }
 
+                if (!parentId.isNullOrBlank() && parentId != com.jellycine.app.ui.screens.dashboard.media.WATCHED_VIEW_ALL_PARENT_ID &&
+                    parentId != com.jellycine.app.ui.screens.dashboard.favorites.FAVORITES_VIEW_ALL_PARENT_ID &&
+                    (contentType == com.jellycine.app.ui.screens.dashboard.media.ContentType.HOME_MEDIA ||
+                        contentType == com.jellycine.app.ui.screens.dashboard.media.ContentType.ALL ||
+                        contentType == com.jellycine.app.ui.screens.dashboard.media.ContentType.MOVIES ||
+                        contentType == com.jellycine.app.ui.screens.dashboard.media.ContentType.SERIES ||
+                        contentType == com.jellycine.app.ui.screens.dashboard.media.ContentType.EPISODES)) {
+                    com.jellycine.app.ui.screens.dashboard.media.LibraryBrowserScreen(
+                        libraryId = parentId, title = title, contentType = contentType,
+                        onBack = { navController.popBackStack() },
+                        onItemClick = { item -> item.id?.let { navController.navigate("detail/$it") } },
+                        onPlayQueue = { ids ->
+                            if (ids.isNotEmpty()) {
+                                backStackEntry.savedStateHandle["libraryQueue"] = ArrayList(ids)
+                                navController.navigate("library-player")
+                            }
+                        }
+                    )
+                } else
                 com.jellycine.app.ui.screens.dashboard.media.ViewAllScreen(
                     contentType = contentType,
                     parentId = parentId,
@@ -502,21 +537,6 @@ fun AppNavigation() {
                 InterfaceSettingsScreen(
                     onBackPressed = {
                         navController.popBackStack()
-                    }
-                )
-            }
-
-            composable(
-                "connections_settings",
-                enterTransition = { textTransition(500) },
-                exitTransition = { textExitTransition(400) }
-            ) {
-                ConnectionsSettingsScreen(
-                    onBackPressed = {
-                        navController.popBackStack()
-                    },
-                    onNavigateToRequestedItem = { item ->
-                        navController.navigate("detail/${item.id}")
                     }
                 )
             }

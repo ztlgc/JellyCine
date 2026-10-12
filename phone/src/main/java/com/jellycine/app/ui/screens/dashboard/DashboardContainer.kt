@@ -167,7 +167,6 @@ fun DashboardContainer(
     onNavigateToPlayer: (String) -> Unit = {},
     onNavigateToPlayerSettings: () -> Unit = {},
     onNavigateToInterfaceSettings: () -> Unit = {},
-    onNavigateToConnections: () -> Unit = {},
     onNavigateToDownloads: () -> Unit = {},
     onNavigateToCacheSettings: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
@@ -577,13 +576,11 @@ fun DashboardContainer(
                             onLogout = onLogout,
                             onNavigateToPlayerSettings = onNavigateToPlayerSettings,
                             onNavigateToInterfaceSettings = onNavigateToInterfaceSettings,
-                            onNavigateToConnections = onNavigateToConnections,
                             onNavigateToDownloads = onNavigateToDownloads,
                             onNavigateToCacheSettings = onNavigateToCacheSettings,
                             onNavigateToAbout = onNavigateToAbout,
                             onNavigateToServerInfo = onNavigateToServerInfo,
                             onNavigateToScreenTime = onNavigateToScreenTime,
-                            onNavigateToRequestedItem = onNavigateToDetail,
                             onAddServer = onAddServer,
                             onAddUser = onAddUser
                         )

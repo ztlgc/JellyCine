@@ -322,8 +322,9 @@ fun MyMedia(
                                     library = library,
                                     imageUrl = library.id?.let { id -> libraryImageUrls[id] },
                                     onClick = {
-                                        val contentType = when (library.collectionType) {
+                                        val contentType = when (library.collectionType?.lowercase()) {
                                             "movies" -> com.jellycine.app.ui.screens.dashboard.media.ContentType.MOVIES
+                                            "homevideos" -> com.jellycine.app.ui.screens.dashboard.media.ContentType.HOME_MEDIA
                                             "tvshows" -> com.jellycine.app.ui.screens.dashboard.media.ContentType.SERIES
                                             else -> com.jellycine.app.ui.screens.dashboard.media.ContentType.ALL
                                         }
@@ -562,8 +563,9 @@ private fun LibraryCardSkeleton(
 }
 
 private fun getLibraryIcon(collectionType: String?): ImageVector {
-    return when (collectionType) {
+    return when (collectionType?.lowercase()) {
         "movies" -> Icons.Filled.Movie
+        "homevideos" -> Icons.Filled.PhotoLibrary
         "tvshows" -> Icons.Filled.Tv
         else -> Icons.Filled.VideoLibrary
     }
@@ -571,8 +573,9 @@ private fun getLibraryIcon(collectionType: String?): ImageVector {
 
 @Composable
 private fun getLibraryTypeText(collectionType: String?): String {
-    return when (collectionType) {
+    return when (collectionType?.lowercase()) {
         "movies" -> stringResource(R.string.movies)
+        "homevideos" -> stringResource(R.string.home_media_library)
         "tvshows" -> stringResource(R.string.tv_shows)
         else -> stringResource(R.string.my_media_library_type_library)
     }

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_all">全部</string>
+    <string name="library_resume">继续播放</string>
+    <string name="library_collections">合集</string>
+    <string name="library_genres">类型</string>
+    <string name="library_tags">标签</string>
+    <string name="library_favorites">收藏</string>
+    <string name="library_folders">文件夹</string>
+    <string name="library_sort_created">创建日期</string>
+    <string name="library_sort_community">公众评分</string>
+    <string name="library_sort_title">标题</string>
+    <string name="library_sort_premiere">首映日期</string>
+    <string name="library_sort_rating">官方分级</string>
+    <string name="library_sort_year">出品年份</string>
+    <string name="library_sort_critic">影评人评分</string>
+    <string name="library_sort_played">播放日期</string>
+    <string name="library_sort_bitrate">比特率</string>
+    <string name="library_sort_resolution">分辨率</string>
+    <string name="library_sort_filename">文件名</string>
+    <string name="library_sort_duration">播放时长</string>
+    <string name="library_sort_random">随机</string>
+    <string name="library_back">返回</string>
+    <string name="library_refresh">刷新</string>
+    <string name="library_loading_count">正在读取 %1$d / %2$d</string>
+    <string name="library_count">%1$d 项</string>
+    <string name="library_shuffle">随机播放</string>
+    <string name="library_view">切换视图</string>
+    <string name="library_filter">筛选</string>
+    <string name="library_direction">切换排序方向</string>
+    <string name="library_error">媒体库加载失败</string>
+    <string name="library_retry">重试</string>
+    <string name="library_empty">暂无内容</string>
+    <string name="library_sort">排序</string>
+    <string name="library_play_state">播放状态</string>
+    <string name="library_watched">已播放</string>
+    <string name="library_unwatched">未播放</string>
+    <string name="library_clear">清除</string>
+    <string name="library_apply">应用</string>
+    <string name="library_minutes">%1$d 分钟</string>
+</resources>

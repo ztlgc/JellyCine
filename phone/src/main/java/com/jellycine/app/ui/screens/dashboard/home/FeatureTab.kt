@@ -70,7 +70,6 @@ import coil3.compose.rememberAsyncImagePainter
 import coil3.imageLoader
 import coil3.request.*
 import com.jellycine.shared.R
-import com.jellycine.app.ui.components.common.ScreenCastButton
 import com.jellycine.app.ui.screens.auth.ProfileImageLoader
 import com.jellycine.shared.util.image.imageTagFor
 import com.jellycine.data.model.BaseItemDto
@@ -141,9 +140,9 @@ fun FeatureTab(
     onItemClick: (BaseItemDto) -> Unit = {},
     onLogout: () -> Unit = {},
     onProfileClick: () -> Unit = {},
-    onCastButtonClick: () -> Unit = {},
     onCategorySelected: (String) -> Unit = {},
-    refreshTrigger: Int = 0
+    refreshTrigger: Int = 0,
+    showCarousel: Boolean = true
 ) {
     val context = LocalContext.current
     val mediaRepository = remember { MediaRepositoryProvider.getInstance(context) }
@@ -538,6 +537,24 @@ fun FeatureTab(
         }
     }
 
+    if (!showCarousel) {
+        Row(
+            modifier = modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CategoryChipMenu(selectedCategory, onCategorySelected)
+            UserProfileAvatar(
+                imageUrl = userProfileImageUrl,
+                serverTypeRaw = sessionSnapshot.serverType,
+                onClick = onProfileClick,
+                modifier = Modifier.size(34.dp)
+            )
+        }
+        return
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -621,21 +638,12 @@ fun FeatureTab(
                     onCategorySelected = onCategorySelected
                 )
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    ScreenCastButton(
-                        onConnectedClick = onCastButtonClick,
-                        size = 34.dp
-                    )
-                    UserProfileAvatar(
-                        imageUrl = userProfileImageUrl,
-                        serverTypeRaw = sessionSnapshot.serverType,
-                        onClick = onProfileClick,
-                        modifier = Modifier.size(34.dp)
-                    )
-                }
+                UserProfileAvatar(
+                    imageUrl = userProfileImageUrl,
+                    serverTypeRaw = sessionSnapshot.serverType,
+                    onClick = onProfileClick,
+                    modifier = Modifier.size(34.dp)
+                )
             }
         }
 
@@ -657,7 +665,7 @@ private fun hasFeatureHeroAssets(item: BaseItemDto): Boolean {
 }
 
 @Composable
-private fun CategoryChipMenu(
+internal fun CategoryChipMenu(
     selectedCategory: String,
     onCategorySelected: (String) -> Unit,
     modifier: Modifier = Modifier

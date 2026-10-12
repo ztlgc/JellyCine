@@ -5,7 +5,7 @@
 <h1 align="center">JellyCine</h1>
 
 <p align="center">
-   A Jetpack Compose based client for <strong>Jellyfin</strong> and <strong>Emby</strong> — designed for phone, TV, and beyond.
+   A Jetpack Compose based client for <strong>Jellyfin</strong> and <strong>Emby</strong> — customized for Android phones.
 </p>
 
 <p align="center">
@@ -48,6 +48,7 @@
 
 ### Discovery
 
+- Home videos & photos libraries: folder browsing, photo viewing with zoom on phones, and video playback
 - **In-app Trailers** with autoplay in feature carousel (capped to 720p on phones)
 - Trailers & Extras section on detail screens
 - **For You** personalized recommendations with watched feed
@@ -69,14 +70,6 @@
 - Season and series download with storage estimation
 - Offline-aware navigation — falls back to downloaded content when network is unavailable
 
-### TV
-
-- Redesigned TV UI with D-pad navigation and remote control support
-- Cinematic full-bleed detail screen overlay
-- Immersive backdrop for suggestions
-- Keyboard overlay search with carousel results
-- Feature hero card with card expand and backdrop crossfade
-
 ### Screen Time
 
 - Watch activity stats with daily breakdown charts
@@ -97,8 +90,6 @@
 | Platform | Status |
 |----------|--------|
 | Android Phone | Stable |
-| Android TV | Stable |
-| iOS | In Development |
 
 ---
 
@@ -128,13 +119,12 @@
 | Networking | Ktor Client + OkHttp 5 |
 | Images | Coil 3 |
 | Player | MPV (primary), Media3 ExoPlayer (fallback) |
-| Multiplatform | Kotlin Multiplatform (Android + iOS) |
+| Shared modules | Kotlin common models and Android libraries |
 
 ## Project Structure
 
 ```
 phone/   — Phone app module (Compose UI, navigation, player, settings)
-tv/      — TV app module (leanback/DPAD, sidebar rail, TV-specific flows)
 data/    — APIs, repositories, models; multiplatform networking
 core/    — Shared player, preferences, and utilities
 shared/  — Shared UI components and image infrastructure
@@ -144,20 +134,19 @@ shared/  — Shared UI components and image infrastructure
 
 ## Getting Started
 
+This checkout is developed for Android phones only. The TV and iOS projects and their platform build configuration have been removed. See [Android build notes](docs/ANDROID_BUILD.md).
+
 ### Prerequisites
 
 - Android Studio (latest stable)
 - JDK 17
-- Android SDK API 36
+- Android SDK API 37
 
 ### Build
 
 ```bash
-# Phone
-./gradlew :phone:assembleDebug
-
-# TV
-./gradlew :tv:assembleDebug
+# Android phone (ARM64)
+./gradlew :phone:assembleDebug -PandroidAbis=arm64-v8a
 ```
 
 APK naming: `jellycine-{debug|release}-<version>.apk`

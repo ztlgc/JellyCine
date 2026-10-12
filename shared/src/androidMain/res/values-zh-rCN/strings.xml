@@ -620,4 +620,16 @@
     <string name="auth_discovering">正在扫描本地网络…</string>
     <string name="auth_no_servers_found">在本地网络上找不到服务器</string>
     <string name="auth_discovered_servers">您网络上的服务器</string>
+    <string name="home_media_library">家庭视频和照片</string>
+    <string name="home_media_back">返回</string>
+    <string name="home_media_refresh">刷新</string>
+    <string name="home_media_load_error">无法加载此目录</string>
+    <string name="home_media_retry">重试</string>
+    <string name="home_media_empty">此目录为空</string>
+    <string name="home_media_more">加载更多</string>
+    <string name="home_media_previous">上一张照片</string>
+    <string name="home_media_next">下一张照片</string>
+    <string name="home_media_unsupported">暂不支持此条目</string>
+    <string name="home_other_videos">其他视频</string>
+    <string name="home_other_videos_empty">暂无家庭视频和照片媒体库</string>
 </resources>

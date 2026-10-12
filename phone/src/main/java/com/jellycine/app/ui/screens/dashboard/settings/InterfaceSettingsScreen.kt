@@ -112,15 +112,6 @@ fun InterfaceSettingsScreen(
         .collectAsStateWithLifecycle(
             initialValue = preferences.isShowReviewsEnabled()
         )
-    val seerrStudiosEnabled by preferences.SeerrStudiosEnabled()
-        .collectAsStateWithLifecycle(
-            initialValue = preferences.isSeerrStudiosEnabled()
-        )
-    val seerrNetworksEnabled by preferences.SeerrNetworksEnabled()
-        .collectAsStateWithLifecycle(
-            initialValue = preferences.isSeerrNetworksEnabled()
-        )
-
     BackHandler { onBackPressed() }
 
     Scaffold(
@@ -261,33 +252,7 @@ fun InterfaceSettingsScreen(
                     }
                 }
             }
-            item {
-                SettingsLabel(
-                    text = stringResource(R.string.interface_seerr_settings)
-                )
-                InterfaceSection {
-                    InterfaceSwitchItem(
-                        icon = Icons.Rounded.Business,
-                        title = stringResource(R.string.interface_seerr_studios),
-                        subtitle = stringResource(R.string.interface_seerr_studios_subtitle),
-                        checked = seerrStudiosEnabled,
-                        onCheckedChange = preferences::setSeerrStudiosEnabled,
-                        accentColor = Color(0xFFF97316)
-                    )
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                    )
-                    InterfaceSwitchItem(
-                        icon = Icons.Rounded.Tv,
-                        title = stringResource(R.string.interface_seerr_networks),
-                        subtitle = stringResource(R.string.interface_seerr_networks_subtitle),
-                        checked = seerrNetworksEnabled,
-                        onCheckedChange = preferences::setSeerrNetworksEnabled,
-                        accentColor = Color(0xFF06B6D4)
-                    )
-                }
-            }
+
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.jellycine.player.discord
 
 import android.app.Activity
+import com.jellycine.core.BuildConfig
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -64,13 +65,14 @@ class DiscordRpcManager private constructor(private val context: Context) {
     }
 
     fun initialize() {
+        if (!isAvailable()) return
         if (isInitialized) return
         if (!isDiscordInstalled()) return
         val accessToken = encryptedPrefs.getString(KEY_ACCESS_TOKEN, null)
         if (accessToken.isNullOrBlank()) return
         try {
             val activity = activityRef ?: return
-            com.discord.socialsdk.DiscordSocialSdkInit.setEngineActivity(activity)
+            DiscordSdkBridge.setEngineActivity(activity)
             System.loadLibrary("discord_bridge")
             isInitialized = nativeInitialize(APPLICATION_ID, accessToken)
         } catch (e: UnsatisfiedLinkError) {
@@ -79,6 +81,8 @@ class DiscordRpcManager private constructor(private val context: Context) {
             Log.e(TAG, "Discord SDK initialization error", e)
         }
     }
+
+    fun isAvailable(): Boolean = BuildConfig.DISCORD_RPC_AVAILABLE
 
     fun isDiscordInstalled(): Boolean {
         val packages = listOf("com.discord", "com.discord.rlz")
@@ -93,6 +97,7 @@ class DiscordRpcManager private constructor(private val context: Context) {
     }
 
     fun isAuthorized(): Boolean {
+        if (!isAvailable()) return false
         return !encryptedPrefs.getString(KEY_ACCESS_TOKEN, null).isNullOrBlank()
     }
 

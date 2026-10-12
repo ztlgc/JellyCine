@@ -24,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -37,9 +36,6 @@ import com.jellycine.app.ui.screens.auth.ProfileImageLoader
 import com.jellycine.app.ui.screens.auth.ServerSwitchDialogsHost
 import com.jellycine.app.ui.screens.auth.ServerSwitchViewModel
 import com.jellycine.app.ui.screens.auth.rememberServerSwitchDialogsState
-import com.jellycine.data.model.BaseItemDto
-import com.jellycine.data.model.SeerrItemIds
-import com.jellycine.data.model.SeerrRequestedItem
 import com.jellycine.shared.R
 import com.jellycine.data.network.sameServerUrl
 import com.jellycine.data.preferences.NetworkPreferences
@@ -52,13 +48,11 @@ fun Settings(
     onLogout: () -> Unit = {},
     onNavigateToPlayerSettings: () -> Unit = {},
     onNavigateToInterfaceSettings: () -> Unit = {},
-    onNavigateToConnections: () -> Unit = {},
     onNavigateToDownloads: () -> Unit = {},
     onNavigateToCacheSettings: () -> Unit = {},
     onNavigateToAbout: () -> Unit = {},
     onNavigateToServerInfo: () -> Unit = {},
     onNavigateToScreenTime: () -> Unit = {},
-    onNavigateToRequestedItem: (BaseItemDto) -> Unit = {},
     onAddServer: () -> Unit = {},
     onAddUser: (serverUrl: String, serverName: String?) -> Unit = { _, _ -> }
 ) {
@@ -92,10 +86,6 @@ fun Settings(
                 }
                     .thenBy { it.username.lowercase() }
             )
-    }
-
-    LaunchedEffect(uiState.activeServerId) {
-        viewModel.reloadSeerrConnection()
     }
 
     Scaffold(
@@ -137,7 +127,6 @@ fun Settings(
                     username = uiState.username ?: stringResource(R.string.settings_unknown_user),
                     serverName = uiState.serverName ?: stringResource(R.string.settings_unknown_server),
                     serverUrl = uiState.serverUrl,
-                    seerr = uiState.seerr,
                     serverTypeRaw = activeSavedServer?.serverTypeRaw,
                     profileImageUrl = uiState.profileImageUrl,
                     isAdministrator = uiState.isAdministrator,
@@ -146,8 +135,7 @@ fun Settings(
                     },
                     onServerClick = serverSwitchDialogsState::openServers,
                     onNavigateToDownloads = onNavigateToDownloads,
-                    onNavigateToServerInfo = onNavigateToServerInfo,
-                    onSeerrLimitClick = viewModel::loadSeerrRequestedItems
+                    onNavigateToServerInfo = onNavigateToServerInfo
                 )
             }
 
@@ -160,17 +148,7 @@ fun Settings(
                         accentColor = Color(0xFF22D3EE),
                         onClick = onNavigateToScreenTime
                     )
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                    )
-                    SettingsItem(
-                        icon = Icons.Rounded.Link,
-                        title = stringResource(R.string.settings_connections),
-                        subtitle = stringResource(R.string.settings_connections_subtitle),
-                        accentColor = Color(0xFF8B5CF6),
-                        onClick = onNavigateToConnections
-                    )
+
                 }
             }
 
@@ -359,17 +337,6 @@ fun Settings(
     }
 
 
-    if (uiState.seerrRequestedItems.mediaType != null) {
-        SeerrRequestedItemsDialog(
-            state = uiState.seerrRequestedItems,
-            onDismiss = viewModel::clearSeerrRequestedItems,
-            onItemClick = { item ->
-                viewModel.clearSeerrRequestedItems()
-                onNavigateToRequestedItem(item.toBaseItem())
-            }
-        )
-    }
-
     ServerSwitchDialogsHost(
         state = serverSwitchDialogsState,
         savedServers = uiState.savedServers,
@@ -403,15 +370,13 @@ private fun UserProfileSection(
     username: String,
     serverName: String,
     serverUrl: String?,
-    seerr: SeerrUiState,
     serverTypeRaw: String?,
     profileImageUrl: String?,
     isAdministrator: Boolean?,
     onUserClick: () -> Unit,
     onServerClick: () -> Unit,
     onNavigateToDownloads: () -> Unit,
-    onNavigateToServerInfo: () -> Unit,
-    onSeerrLimitClick: (String) -> Unit
+    onNavigateToServerInfo: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -598,163 +563,10 @@ private fun UserProfileSection(
                             modifier = Modifier.size(18.dp)
                         )
                     }
-
-                    val requestLimits = seerr.requestLimits
-                    if (
-                        requestLimits != null &&
-                        (seerr.status == SeerrConnectionStatus.CONNECTED ||
-                            seerr.status == SeerrConnectionStatus.CHECKING)
-                    ) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(vertical = 10.dp),
-                            thickness = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
-                        )
-
-                        SeerrRequestLimitsRow(
-                            requestLimits = requestLimits,
-                            onLimitClick = onSeerrLimitClick
-                        )
-                    }
                 }
             }
         }
     }
-}
-
-@Composable
-private fun SeerrRequestLimitsRow(
-    requestLimits: com.jellycine.data.model.SeerrUserRequestLimits,
-    onLimitClick: (String) -> Unit
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Link,
-                contentDescription = null,
-                tint = Color(0xFF10B981),
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = stringResource(R.string.settings_seerr_request_limits),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            SeerrLimitStat(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Rounded.LocalMovies,
-                accentColor = Color(0xFFF59E0B),
-                label = stringResource(R.string.settings_seerr_movie_limit),
-                value = formatSeerrLimit(
-                    limit = requestLimits.movieQuotaLimit,
-                    days = requestLimits.movieQuotaDays
-                ),
-                onClick = { onLimitClick("movie") }
-            )
-            SeerrLimitStat(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Rounded.LiveTv,
-                accentColor = Color(0xFF06B6D4),
-                label = stringResource(R.string.settings_seerr_tv_limit),
-                value = formatSeerrLimit(
-                    limit = requestLimits.tvQuotaLimit,
-                    days = requestLimits.tvQuotaDays
-                ),
-                onClick = { onLimitClick("tv") }
-            )
-        }
-    }
-}
-
-@Composable
-private fun SeerrLimitStat(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    accentColor: Color,
-    label: String,
-    value: String,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        color = accentColor.copy(alpha = 0.1f),
-        border = BorderStroke(1.dp, accentColor.copy(alpha = 0.18f))
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f)
-                )
-            }
-            Text(
-                text = value,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    }
-}
-
-@Composable
-private fun formatSeerrLimit(limit: Int?, days: Int?): String {
-    if (limit == null || limit <= 0) {
-        return stringResource(R.string.settings_seerr_unlimited)
-    }
-
-    val requestCount = pluralStringResource(
-        R.plurals.settings_seerr_requests_count,
-        limit,
-        limit
-    )
-
-    return if (days != null && days > 0) {
-        stringResource(R.string.settings_seerr_limit_every_days, requestCount, days)
-    } else {
-        requestCount
-    }
-}
-
-private fun SeerrRequestedItem.toBaseItem(): BaseItemDto {
-    return BaseItemDto(
-        id = localItemId ?: SeerrItemIds.detailId(tmdbId, mediaType),
-        name = title,
-        type = if (mediaType.equals("tv", ignoreCase = true)) "Series" else "Movie",
-        providerIds = mapOf("tmdb" to tmdbId),
-        productionYear = productionYear,
-        imageUrl = posterUrl
-    )
 }
 
 @Composable

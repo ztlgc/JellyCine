@@ -19,12 +19,6 @@ kotlin {
         }
     }
 
-    if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
-        iosX64()
-        iosArm64()
-        iosSimulatorArm64()
-    }
-
     sourceSets {
         androidMain {
             kotlin.srcDirs = ['src/androidMain']
@@ -32,6 +26,7 @@ kotlin {
                 implementation project(':data')
 
                 implementation 'androidx.core:core-ktx:1.19.1'
+                implementation 'androidx.activity:activity-compose:1.13.0'
                 implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0'
 
                 implementation dependencies.platform('androidx.compose:compose-bom:2026.09.00')
@@ -56,13 +51,6 @@ kotlin {
             }
         }
 
-        if (org.gradle.internal.os.OperatingSystem.current().isMacOsX()) {
-            iosMain {
-                kotlin.srcDirs = ['src/iosMain']
-                dependencies {
-                    implementation project(':data')
-                }
-            }
-        }
+
     }
 }
