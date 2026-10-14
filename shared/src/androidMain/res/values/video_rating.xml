@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_rating_action">Rate</string>
+    <string name="video_rating_value">My rating: %1$d/10</string>
+    <string name="video_rating_title">Rate this video</string>
+    <string name="video_rating_local">Choose 1–10. Your rating is saved on this device.</string>
+    <string name="video_rating_save">Save</string>
+    <string name="video_rating_cancel">Cancel</string>
+    <string name="video_rating_save_error">Could not save your rating. Try again.</string>
+</resources>

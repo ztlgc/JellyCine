@@ -20,6 +20,7 @@
 
     <!-- Media playback permissions -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <!-- File permissions for log sharing -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"

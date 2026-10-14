@@ -15,10 +15,32 @@ import com.jellycine.player.preferences.PlayerPreferences.Companion.DECODER_PRIO
  */
 @UnstableApi
 class HardwareAcceleration(
-    context: Context
+    context: Context,
+    private val audioGainProcessor: com.jellycine.player.audio.AudioGainProcessor? = null
 ) : DefaultRenderersFactory(context) {
     
     private val playerPreferences = PlayerPreferences(context)
+
+    override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioOutputPlaybackParams: Boolean): androidx.media3.exoplayer.audio.AudioSink? {
+        val processor = audioGainProcessor ?: return super.buildAudioSink(context, enableFloatOutput, enableAudioOutputPlaybackParams)
+        val sink = androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context)
+            .setEnableFloatOutput(false)
+            .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParams)
+            .setAudioProcessors(arrayOf(processor))
+            .build()
+        // Passthrough and offload bypass PCM processors; require decoding for this player.
+        return object : androidx.media3.exoplayer.audio.AudioSink by sink {
+            override fun supportsFormat(format: androidx.media3.common.Format): Boolean =
+                format.sampleMimeType == androidx.media3.common.MimeTypes.AUDIO_RAW && sink.supportsFormat(format)
+
+            override fun getFormatSupport(format: androidx.media3.common.Format): Int =
+                if (format.sampleMimeType == androidx.media3.common.MimeTypes.AUDIO_RAW) sink.getFormatSupport(format)
+                else androidx.media3.exoplayer.audio.AudioSink.SINK_FORMAT_UNSUPPORTED
+
+            override fun getFormatOffloadSupport(format: androidx.media3.common.Format): androidx.media3.exoplayer.audio.AudioOffloadSupport =
+                androidx.media3.exoplayer.audio.AudioOffloadSupport.DEFAULT_UNSUPPORTED
+        }
+    }
     
     companion object {
         private const val TAG = "HardwareAcceleration"

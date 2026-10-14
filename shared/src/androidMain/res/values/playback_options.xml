@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="player_control_back">Back</string>
+    <string name="player_control_unlock">Unlock</string>
+    <string name="player_control_lock">Lock</string>
+    <string name="player_control_rewind">Rewind %1$d seconds</string>
+    <string name="player_control_forward">Forward %1$d seconds</string>
+    <string name="player_control_pause">Pause</string>
+    <string name="player_control_play">Play</string>
+    <string name="player_speed_slower">Slower</string>
+    <string name="player_speed_faster">Faster</string>
+    <string name="player_control_audio">Audio tracks</string>
+    <string name="player_control_subtitles">Subtitles</string>
+    <string name="player_speed_title">Playback speed</string>
+    <string name="player_gain_title">Audio gain</string>
+    <string name="player_control_settings">Playback settings</string>
+    <string name="player_control_info">Media information</string>
+    <string name="player_control_close">Close</string>
+    <string name="player_gain_off">Off</string>
+    <string name="player_gain_unavailable">Gain is unavailable for the current device or audio output</string>
+    <string name="player_control_rotate">Switch orientation</string>
+    <string name="player_control_aspect">Aspect ratio</string>
+    <string name="player_control_more">More</string>
+    <string name="dashboard_recent_watching">Recently watched</string>
+    <string name="dashboard_library_more">More</string>
+    <string name="dashboard_recent_watching_empty">No watch history yet</string>
+    <string name="dashboard_video_watched">Watched</string>
+    <string name="dashboard_video_remaining">Remaining: %1$s</string>
+</resources>

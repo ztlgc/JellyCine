@@ -21,6 +21,7 @@ import com.jellycine.data.model.UserDto
 import com.jellycine.data.network.ApiResponse
 
 interface MediaServerApi {
+    suspend fun deleteItem(itemId: String): ApiResponse<Unit>
 
     suspend fun getPublicSystemInfo(): ApiResponse<ServerInfo>
 
@@ -221,7 +222,8 @@ interface MediaServerApi {
         includeItemTypes: String? = "Movie,Series",
         recursive: Boolean = true,
         limit: Int? = 50,
-        fields: String? = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview"
+        fields: String? = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview",
+        mediaTypes: String? = null
     ): ApiResponse<QueryResult<BaseItemDto>>
 
     suspend fun searchItemsByName(
@@ -230,7 +232,8 @@ interface MediaServerApi {
         includeItemTypes: String? = "Movie,Series",
         recursive: Boolean = true,
         limit: Int? = 50,
-        fields: String? = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview"
+        fields: String? = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview",
+        mediaTypes: String? = null
     ): ApiResponse<QueryResult<BaseItemDto>>
 
     suspend fun reportPlaybackStart(request: PlaybackStartRequest): ApiResponse<Unit>

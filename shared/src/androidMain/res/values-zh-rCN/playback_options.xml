@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="player_control_back">返回</string>
+    <string name="player_control_unlock">解锁</string>
+    <string name="player_control_lock">锁定</string>
+    <string name="player_control_rewind">后退 %1$d 秒</string>
+    <string name="player_control_forward">前进 %1$d 秒</string>
+    <string name="player_control_pause">暂停</string>
+    <string name="player_control_play">播放</string>
+    <string name="player_speed_slower">降低倍速</string>
+    <string name="player_speed_faster">提高倍速</string>
+    <string name="player_control_audio">音轨</string>
+    <string name="player_control_subtitles">字幕</string>
+    <string name="player_speed_title">播放倍速</string>
+    <string name="player_gain_title">音量增益</string>
+    <string name="player_control_settings">播放设置</string>
+    <string name="player_control_info">媒体信息</string>
+    <string name="player_control_close">关闭</string>
+    <string name="player_gain_off">关闭增益</string>
+    <string name="player_gain_unavailable">当前设备或音频输出不支持增益</string>
+    <string name="player_control_rotate">横竖屏切换</string>
+    <string name="player_control_aspect">画面比例</string>
+    <string name="player_control_more">更多</string>
+    <string name="dashboard_recent_watching">最近观看</string>
+    <string name="dashboard_library_more">更多</string>
+    <string name="dashboard_recent_watching_empty">暂无观看记录</string>
+    <string name="dashboard_video_watched">已看完</string>
+    <string name="dashboard_video_remaining">剩余：%1$s</string>
+</resources>

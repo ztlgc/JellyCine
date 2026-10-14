@@ -43,6 +43,7 @@ import com.jellycine.data.model.MediaStream
 import com.jellycine.data.model.MediaUrl
 import com.jellycine.data.model.SeerrRequestState
 import com.jellycine.data.model.UserItemDataDto
+import com.jellycine.data.preferences.VideoRatingStore
 import com.jellycine.data.repository.AuthRepositoryProvider
 import com.jellycine.data.repository.MediaRepositoryProvider
 import com.jellycine.detail.CodecUtils
@@ -51,6 +52,9 @@ import com.jellycine.shared.ui.components.common.buildInlineText
 import com.jellycine.shared.ui.components.common.buildLocalVersionEntries
 import com.jellycine.shared.ui.components.common.OverviewSection
 import com.jellycine.shared.ui.components.common.SeerrRequestButtonRow
+import com.jellycine.shared.ui.components.common.DetailDownloadActionButton
+import com.jellycine.shared.ui.components.common.DetailDownloadActionState
+import com.jellycine.app.ui.components.common.DownloadActionMenu
 import com.jellycine.shared.ui.components.common.WatchedActionButton
 import com.jellycine.shared.ui.components.common.selectedVideoOption
 import com.jellycine.app.ui.components.common.BackButton
@@ -108,6 +112,7 @@ fun DetailContent(
     val downloadRepository = remember { DownloadRepositoryProvider.getInstance(context) }
     val playerPreferences = remember { PlayerPreferences(context) }
     val preferences = remember { Preferences(context) }
+    val videoRatingStore = remember(context) { VideoRatingStore(context) }
     val coroutineScope = rememberCoroutineScope()
     val castPlaybackState by CastController.playbackState.collectAsState()
     val userDataRefreshEvent by UserDataRefreshSignals.refreshEvent.collectAsState()
@@ -328,18 +333,27 @@ fun DetailContent(
         seriesDownload.pausedItemIds.size
     ) { mutableStateOf(false) }
 
+    var favoriteSaving by remember(item.id) { mutableStateOf(false) }
+
     fun toggleFavorite() {
         if (isSeerDetail) return
+        if (favoriteSaving) return
         val currentItemId = item.id ?: return
         val targetState = !isFavorite
+        favoriteSaving = true
         coroutineScope.launch {
-            val result = mediaRepository.setFavoriteStatus(
-                itemId = currentItemId,
-                isFavorite = targetState
-            )
-            if (result.isSuccess) {
-                isFavorite = targetState
-            }
+            try {
+                val result = mediaRepository.setFavoriteStatus(
+                    itemId = currentItemId,
+                    isFavorite = targetState
+                )
+                if (result.isSuccess) {
+                    isFavorite = targetState
+                    UserDataRefreshSignals.notifyUserDataChanged(currentItemId)
+                } else {
+                    android.widget.Toast.makeText(context, context.getString(R.string.video_detail_favorite_failed), android.widget.Toast.LENGTH_LONG).show()
+                }
+            } finally { favoriteSaving = false }
         }
     }
 
@@ -698,6 +712,101 @@ fun DetailContent(
         }
     }
 
+    fun downloadVideo() {
+        if (isSyncTranscodingAllowed) {
+            showDownloadQualityPicker = true
+        } else {
+            coroutineScope.launch {
+                downloadRepository.enqueueItemDownload(
+                    item, TranscodeProfile("Original", null, null), null
+                ).onFailure { throwable ->
+                    downloadErrorDialogMessage = downloadFailure(rawMessage = throwable.message)
+                }
+            }
+        }
+    }
+
+    if (item.type.equals("Video", ignoreCase = true) && !isSeerDetail) {
+        VideoDetailContent(
+            item = item,
+            imageUrl = backdropImageUrl,
+            streams = effectiveMediaStreams,
+            isFavorite = isFavorite,
+            isWatched = isWatched,
+            playButtonText = playButtonText,
+            resumeProgress = if (isPartiallyWatched) resumeProgress else 0f,
+            onBack = onBackPressed,
+            onFavorite = ::toggleFavorite,
+            onWatched = ::toggleWatched,
+            favoriteSaving = favoriteSaving,
+            canDelete = item.canDelete != false && !item.id.isNullOrBlank() && !activeServerId.isNullOrBlank(),
+            onDelete = {
+                val operation = mediaRepository.prepareVideoDeletion(item, activeServerId)
+                if (operation != null && activeServerId != null && item.id != null) {
+                    BackgroundVideoDeletion.submit(context, activeServerId!!, item.id!!, item.name.orEmpty(), operation)
+                    onBackPressed()
+                } else {
+                    android.widget.Toast.makeText(context, context.getString(R.string.video_detail_delete_unavailable), android.widget.Toast.LENGTH_LONG).show()
+                }
+            },
+            onPlay = {
+                val (audio, subtitle) = persistTrackSelection(selectedAudio, selectedSubtitle)
+                onPlayClick(audio, subtitle)
+            },
+            onImageError = onBackdropLoadError,
+            rating = {
+                VideoRatingSection(sessionId = activeServerId, itemId = item.id, store = videoRatingStore)
+            },
+            tracks = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    VideoTrackChip(displayedSelectedVideo, videoOptions, Icons.Rounded.Videocam, onVideoOptionSelected)
+                    VideoTrackChip(selectedAudio, audioOptions, Icons.Rounded.MusicNote, onAudioOptionSelected, highlighted = true)
+                    if (subtitleOptions.size > 1) {
+                        VideoTrackChip(selectedSubtitle, subtitleOptions, Icons.Rounded.Subtitles, onSubtitleOptionSelected)
+                    }
+                }
+            },
+            downloadAction = {
+                Box {
+                    DetailDownloadActionButton(
+                        state = when {
+                            !canDownloadItem -> DetailDownloadActionState.Unavailable
+                            itemDownloadState.status == DownloadStatus.COMPLETED -> DetailDownloadActionState.Completed
+                            itemDownloadState.status == DownloadStatus.DOWNLOADING -> DetailDownloadActionState.Downloading
+                            isPausedDownload -> DetailDownloadActionState.Paused
+                            itemDownloadState.status == DownloadStatus.QUEUED -> DetailDownloadActionState.Queued
+                            else -> DetailDownloadActionState.Idle
+                        },
+                        progress = animatedDownloadProgress,
+                        iconOnly = true,
+                        modifier = Modifier.size(52.dp),
+                        onClick = {
+                            if (canDownloadItem) {
+                                if (hasActiveDownload) downloadActionMenu = true else downloadVideo()
+                            }
+                        }
+                    )
+                    DownloadActionMenu(
+                        expanded = downloadActionMenu,
+                        canResume = isPausedDownload,
+                        hasActiveDownloads = hasActiveDownload,
+                        onDismissRequest = { downloadActionMenu = false },
+                        onPauseResume = {
+                            downloadActionMenu = false
+                            item.id?.let { id ->
+                                if (isPausedDownload) downloadRepository.resumeDownload(id)
+                                else downloadRepository.pauseDownload(id)
+                            }
+                        },
+                        onCancel = {
+                            downloadActionMenu = false
+                            item.id?.let(downloadRepository::cancelDownload)
+                        }
+                    )
+                }
+            }
+        )
+    } else {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1118,20 +1227,7 @@ fun DetailContent(
                                     )
                                 },
                                 onTrailerClick = ::playTrailer,
-                                onDownloadClick = {
-                                    if (isSyncTranscodingAllowed) {
-                                        showDownloadQualityPicker = true
-                                    } else {
-                                        coroutineScope.launch {
-                                            downloadRepository.enqueueItemDownload(
-                                                item, TranscodeProfile("Original", null, null), null
-                                            ).onFailure { throwable ->
-                                                downloadErrorDialogMessage =
-                                                    downloadFailure(rawMessage = throwable.message)
-                                            }
-                                        }
-                                    }
-                                },
+                                onDownloadClick = ::downloadVideo,
                                 onDownloadMenuChange = { expanded ->
                                     downloadActionMenu = expanded
                                 },
@@ -1391,6 +1487,8 @@ fun DetailContent(
                 modifier = Modifier.align(Alignment.TopEnd)
             )
         }
+    }
+
     }
 
     Dialogs(

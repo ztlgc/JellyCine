@@ -17,6 +17,8 @@ data class PersistedHomeSnapshot(
     val nextUpItems: List<BaseItemDto>? = null,
     val homeLibrarySections: List<HomeLibrarySectionData>,
     val myMediaLibraries: List<BaseItemDto>? = null,
+    val recentWatchingItems: List<BaseItemDto>? = null,
+    val recentOtherVideoItems: List<BaseItemDto>? = null,
     val username: String? = null,
     val serverName: String? = null,
     val serverUrl: String? = null,

@@ -18,6 +18,29 @@
 `androidAbis` 可以指定以逗号分隔的 ABI；省略参数时保留上游原有的全部 ABI 配置。
 构建使用仓库指定的 Gradle、JDK 17 或更高版本及 Android SDK 37。
 
+## 正式版签名和打包
+
+在根目录配置本机的 `keystore.properties`，四个必填字段为 `storeFile`、`storePassword`、`keyAlias`、`keyPassword`。`storeFile` 的相对路径基于 `phone/`，例如 `jellycine-release.keystore` 对应 `phone/jellycine-release.keystore`。
+
+也可使用环境变量 `JELLYCINE_STORE_FILE`、`JELLYCINE_STORE_PASSWORD`、`JELLYCINE_KEY_ALIAS`、`JELLYCINE_KEY_PASSWORD`。项目已有正式密钥时必须沿用原密钥。
+
+```powershell
+.\gradlew.bat :phone:assembleRelease -PandroidAbis=arm64-v8a --console=plain
+```
+
+正式 APK 输出到 `phone/build/outputs/apk/release/`。构建会在编译前检查签名配置是否完整、密钥文件是否存在。
+
+密钥文件和 `keystore.properties` 已被 Git 忽略。需要单独备份密钥及密码，后续覆盖升级使用同一签名；新正式密钥签名的 APK 不能直接覆盖不同签名的旧包。
+
+### 正式包验证（2026-10-13）
+
+- ARM64 release APK：`artifacts/JellyCine_1.3.6_arm64_release.apk`。
+- 包名 `com.jellycine.app`，版本 `1.3.6`，versionCode `26`，最低 Android API `27`，targetSdk `36`。
+- APK v2 签名、证书与本地发布密钥匹配、ZIP 完整性和 ARM64 原生库检查通过。
+- SHA-256：`906c0476765c24c5dbf1221df49cdbbc05540cd6c350ec2954dd7272f68647f3`。
+- release 构建与现有 23 项手机端单元测试通过；签名配置缺失时的提前报错检查通过。
+- 尚未进行设备安装、真实服务器及播放验收。编译中的弃用警告不代表构建失败。
+
 ## 可选 Discord SDK
 
 `core/libs/discord_partner_sdk.aar` 是可选的本地依赖：

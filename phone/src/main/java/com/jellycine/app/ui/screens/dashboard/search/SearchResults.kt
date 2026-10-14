@@ -211,6 +211,23 @@ fun SearchResultsView(
             }
         }
         
+        if (uiState.videoResults.isNotEmpty()) {
+            item {
+                Text(
+                    text = stringResource(R.string.home_other_videos),
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            items(uiState.videoResults) { video ->
+                VideoResultCard(
+                    item = video,
+                    onItemClick = { onItemClick(video) }
+                )
+            }
+        }
+
         // Episodes Section
         if (uiState.episodeResults.isNotEmpty()) {
             item {
@@ -224,7 +241,7 @@ fun SearchResultsView(
             }
             
             items(uiState.episodeResults) { episode ->
-                EpisodeResultCard(
+                VideoResultCard(
                     item = episode,
                     onItemClick = { onItemClick(episode) }
                 )
@@ -304,7 +321,7 @@ private fun SearchResultCard(
 }
 
 @Composable
-private fun EpisodeResultCard(
+private fun VideoResultCard(
     item: BaseItemDto,
     onItemClick: () -> Unit
 ) {
@@ -368,7 +385,11 @@ private fun EpisodeResultCard(
             Spacer(modifier = Modifier.height(4.dp))
             
             Text(
-                text = item.episodeDisplaySubtitle(fallback = unknownEpisode),
+                text = if (item.type.equals("Episode", ignoreCase = true)) {
+                    item.episodeDisplaySubtitle(fallback = unknownEpisode)
+                } else {
+                    item.getYearAndGenre()
+                },
                 color = Color.Gray,
                 fontSize = 13.sp,
                 maxLines = 1,

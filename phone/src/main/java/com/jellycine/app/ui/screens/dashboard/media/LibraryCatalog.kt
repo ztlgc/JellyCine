@@ -74,8 +74,9 @@ internal fun sortLibrary(items: List<BaseItemDto>, sort: LibrarySort, descending
     val stable = compareBy<BaseItemDto> { it.sortName ?: it.name.orEmpty() }.thenBy { it.id.orEmpty() }
     if (sort == LibrarySort.RANDOM) return items.sortedWith(stable).shuffled(Random(seed))
     fun value(item: BaseItemDto): Comparable<*>? {
-        val video = (item.mediaStreams.orEmpty() + item.mediaSources.orEmpty().flatMap { it.mediaStreams.orEmpty() })
-            .filter { it.type.equals("Video", true) }
+        val video = if (sort == LibrarySort.BITRATE || sort == LibrarySort.RESOLUTION)
+            (item.mediaStreams.orEmpty() + item.mediaSources.orEmpty().flatMap { it.mediaStreams.orEmpty() })
+                .filter { it.type.equals("Video", true) } else emptyList()
         return when (sort) {
             LibrarySort.CREATED -> item.dateCreated?.let { runCatching { OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() }
             LibrarySort.COMMUNITY -> item.communityRating

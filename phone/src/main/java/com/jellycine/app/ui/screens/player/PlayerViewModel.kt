@@ -460,7 +460,8 @@ class PlayerViewModel @Inject constructor(
                     }
                 } else {
                     exoPlayer = PlayerUtils.createPlayer(
-                        context = context
+                        context = context,
+                        audioGainProcessor = createAudioGainProcessor(context)
                     )
                     exoPlayer?.apply {
                         addListener(playerListener)
@@ -596,7 +597,8 @@ class PlayerViewModel @Inject constructor(
                         maxBufferMs = 180_000,
                         bufferForPlaybackMs = 2_500,
                         bufferForPlaybackAfterRebufferMs = 5_000
-                    )
+                    ),
+                    audioGainProcessor = createAudioGainProcessor(context)
                 )
                 exoPlayer?.apply {
                     addListener(playerListener)
@@ -1027,6 +1029,43 @@ class PlayerViewModel @Inject constructor(
         _playerState.value = _playerState.value.copy(volume = volume)
     }
 
+    private var audioGainProcessor: com.jellycine.player.audio.AudioGainProcessor? = null
+
+    private fun createAudioGainProcessor(context: Context): com.jellycine.player.audio.AudioGainProcessor =
+        com.jellycine.player.audio.AudioGainProcessor().also {
+            it.setGainPercent(PlayerPreferences(context).getAudioGainPercent())
+            audioGainProcessor = it
+        }
+
+    fun setPlaybackSpeed(speed: Float) {
+        val valid = com.jellycine.player.core.PlaybackOptions.validSpeed(speed)
+        playerContext?.let { PlayerPreferences(it).setPlaybackSpeed(valid) }
+        exoPlayer?.setPlaybackSpeed(valid)
+        mpvPlayer?.setPlaybackSpeed(valid)
+        _playerState.value = _playerState.value.copy(playbackSpeed = valid)
+    }
+
+    fun setAudioGainPercent(percent: Int) {
+        val valid = com.jellycine.player.core.PlaybackOptions.validGain(percent)
+        playerContext?.let { PlayerPreferences(it).setAudioGainPercent(valid) }
+        _playerState.value = _playerState.value.copy(audioGainPercent = valid)
+        applyAudioGain()
+    }
+
+    private fun restorePlaybackOptions() {
+        val preferences = playerContext?.let { PlayerPreferences(it) } ?: return
+        setPlaybackSpeed(preferences.getPlaybackSpeed())
+        setAudioGainPercent(preferences.getAudioGainPercent())
+    }
+
+    private fun applyAudioGain() {
+        val percent = _playerState.value.audioGainPercent
+        audioGainProcessor?.setGainPercent(percent)
+        val available = mpvPlayer?.setAudioGainPercent(percent) ?:
+            (exoPlayer != null && audioGainProcessor != null)
+        _playerState.value = _playerState.value.copy(audioGainAvailable = available)
+    }
+
     fun setBrightness(brightness: Float) {
         _playerState.value = _playerState.value.copy(brightness = brightness)
     }
@@ -1036,6 +1075,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun releasePlayer() {
+        audioGainProcessor = null
         persistPosition()
         playbackReporter.reportPlaybackStopped()
         cancelNextEpisodePrefetch()
@@ -1230,6 +1270,7 @@ class PlayerViewModel @Inject constructor(
             }
 
             override fun onReady() {
+                restorePlaybackOptions()
                 val wasPlaying = _playerState.value.isPlaying
                 _playerState.value = _playerState.value.copy(
                     isLoading = false,
@@ -1447,6 +1488,10 @@ class PlayerViewModel @Inject constructor(
     }
 
     private val playerListener = object : Player.Listener {
+        override fun onAudioSessionIdChanged(audioSessionId: Int) {
+            restorePlaybackOptions()
+        }
+
         override fun onTracksChanged(tracks: Tracks) {
             applyPendingTrackSelectionsIfNeeded()
             updateTrackInformation()
@@ -1485,6 +1530,7 @@ class PlayerViewModel @Inject constructor(
             }
 
             if (playbackState == Player.STATE_READY) {
+                restorePlaybackOptions()
                 hasHandledPlaybackCompletion = false
                 applyPendingTrackSelectionsIfNeeded()
                 updateTrackInformation()

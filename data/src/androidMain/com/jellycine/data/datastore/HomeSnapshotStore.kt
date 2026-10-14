@@ -48,6 +48,8 @@ class HomeSnapshotStore(
         snapshotKey: String,
         featuredHomeItems: List<BaseItemDto>? = null,
         continueWatchingItems: List<BaseItemDto>? = null,
+        recentWatchingItems: List<BaseItemDto>? = null,
+        recentOtherVideoItems: List<BaseItemDto>? = null,
         nextUpItems: List<BaseItemDto>? = null,
         homeLibrarySections: List<HomeLibrarySectionData>? = null,
         myMediaLibraries: List<BaseItemDto>? = null,
@@ -71,6 +73,8 @@ class HomeSnapshotStore(
                         updatedAt = System.currentTimeMillis(),
                         featuredHomeItems = featuredHomeItems ?: sameSessionSnapshot?.featuredHomeItems.orEmpty(),
                         continueWatchingItems = continueWatchingItems ?: sameSessionSnapshot?.continueWatchingItems.orEmpty(),
+                        recentWatchingItems = recentWatchingItems ?: sameSessionSnapshot?.recentWatchingItems,
+                        recentOtherVideoItems = recentOtherVideoItems ?: sameSessionSnapshot?.recentOtherVideoItems,
                         nextUpItems = nextUpItems ?: sameSessionSnapshot?.nextUpItems.orEmpty(),
                         homeLibrarySections = homeLibrarySections ?: sameSessionSnapshot?.homeLibrarySections.orEmpty(),
                         myMediaLibraries = myMediaLibraries ?: sameSessionSnapshot?.myMediaLibraries.orEmpty(),
@@ -88,6 +92,24 @@ class HomeSnapshotStore(
                     )
                     writeSnapshotAtomically(file, next)
                 }
+            }
+        }
+    }
+
+    suspend fun removeItem(expectedSnapshotKey: String, itemId: String) {
+        withContext(Dispatchers.IO) {
+            homeSnapshotMutex.withLock {
+                val file = getHomeSnapshotFile()
+                val existing = readSnapshot(file)?.takeIf { it.snapshotKey == expectedSnapshotKey } ?: return@withLock
+                fun List<BaseItemDto>.withoutItem() = filterNot { it.id == itemId }
+                writeSnapshotAtomically(file, existing.copy(
+                    featuredHomeItems = existing.featuredHomeItems.withoutItem(),
+                    continueWatchingItems = existing.continueWatchingItems.withoutItem(),
+                    recentWatchingItems = existing.recentWatchingItems?.withoutItem(),
+                    recentOtherVideoItems = existing.recentOtherVideoItems?.withoutItem(),
+                    nextUpItems = existing.nextUpItems?.withoutItem(),
+                    homeLibrarySections = existing.homeLibrarySections.map { it.copy(items = it.items.withoutItem()) }
+                ))
             }
         }
     }

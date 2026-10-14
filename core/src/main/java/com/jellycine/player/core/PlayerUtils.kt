@@ -61,7 +61,8 @@ object PlayerUtils {
     @UnstableApi
     fun createPlayer(
         context: Context,
-        bufferOverride: PlaybackBufferOverride? = null
+        bufferOverride: PlaybackBufferOverride? = null,
+        audioGainProcessor: com.jellycine.player.audio.AudioGainProcessor? = null
     ): ExoPlayer {
         val playerPreferences = PlayerPreferences(context)
 
@@ -78,7 +79,7 @@ object PlayerUtils {
             val audioAttributes = audioAttributesBuilder.build()
 
             // Create hardware acceleration
-            val renderersFactory = HardwareAcceleration(context)
+            val renderersFactory = HardwareAcceleration(context, audioGainProcessor)
             
             val playerBuilder = ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory) // Use custom factory with fallback support

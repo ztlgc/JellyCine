@@ -59,6 +59,7 @@ import com.jellycine.app.ui.screens.dashboard.home.LibraryItemCard
 import com.jellycine.app.ui.screens.dashboard.home.UserProfileAvatar
 import com.jellycine.app.ui.screens.dashboard.media.ContentType
 import com.jellycine.shared.R
+import com.jellycine.shared.playback.UserDataRefreshSignals
 import com.jellycine.data.model.BaseItemDto
 import com.jellycine.data.repository.AuthRepositoryProvider
 import com.jellycine.data.repository.MediaRepository
@@ -100,14 +101,17 @@ fun Favorites(
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var refreshKey by remember { mutableIntStateOf(0) }
+    val refreshEvent by UserDataRefreshSignals.refreshEvent.collectAsState()
+    val deletedItems by UserDataRefreshSignals.deletedItems.collectAsState()
+    val deletedIds = deletedItems[sessionSnapshot.activeServerId].orEmpty()
 
-    LaunchedEffect(refreshKey) {
+    LaunchedEffect(refreshKey, refreshEvent, sessionSnapshot.activeServerId) {
         isLoading = true
         error = null
         val result = withContext(Dispatchers.IO) { mediaRepository.getFavoriteItems() }
         result.fold(
             onSuccess = { queryResult ->
-                favorites = queryResult.items.orEmpty()
+                favorites = queryResult.items.orEmpty().filterNot { it.id in deletedIds }
                 isLoading = false
             },
             onFailure = { throwable ->
@@ -121,10 +125,12 @@ fun Favorites(
     val movies = remember(favorites) { favorites.filter { it.type == "Movie" } }
     val shows = remember(favorites) { favorites.filter { it.type == "Series" } }
     val episodes = remember(favorites) { favorites.filter { it.type == "Episode" } }
+    val videos = remember(favorites, deletedIds) { favorites.filter { it.type.equals("Video", true) && it.id !in deletedIds } }
 
     val moviesTitle = stringResource(R.string.movies)
     val showsTitle = stringResource(R.string.search_results_shows)
     val episodesTitle = stringResource(R.string.search_results_episodes)
+    val videosTitle = stringResource(R.string.home_other_videos)
 
     Box(
         modifier = Modifier
@@ -264,6 +270,14 @@ fun Favorites(
                                 },
                                 onItemClick = onItemClick
                             )
+                        }
+                    }
+                    if (videos.isNotEmpty()) {
+                        item(key = "section_videos") {
+                            FavoriteSection(title = videosTitle, items = videos, mediaRepository = mediaRepository,
+                                isEpisodes = true,
+                                onViewAllClick = { onNavigateToViewAll(ContentType.HOME_MEDIA, FAVORITES_VIEW_ALL_PARENT_ID, videosTitle) },
+                                onItemClick = onItemClick)
                         }
                     }
                 }

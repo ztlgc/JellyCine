@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_rating_action">评分</string>
+    <string name="video_rating_value">我的评分：%1$d/10</string>
+    <string name="video_rating_title">为视频评分</string>
+    <string name="video_rating_local">请选择 1–10 分，评分保存在本机。</string>
+    <string name="video_rating_save">保存</string>
+    <string name="video_rating_cancel">取消</string>
+    <string name="video_rating_save_error">评分保存失败，请重试。</string>
+</resources>

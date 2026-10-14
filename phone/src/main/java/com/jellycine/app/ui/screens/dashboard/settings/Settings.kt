@@ -46,6 +46,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun Settings(
     onLogout: () -> Unit = {},
+    onBackPressed: (() -> Unit)? = null,
     onNavigateToPlayerSettings: () -> Unit = {},
     onNavigateToInterfaceSettings: () -> Unit = {},
     onNavigateToDownloads: () -> Unit = {},
@@ -92,6 +93,13 @@ fun Settings(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.settings)) },
+                navigationIcon = {
+                    if (onBackPressed != null) {
+                        IconButton(onClick = onBackPressed) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.cd_back_button))
+                        }
+                    }
+                },
                 actions = {
                     IconButton(onClick = { openAppLanguageSettings(context) }) {
                         Icon(

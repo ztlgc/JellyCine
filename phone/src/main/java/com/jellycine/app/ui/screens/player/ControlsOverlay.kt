@@ -9,6 +9,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -86,401 +88,176 @@ fun ControlsOverlay(
     canPlayNextEpisode: Boolean = false,
     onPlayPreviousEpisode: () -> Unit = {},
     onPlayNextEpisode: () -> Unit = {},
-    onScrubStateChange: (Boolean) -> Unit = {}
+    onScrubStateChange: (Boolean) -> Unit = {},
+    playbackSpeed: Float = 1f,
+    audioGainPercent: Int = 0,
+    audioGainAvailable: Boolean = false,
+    onPlaybackSpeedChange: (Float) -> Unit = {},
+    onAudioGainChange: (Int) -> Unit = {},
+    onToggleOrientation: () -> Unit = {}
 ) {
-    val context = LocalContext.current
     var scrubPreviewProgress by remember { mutableStateOf<Float?>(null) }
-    val overlayGradient = remember {
-        Brush.verticalGradient(
-            listOf(
-                Color.Black.copy(alpha = 0.7f),
-                Color.Transparent,
-                Color.Transparent,
-                Color.Black.copy(alpha = 0.8f)
-            )
-        )
+    var optionsMenu by remember { mutableStateOf(false) }
+    var speedDialog by remember { mutableStateOf(false) }
+    var gainDialog by remember { mutableStateOf(false) }
+    val latestScrubCallback by rememberUpdatedState(onScrubStateChange)
+    DisposableEffect(optionsMenu, speedDialog, gainDialog) {
+        if (optionsMenu || speedDialog || gainDialog) latestScrubCallback(true)
+        onDispose { if (optionsMenu || speedDialog || gainDialog) latestScrubCallback(false) }
     }
-    val logoRequest = remember(context, mediaLogoUrl) {
-        mediaLogoUrl?.takeIf { it.isNotBlank() }?.let { url ->
-            ImageRequest.Builder(context)
-                .data(url)
-                .size(coil3.size.Size(320, 96))
-                .build()
-        }
-    }
-    val displayedPosition = scrubPreviewProgress
-        ?.takeIf { duration > 0L }
-        ?.let { (duration * it).toLong() }
-        ?: currentPosition
-    val hdrBadgeLabel = remember(isHdrEnabled, hdrFormat) {
-        if (isHdrEnabled) osdHdrLabel(hdrFormat) else ""
-    }
-    val useHdr10PlusBadge = hdrBadgeLabel == "HDR10+"
-    val useHdr10Badge = hdrBadgeLabel == "HDR10"
-    val useHdrBadge = hdrBadgeLabel == "HDR"
-    val useDolbyVisionBadge = hdrBadgeLabel == "DV"
-    val hdrChipShape = RoundedCornerShape(999.dp)
-    val hdrChipColor = if (useDolbyVisionBadge) Color.White else Color(0xFFE8E8E8)
-    val hdrChipHorizontalPadding = if (useDolbyVisionBadge) 5.dp else 8.dp
-    val hdrChipVerticalPadding = if (useDolbyVisionBadge) 2.dp else 4.dp
-
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(overlayGradient)
-    ) {
-        // Top section - Title and action buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.displayCutout.only(WindowInsetsSides.Top))
-                .padding(start = 24.dp, end = 24.dp, top = 18.dp, bottom = 8.dp)
-                .align(Alignment.TopCenter),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+    val displayedPosition = scrubPreviewProgress?.let { (duration * it).toLong() } ?: currentPosition
+    val panelColor = Color.Black.copy(alpha = 0.55f)
+    val panelShape = RoundedCornerShape(28.dp)
+    val speedLabel = "${playbackSpeed}×"
+    BoxWithConstraints(modifier.fillMaxSize().safeDrawingPadding()) {
+        val portrait = maxHeight > maxWidth
+        val compact = maxWidth < 400.dp || maxHeight < 360.dp
+        val edge = if (compact) 12.dp else 24.dp
+        Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(edge),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!isLocked) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onBackClick) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    if (logoRequest != null) {
-                        AsyncImage(
-                            model = logoRequest,
-                            contentDescription = "$title logo",
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier
-                                .height(24.dp)
-                                .widthIn(min = 24.dp, max = 180.dp)
-                                .padding(end = 12.dp)
-                        )
-                    } else {
-                        if (title.isNotBlank()) {
-                            Text(
-                                text = title,
-                                modifier = Modifier.padding(end = 12.dp),
-                                color = Color.White,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
+                    PlayerRoundButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.player_control_back), onBackClick)
+                    Text(title, Modifier.weight(1f).padding(horizontal = 12.dp), color = Color.White,
+                        fontSize = if (compact) 16.sp else 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (!portrait) {
+                        PlayerTopActions(onToggleOrientation, onCycleAspectRatio, { optionsMenu = true })
                     }
                 }
-
-                // Action buttons
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    // Media Information Button
-                    IconButton(onClick = onShowMediaInfo) {
-                        Icon(
-                            imageVector = Icons.Outlined.Info,
-                            contentDescription = "Media Information",
-                            tint = Color(0xFF4CAF50),
-                            modifier = Modifier.size(24.dp)
-                        )
+                if (portrait) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        PlayerTopActions(onToggleOrientation, onCycleAspectRatio, { optionsMenu = true })
                     }
-                    IconButton(onClick = onCycleAspectRatio) {
-                        Icon(
-                            imageVector = Icons.Outlined.AspectRatio,
-                            contentDescription = "Aspect Ratio",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    if (showPlaybackSettingsButton) {
-                        IconButton(onClick = onShowPlaybackSettings) {
-                            Icon(
-                                imageVector = Icons.Outlined.Settings,
-                                contentDescription = "Playback Settings ($currentStreamingQuality)",
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                    IconButton(onClick = onShowAudioTrackSelection) {
-                        Icon(
-                            imageVector = Icons.Outlined.Audiotrack,
-                            contentDescription = "Audio Tracks",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    IconButton(onClick = onShowSubtitleTrackSelection) {
-                        Icon(
-                            imageVector = Icons.Outlined.Subtitles,
-                            contentDescription = "Subtitles",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    IconButton(onClick = onToggleLock) {
-                        Icon(
-                            imageVector = Icons.Outlined.LockOpen,
-                            contentDescription = "Lock",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            } else {
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(onClick = onToggleLock) {
-                    Icon(
-                        imageVector = Icons.Filled.Lock,
-                        contentDescription = "Unlock",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
                 }
             }
         }
-
-        // Center controls
+        PlayerRoundButton(if (isLocked) Icons.Filled.Lock else Icons.Outlined.LockOpen,
+            stringResource(if (isLocked) R.string.player_control_unlock else R.string.player_control_lock),
+            onToggleLock, Modifier.align(Alignment.CenterStart).padding(start = edge)
+                .offset(y = if (portrait) (-100).dp else 0.dp))
         if (!isLocked) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 32.dp),
-                horizontalArrangement = Arrangement.spacedBy(
-                    if (canPlayPreviousEpisode || canPlayNextEpisode) 22.dp else 32.dp
-                ),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-            if (canPlayPreviousEpisode) {
-                IconButton(
-                    onClick = onPlayPreviousEpisode,
-                    modifier = Modifier.size(58.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.SkipPrevious,
-                        contentDescription = stringResource(R.string.player_previous_episode),
-                        tint = Color.White,
-                        modifier = Modifier.size(42.dp)
-                    )
-                }
+            Row(Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 24.dp)) {
+                if (canPlayPreviousEpisode) PlayerRoundButton(Icons.Filled.SkipPrevious,
+                    stringResource(R.string.player_previous_episode), onPlayPreviousEpisode)
+                PlayerRoundButton(replayIcon(seekBackwardSeconds),
+                    stringResource(R.string.player_control_rewind, seekBackwardSeconds), onSeekBackward)
+                PlayerRoundButton(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    stringResource(if (isPlaying) R.string.player_control_pause else R.string.player_control_play),
+                    onPlayPause, size = if (compact) 64.dp else 80.dp)
+                PlayerRoundButton(replayforwardIcon(seekForwardSeconds),
+                    stringResource(R.string.player_control_forward, seekForwardSeconds), onSeekForward)
+                if (canPlayNextEpisode) PlayerRoundButton(Icons.Filled.SkipNext,
+                    stringResource(R.string.player_next_episode), onPlayNextEpisode)
             }
-
-            // Fast rewind
-            IconButton(
-                onClick = onSeekBackward,
-                modifier = Modifier.size(58.dp)
-            ) {
-                Icon(
-                    imageVector = replayIcon(seekBackwardSeconds),
-                    contentDescription = "Replay $seekBackwardSeconds seconds",
-                    tint = Color.White,
-                    modifier = Modifier.size(44.dp)
-                )
-            }
-
-            // Play/Pause button
-            IconButton(
-                onClick = onPlayPause,
-                modifier = Modifier.size(74.dp)
-            ) {
-                if (isPlaying) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(10.dp)
-                                .height(42.dp)
-                                .background(Color.White, RoundedCornerShape(7.dp))
-                        )
-                        Box(
-                            modifier = Modifier
-                                .width(10.dp)
-                                .height(42.dp)
-                                .background(Color.White, RoundedCornerShape(7.dp))
-                        )
+            if (!portrait) {
+                Column(Modifier.align(Alignment.CenterEnd).padding(end = edge)
+                    .background(panelColor, panelShape), horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(onClick = { onPlaybackSpeedChange(com.jellycine.player.core.PlaybackOptions.stepSpeed(playbackSpeed, -1)) },
+                        enabled = playbackSpeed > 0.5f) {
+                        Icon(Icons.Filled.Remove, stringResource(R.string.player_speed_slower), tint = Color.White)
                     }
-                } else {
-                    Icon(
-                        imageVector = Icons.Rounded.PlayArrow,
-                        contentDescription = "Play",
-                        tint = Color.White,
-                        modifier = Modifier.size(64.dp)
-                    )
+                    TextButton(onClick = { speedDialog = true }) { Text(speedLabel, color = Color.White) }
+                    IconButton(onClick = { onPlaybackSpeedChange(com.jellycine.player.core.PlaybackOptions.stepSpeed(playbackSpeed, 1)) },
+                        enabled = playbackSpeed < 2f) {
+                        Icon(Icons.Filled.Add, stringResource(R.string.player_speed_faster), tint = Color.White)
+                    }
                 }
             }
-
-            // Fast Forward
-            IconButton(
-                onClick = onSeekForward,
-                modifier = Modifier.size(58.dp)
-            ) {
-                Icon(
-                    imageVector = replayforwardIcon(seekForwardSeconds),
-                    contentDescription = "Forward $seekForwardSeconds seconds",
-                    tint = Color.White,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .graphicsLayer {
-                            if (seekForwardSeconds != 5 &&
-                                seekForwardSeconds != 10 &&
-                                seekForwardSeconds != 30
-                            ) {
-                                scaleX = -1f
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(edge),
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (!seasonEpisodeLabel.isNullOrBlank()) Text(seasonEpisodeLabel, color = Color.White,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
+                Column(Modifier.fillMaxWidth().background(panelColor, panelShape).padding(horizontal = 12.dp, vertical = 4.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("${formatTime(displayedPosition)} / ${formatTime(duration.coerceAtLeast(0))}",
+                            Modifier.weight(1f), color = Color.White, fontSize = 13.sp)
+                        if (portrait) {
+                            IconButton(onClick = { onPlaybackSpeedChange(com.jellycine.player.core.PlaybackOptions.stepSpeed(playbackSpeed, -1)) },
+                                enabled = playbackSpeed > 0.5f) {
+                                Icon(Icons.Filled.Remove, stringResource(R.string.player_speed_slower), tint = Color.White)
                             }
+                            TextButton(onClick = { speedDialog = true }, contentPadding = PaddingValues(4.dp)) {
+                                Text(speedLabel, color = Color.White)
+                            }
+                            IconButton(onClick = { onPlaybackSpeedChange(com.jellycine.player.core.PlaybackOptions.stepSpeed(playbackSpeed, 1)) },
+                                enabled = playbackSpeed < 2f) {
+                                Icon(Icons.Filled.Add, stringResource(R.string.player_speed_faster), tint = Color.White)
+                            }
+                        } else {
+                            if (isHdrEnabled) Text(osdHdrLabel(hdrFormat), color = Color.White, fontSize = 12.sp)
+                            if (isSpatialAudioEnabled) Icon(ImageVector.vectorResource(R.drawable.ic_spatial_audio),
+                                contentDescription = null, tint = Color.White, modifier = Modifier.padding(start = 8.dp).size(20.dp))
                         }
-                )
-            }
-
-            if (canPlayNextEpisode) {
-                IconButton(
-                    onClick = onPlayNextEpisode,
-                    modifier = Modifier.size(58.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.SkipNext,
-                        contentDescription = stringResource(R.string.player_next_episode),
-                        tint = Color.White,
-                        modifier = Modifier.size(42.dp)
-                    )
-                }
-            }
-        }
-        }
-
-        // Bottom section - Time and seekbar
-        if (!isLocked) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.navigationBars)
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
-                    .align(Alignment.BottomCenter),
-                verticalArrangement = Arrangement.Bottom
-            ) {
-                if (!seasonEpisodeLabel.isNullOrBlank()) {
-                    Text(
-                        text = seasonEpisodeLabel,
-                        color = Color.White.copy(alpha = 0.88f),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${formatTime(displayedPosition)} - ${formatTime(if (duration > 0) duration else 0L)}",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-
-                    if (isSpatialAudioEnabled || hdrBadgeLabel.isNotBlank()) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (hdrBadgeLabel.isNotBlank()) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .background(
-                                            color = hdrChipColor,
-                                            shape = hdrChipShape
-                                        )
-                                        .padding(
-                                            horizontal = hdrChipHorizontalPadding,
-                                            vertical = hdrChipVerticalPadding
-                                        )
-                                ) {
-                                    Image(
-                                        painter = painterResource(
-                                            when {
-                                                useDolbyVisionBadge -> R.drawable.dolby_vision_badge
-                                                useHdr10PlusBadge -> R.drawable.hdr10plus_badge
-                                                useHdr10Badge -> R.drawable.hdr10_badge
-                                                else -> R.drawable.hdr_badge
-                                            }
-                                        ),
-                                        contentDescription = osdDescription(hdrBadgeLabel),
-                                        contentScale = ContentScale.Fit,
-                                        modifier = Modifier
-                                            .width(
-                                                when {
-                                                    useDolbyVisionBadge -> 48.dp
-                                                    useHdr10PlusBadge -> 78.dp
-                                                    useHdrBadge -> 58.dp
-                                                    else -> 68.dp
-                                                }
-                                            )
-                                            .height(if (useDolbyVisionBadge) 18.dp else 16.dp)
-                                    )
-                                }
-                            }
-
-                            if (isSpatialAudioEnabled) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .background(
-                                            color = Color(0xFF4CAF50).copy(alpha = 0.2f),
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = ImageVector.vectorResource(R.drawable.ic_spatial_audio),
-                                        contentDescription = null,
-                                        tint = Color(0xFF4CAF50),
-                                        modifier = Modifier.size(14.dp)
-                                    )
-
-                                    Text(
-                                        text = "Spatial Audio",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = Color(0xFF4CAF50),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        SeekBar(progress = if (duration > 0) (currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f,
+                            bufferedProgress = if (duration > 0) (bufferedPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f,
+                            duration = duration, chapterMarkers = chapterMarkers, onSeek = onSeek,
+                            onScrubProgressChange = { scrubPreviewProgress = it; onScrubStateChange(it != null) },
+                            modifier = Modifier.weight(1f))
+                        IconButton(onClick = onShowAudioTrackSelection) {
+                            Icon(Icons.Outlined.Audiotrack, stringResource(R.string.player_control_audio), tint = Color.White)
+                        }
+                        IconButton(onClick = onShowSubtitleTrackSelection) {
+                            Icon(Icons.Outlined.Subtitles, stringResource(R.string.player_control_subtitles), tint = Color.White)
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Seekbar (full width)
-                SeekBar(
-                    progress = if (duration > 0 && currentPosition >= 0) {
-                        (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-                    } else 0f,
-                    bufferedProgress = if (duration > 0 && bufferedPosition >= 0) {
-                        (bufferedPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-                    } else 0f,
-                    duration = duration,
-                    chapterMarkers = chapterMarkers,
-                    onSeek = onSeek,
-                    onScrubProgressChange = {
-                        scrubPreviewProgress = it
-                        onScrubStateChange(it != null)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
+            }
+            Box(Modifier.align(Alignment.TopEnd).padding(top = if (portrait) 116.dp else 68.dp, end = edge)) {
+                DropdownMenu(expanded = optionsMenu, onDismissRequest = { optionsMenu = false }) {
+                    DropdownMenuItem(text = { Text(stringResource(R.string.player_speed_title)) },
+                        onClick = { optionsMenu = false; speedDialog = true })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.player_gain_title)) },
+                        onClick = { optionsMenu = false; gainDialog = true })
+                    if (showPlaybackSettingsButton) DropdownMenuItem(
+                        text = { Text(stringResource(R.string.player_control_settings)) },
+                        onClick = { optionsMenu = false; onShowPlaybackSettings() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.player_control_info)) },
+                        onClick = { optionsMenu = false; onShowMediaInfo() })
+                }
             }
         }
+    }
+    if (speedDialog) AlertDialog(
+        onDismissRequest = { speedDialog = false }, title = { Text(stringResource(R.string.player_speed_title)) },
+        text = { Column(Modifier.heightIn(max = 280.dp).verticalScroll(rememberScrollState())) {
+            com.jellycine.player.core.PlaybackOptions.speeds.forEach { speed ->
+                TextButton(onClick = { onPlaybackSpeedChange(speed); speedDialog = false }, modifier = Modifier.fillMaxWidth()) {
+                    Text("${if (speed == playbackSpeed) "✓  " else ""}$speed×")
+                }
+            }
+        } }, confirmButton = { TextButton(onClick = { speedDialog = false }) { Text(stringResource(R.string.player_control_close)) } })
+    if (gainDialog) AlertDialog(
+        onDismissRequest = { gainDialog = false }, title = { Text(stringResource(R.string.player_gain_title)) },
+        text = { Column(Modifier.heightIn(max = 280.dp).verticalScroll(rememberScrollState())) {
+            if (!audioGainAvailable) Text(stringResource(R.string.player_gain_unavailable))
+            com.jellycine.player.core.PlaybackOptions.gainPercentages.forEach { percent ->
+                TextButton(onClick = { onAudioGainChange(percent); gainDialog = false }, enabled = percent == 0 || audioGainAvailable,
+                    modifier = Modifier.fillMaxWidth()) {
+                    Text((if (percent == audioGainPercent) "✓  " else "") +
+                        if (percent == 0) stringResource(R.string.player_gain_off) else "+$percent%")
+                }
+            }
+        } }, confirmButton = { TextButton(onClick = { gainDialog = false }) { Text(stringResource(R.string.player_control_close)) } })
+}
+
+@Composable
+private fun PlayerTopActions(onRotate: () -> Unit, onAspect: () -> Unit, onMore: () -> Unit) {
+    Row(Modifier.background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(28.dp))) {
+        IconButton(onClick = onRotate) { Icon(Icons.Filled.ScreenRotation, stringResource(R.string.player_control_rotate), tint = Color.White) }
+        IconButton(onClick = onAspect) { Icon(Icons.Outlined.AspectRatio, stringResource(R.string.player_control_aspect), tint = Color.White) }
+        IconButton(onClick = onMore) { Icon(Icons.Filled.MoreHoriz, stringResource(R.string.player_control_more), tint = Color.White) }
+    }
+}
+
+@Composable
+private fun PlayerRoundButton(icon: ImageVector, label: String, onClick: () -> Unit,
+    modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 48.dp) {
+    IconButton(onClick = onClick, modifier = modifier.size(size)
+        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(50))) {
+        Icon(icon, label, tint = Color.White, modifier = Modifier.size(if (size > 48.dp) 40.dp else 28.dp))
     }
 }
 

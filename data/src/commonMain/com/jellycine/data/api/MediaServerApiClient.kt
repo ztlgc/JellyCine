@@ -256,6 +256,12 @@ internal class MediaServerApiClient(
         )
     )
 
+    override suspend fun deleteItem(itemId: String): ApiResponse<Unit> = execute(
+        method = HttpMethod.Delete,
+        endpoint = "Items",
+        queryParameters = listOf("Ids" to itemId)
+    )
+
     override suspend fun markAsFavorite(
         userId: String,
         itemId: String
@@ -414,12 +420,14 @@ internal class MediaServerApiClient(
         includeItemTypes: String?,
         recursive: Boolean,
         limit: Int?,
-        fields: String?
+        fields: String?,
+        mediaTypes: String?
     ): ApiResponse<QueryResult<BaseItemDto>> = get(
         endpoint = "Users/$userId/Items",
         queryParameters = listOf(
             "searchTerm" to searchTerm,
             "includeItemTypes" to includeItemTypes,
+            "mediaTypes" to mediaTypes,
             "recursive" to recursive,
             "limit" to limit,
             "fields" to fields
@@ -432,12 +440,14 @@ internal class MediaServerApiClient(
         includeItemTypes: String?,
         recursive: Boolean,
         limit: Int?,
-        fields: String?
+        fields: String?,
+        mediaTypes: String?
     ): ApiResponse<QueryResult<BaseItemDto>> = get(
         endpoint = "Users/$userId/Items",
         queryParameters = listOf(
             "nameStartsWith" to nameStartsWith,
             "includeItemTypes" to includeItemTypes,
+            "mediaTypes" to mediaTypes,
             "recursive" to recursive,
             "limit" to limit,
             "fields" to fields

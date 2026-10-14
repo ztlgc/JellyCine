@@ -31,6 +31,7 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext context: C
     private val repository = MediaRepositoryProvider.getInstance(context)
     private val auth = AuthRepositoryProvider.getInstance(context)
     private val preferences = context.getSharedPreferences("library_browser", Context.MODE_PRIVATE)
+    private val catalogCache = LibraryCatalogCache.getInstance(context.cacheDir)
     private val mutable = MutableStateFlow(LibraryBrowserState())
     val state = mutable.asStateFlow()
     private var key = ""
@@ -48,7 +49,9 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext context: C
     val collectionsError = collectionsErrorMutable.asStateFlow()
 
     fun open(libraryId: String, refresh: Boolean = false) {
-        val next = "${auth.getActiveSessionSnapshot().activeServerId}|$libraryId"
+        val session = auth.getActiveSessionSnapshot()
+        val server = session.savedServers.firstOrNull { it.id == session.activeServerId }
+        val next = libraryCatalogKey(session.activeServerId, session.serverUrl, server?.userId ?: session.username, libraryId)
         if (key == next && !refresh && (mutable.value.loading || mutable.value.items.isNotEmpty())) return
         val changed = key != next
         key = next
@@ -58,45 +61,55 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext context: C
         collectionsLoadingMutable.value = false; collectionsErrorMutable.value = null
         collectionsLoaded = false
         if (changed) {
+            val legacyKey = "${session.activeServerId}|$libraryId"
             mutable.value = LibraryBrowserState(
-                tab = enumValue<LibraryTab>(preferences.getString("$key.tab", null)) ?: LibraryTab.ALL,
-                sort = enumValue<LibrarySort>(preferences.getString("$key.sort", null)) ?: LibrarySort.CREATED,
-                descending = preferences.getBoolean("$key.desc", true),
-                listView = preferences.getBoolean("$key.list", false)
+                tab = enumValue<LibraryTab>(preferences.getString("$key.tab", preferences.getString("$legacyKey.tab", null))) ?: LibraryTab.ALL,
+                sort = enumValue<LibrarySort>(preferences.getString("$key.sort", preferences.getString("$legacyKey.sort", null))) ?: LibrarySort.CREATED,
+                descending = preferences.getBoolean("$key.desc", preferences.getBoolean("$legacyKey.desc", true)),
+                listView = preferences.getBoolean("$key.list", preferences.getBoolean("$legacyKey.list", false))
             )
         }
-        mutable.value = mutable.value.copy(loading = true, items = emptyList(), loaded = 0, total = 0, error = null)
+        val cached = catalogCache.peek(next)
+        val initialItems = cached ?: mutable.value.items
+        mutable.value = mutable.value.copy(loading = true, items = initialItems,
+            loaded = initialItems.size, total = initialItems.size, error = null)
         job = viewModelScope.launch {
             try {
-                val items = fetchAll(libraryId, true) { loaded, total ->
-                    if (version == requestVersion) mutable.value = mutable.value.copy(loaded = loaded, total = total)
+                if (cached == null && mutable.value.items.isEmpty()) {
+                    catalogCache.load(next)?.let { snapshot ->
+                        if (version == requestVersion) mutable.value = mutable.value.copy(
+                            items = snapshot, loaded = snapshot.size, total = snapshot.size)
+                    }
                 }
-                mutable.value = mutable.value.copy(items = items, loading = false, loaded = items.size)
+                // Keep a complete cached catalog stable until the entire refresh succeeds.
+                val hasSnapshot = catalogCache.peek(next) != null
+                val items = fetchAll(libraryId, true) { batch, total ->
+                    withContext(Dispatchers.Main.immediate) {
+                        if (version == requestVersion) mutable.value = mutable.value.copy(
+                            items = if (hasSnapshot) mutable.value.items else batch,
+                            loaded = batch.size, total = total)
+                    }
+                }
+                if (version != requestVersion) return@launch
+                mutable.value = mutable.value.copy(items = items, loading = false, loaded = items.size, total = items.size)
+                catalogCache.save(next, items)
                 if (mutable.value.tab == LibraryTab.COLLECTIONS) loadCollections()
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { mutable.value = mutable.value.copy(loading = false, error = e.message ?: "Error") }
+            catch (e: Exception) {
+                if (version == requestVersion) mutable.value = mutable.value.copy(loading = false, error = e.message ?: "Error")
+            }
         }
     }
 
     /** Complete metadata is required for global grouping, file/resolution sorting and stable random pages. */
-    suspend fun fetchAll(parentId: String?, recursive: Boolean, progress: (Int, Int) -> Unit = { _, _ -> }): List<BaseItemDto> =
+    suspend fun fetchAll(parentId: String?, recursive: Boolean, progress: suspend (List<BaseItemDto>, Int) -> Unit = { _, _ -> }): List<BaseItemDto> =
         withContext(Dispatchers.IO) {
-            val result = linkedMapOf<String, BaseItemDto>()
-            var offset = 0
-            while (true) {
-                val page = repository.getUserItems(parentId = parentId, recursive = recursive,
-                    sortBy = "SortName", sortOrder = "Ascending", startIndex = offset, limit = 200,
+            fetchLibraryCatalog(fetchPage = { offset, limit ->
+                repository.getUserItems(parentId = parentId, recursive = recursive,
+                    sortBy = "SortName", sortOrder = "Ascending", startIndex = offset, limit = limit,
                     fields = LIBRARY_FIELDS,
                     enableUserData = true).getOrThrow()
-                val batch = page.items.orEmpty()
-                val previousSize = result.size
-                batch.forEach { item -> item.id?.let { result[it] = item } }
-                offset += batch.size
-                progress(result.size, page.totalRecordCount ?: result.size)
-                if (batch.isEmpty() || (page.totalRecordCount != null && offset >= page.totalRecordCount!!)) break
-                check(result.size > previousSize) { "Server returned duplicate pages" }
-            }
-            result.values.toList()
+            }, onPage = progress)
         }
 
     fun tab(tab: LibraryTab) {

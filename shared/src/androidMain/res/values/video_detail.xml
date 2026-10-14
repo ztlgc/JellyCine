@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_detail_media_info">Media information</string>
+    <string name="video_detail_added">Added: %1$s</string>
+    <string name="video_detail_no_info">No media information available</string>
+    <string name="video_detail_options">More options</string>
+    <string name="video_detail_type">Type</string>
+    <string name="video_detail_index">Index</string>
+    <string name="video_detail_title">Display title</string>
+    <string name="video_detail_language">Language</string>
+    <string name="video_detail_codec">Codec</string>
+    <string name="video_detail_resolution">Resolution</string>
+    <string name="video_detail_frame_rate">Frame rate</string>
+    <string name="video_detail_range">Dynamic range</string>
+    <string name="video_detail_profile">Profile</string>
+    <string name="video_detail_bitrate">Bitrate</string>
+    <string name="video_detail_bit_depth">Bit depth</string>
+    <string name="video_detail_color_space">Color space</string>
+    <string name="video_detail_pixel_format">Pixel format</string>
+    <string name="video_detail_channels">Channels</string>
+    <string name="video_detail_sample_rate">Sample rate</string>
+    <string name="video_detail_default">Default</string>
+    <string name="video_detail_forced">Forced</string>
+    <string name="video_detail_external">External</string>
+</resources>

@@ -25,13 +25,12 @@ import com.jellycine.data.model.PersistedHomeSnapshot
 import com.jellycine.data.model.QueryResult
 import com.jellycine.data.model.PlaybackInfoRequest
 import com.jellycine.data.model.RecommendationDto
-import com.jellycine.data.model.SearchMediaType
+import com.jellycine.data.model.isVideoSearchResult
 import com.jellycine.data.model.ActivityLogResult
 import com.jellycine.data.model.AdminSessionInfo
 import com.jellycine.data.model.SeerrItemIds
 import com.jellycine.data.model.SystemInfoFull
 import com.jellycine.data.model.UserDto
-import com.jellycine.data.model.toSearchQueries
 import com.jellycine.data.network.HttpStatusException
 import com.jellycine.data.network.JellyCineJson
 import com.jellycine.data.network.NetworkModule
@@ -268,6 +267,8 @@ class MediaRepository(private val context: Context) {
     suspend fun persistHomeSnapshot(
         featuredHomeItems: List<BaseItemDto>? = null,
         continueWatchingItems: List<BaseItemDto>? = null,
+        recentWatchingItems: List<BaseItemDto>? = null,
+        recentOtherVideoItems: List<BaseItemDto>? = null,
         nextUpItems: List<BaseItemDto>? = null,
         homeLibrarySections: List<HomeLibrarySectionData>? = null,
         myMediaLibraries: List<BaseItemDto>? = null,
@@ -285,6 +286,8 @@ class MediaRepository(private val context: Context) {
             snapshotKey = buildSnapshotKey(config),
             featuredHomeItems = featuredHomeItems,
             continueWatchingItems = continueWatchingItems,
+            recentWatchingItems = recentWatchingItems,
+            recentOtherVideoItems = recentOtherVideoItems,
             nextUpItems = nextUpItems,
             homeLibrarySections = homeLibrarySections,
             myMediaLibraries = myMediaLibraries,
@@ -856,7 +859,7 @@ class MediaRepository(private val context: Context) {
     }
 
     suspend fun getFavoriteItems(
-        includeItemTypes: String? = "Movie,Series,Episode",
+        includeItemTypes: String? = "Movie,Series,Episode,Video",
         limit: Int? = null,
         startIndex: Int? = null
     ): Result<QueryResult<BaseItemDto>> {
@@ -868,14 +871,39 @@ class MediaRepository(private val context: Context) {
             limit = limit,
             startIndex = startIndex,
             filters = "IsFavorite",
-            fields = "SeriesName,SeriesId,EpisodeCount,RecursiveItemCount,ChildCount,IndexNumber,ParentIndexNumber,ProductionYear,RunTimeTicks,Overview,DateCreated"
+            fields = "SeriesName,SeriesId,EpisodeCount,RecursiveItemCount,ChildCount,IndexNumber,ParentIndexNumber,ProductionYear,RunTimeTicks,Overview,DateCreated,UserData",
+            enableUserData = true
         )
+    }
+
+    /** Capture the loaded item's session before leaving the detail route. */
+    fun prepareVideoDeletion(item: BaseItemDto, expectedServerId: String?): (suspend () -> Result<Unit>)? {
+        val itemId = item.id?.takeIf { it.isNotBlank() } ?: return null
+        if (item.isFolder == true || item.canDelete == false || !item.type.equals("Video", true)) return null
+        val session = cachedSession ?: return null
+        if (AuthSessionIds.buildServerId(session.baseUrl, session.userId) != expectedServerId) return null
+        val snapshotKey = "${trimTrailingSlash(session.baseUrl)}|${session.userId}"
+        return {
+            try {
+                val response = session.api.deleteItem(itemId)
+                if (response.isSuccessful) {
+                    // Cache cleanup failure must not report a completed server deletion as failed.
+                    runCatching { homeSnapshotStore.removeItem(snapshotKey, itemId) }
+                    Result.success(Unit)
+                } else Result.failure(IllegalStateException("HTTP ${response.code()}"))
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Result.failure(error)
+            }
+        }
     }
 
     suspend fun setFavoriteStatus(itemId: String, isFavorite: Boolean): Result<Unit> {
         return try {
-            val api = getApi() ?: return Result.failure(Exception(string(R.string.data_error_api_not_available)))
-            val userId = getUserId() ?: return Result.failure(Exception(string(R.string.data_error_user_id_not_available)))
+            val session = getApiSession() ?: return Result.failure(Exception(string(R.string.data_error_api_not_available)))
+            val api = session.api
+            val userId = session.userId
 
             val response = if (isFavorite) {
                 api.markAsFavorite(userId = userId, itemId = itemId)
@@ -992,7 +1020,7 @@ class MediaRepository(private val context: Context) {
                             collectionType != "playlists" &&
                             collectionType != "folders" &&
                             (type == "CollectionFolder" || type == "Folder") &&
-                            (collectionType == "movies" || collectionType == "tvshows" || collectionType == "boxsets" || collectionType == null)
+                            (collectionType == "movies" || collectionType == "tvshows" || collectionType.equals("homevideos", true) || collectionType == "boxsets" || collectionType == null)
                     }
                     .distinctBy { it.id }
                     .let { sequence ->
@@ -1018,6 +1046,7 @@ class MediaRepository(private val context: Context) {
                                 "movies" -> "Movie"
                                 "tvshows" -> "Episode,Series"
                                 "boxsets" -> "BoxSet"
+                                "homevideos" -> "Video"
                                 else -> "Movie,Series,Episode"
                             }
 
@@ -1038,7 +1067,13 @@ class MediaRepository(private val context: Context) {
                                     emptyList()
                                 }
 
-                            val items = latestItems
+                            // Home videos may be nested; query a small recursive video page if Latest is empty.
+                            val sectionItems = if (latestItems.isEmpty() && library.collectionType.equals("homevideos", true)) {
+                                getUserItems(parentId = libraryId, includeItemTypes = "Video", recursive = true,
+                                    sortBy = "DateCreated", sortOrder = "Descending", limit = itemsPerLibrary,
+                                    fields = fields, enableUserData = true).getOrNull()?.items.orEmpty()
+                            } else latestItems
+                            val items = sectionItems
                                 .asSequence()
                                 .filter { it.id != null && !it.name.isNullOrBlank() }
                                 .distinctBy { it.id }
@@ -1052,7 +1087,6 @@ class MediaRepository(private val context: Context) {
                     }
                 }.awaitAll()
                     .filterNotNull()
-                    .filter { it.items.isNotEmpty() }
 
                 Result.success(sections)
             },
@@ -1489,6 +1523,35 @@ class MediaRepository(private val context: Context) {
             }
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    suspend fun getRecentWatchingItems(otherVideosOnly: Boolean, limit: Int = 24): Result<List<BaseItemDto>> {
+        return try {
+            val parentIds = if (otherVideosOnly) {
+                getUserViews().getOrThrow().items.orEmpty()
+                    .filter { it.collectionType.equals("homevideos", true) }.mapNotNull { it.id }
+            } else listOf<String?>(null)
+            val semaphore = Semaphore(4)
+            val items = coroutineScope {
+                parentIds.map { parentId -> async {
+                    semaphore.withPermit {
+                        val types = if (otherVideosOnly) "Video" else "Movie,Episode,Video"
+                        val fields = "SeriesName,SeriesId,ProductionYear,RunTimeTicks,UserData,ProviderIds,IndexNumber,ParentIndexNumber"
+                        val resume = getResumeItems(parentId = parentId, includeItemTypes = types,
+                            limit = limit, fields = fields).getOrThrow()
+                        val played = getUserItems(parentId = parentId, includeItemTypes = types,
+                            recursive = true, sortBy = "DatePlayed", sortOrder = "Descending", limit = limit,
+                            filters = "IsPlayed", fields = fields, enableUserData = true).getOrThrow().items.orEmpty()
+                        com.jellycine.data.model.mergeRecentWatching(resume, played, limit)
+                    }
+                } }.awaitAll().flatten()
+            }
+            Result.success(com.jellycine.data.model.mergeRecentWatching(items, emptyList(), limit))
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Result.failure(error)
         }
     }
 
@@ -2130,7 +2193,8 @@ class MediaRepository(private val context: Context) {
     suspend fun searchItems(
         searchTerm: String,
         includeItemTypes: String? = "Movie,Series",
-        limit: Int? = 50
+        limit: Int? = 50,
+        mediaTypes: String? = null
     ): Result<List<BaseItemDto>> {
         return try {
             val api = getApi() ?: return Result.failure(Exception(string(R.string.data_error_api_not_available)))
@@ -2141,6 +2205,7 @@ class MediaRepository(private val context: Context) {
                 userId = userId,
                 searchTerm = searchTerm,
                 includeItemTypes = includeItemTypes,
+                mediaTypes = mediaTypes,
                 recursive = true,
                 limit = limit,
                 fields = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview,ProviderIds"
@@ -2152,6 +2217,7 @@ class MediaRepository(private val context: Context) {
                     userId = userId,
                     nameStartsWith = searchTerm,
                     includeItemTypes = includeItemTypes,
+                    mediaTypes = mediaTypes,
                     recursive = true,
                     limit = limit,
                     fields = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview,ProviderIds"
@@ -2165,38 +2231,42 @@ class MediaRepository(private val context: Context) {
             } else {
                 Result.failure(Exception(string(R.string.media_error_search_items_failed, response.code(), response.message())))
             }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun searchItems(
+    /** Search the user root recursively, without restricting the library or video subtype. */
+    suspend fun searchVideos(
         searchTerm: String,
-        selectedTypes: Set<SearchMediaType>,
         limit: Int? = 60
     ): Result<List<BaseItemDto>> = coroutineScope {
-        val searchQueries = selectedTypes.toSearchQueries()
-        if (searchQueries.isEmpty()) {
-            return@coroutineScope Result.success(emptyList())
-        }
-
-        val results = searchQueries.map { (includeItemTypes, timeoutMs) ->
+        // Series are folders rather than playable videos, so fetch them separately.
+        val results = listOf(null to "Video", "Series" to null).map { (includeItemTypes, mediaTypes) ->
             async {
-                runCatching {
-                    withTimeoutOrNull(timeoutMs) {
+                try {
+                    withTimeoutOrNull(30_000L) {
                         searchItems(
                             searchTerm = searchTerm,
                             includeItemTypes = includeItemTypes,
-                            limit = limit
+                            limit = limit,
+                            mediaTypes = mediaTypes
                         ).getOrNull()
                     }
-                }.getOrNull()
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    null
+                }
             }
         }.awaitAll()
 
         val items = results
             .filterNotNull()
             .flatten()
+            .filter { it.isVideoSearchResult() }
             .distinctBy { item -> item.mergeVersionKey() }
 
         if (items.isEmpty() && results.all { it == null }) {

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_detail_delete">Delete video</string>
+    <string name="video_detail_deleted">Deleted: %1$s</string>
+    <string name="video_detail_delete_failed">Could not delete %1$s: %2$s</string>
+    <string name="video_detail_delete_unavailable">Deletion is unavailable for this item or session</string>
+    <string name="video_detail_favorite_failed">Could not update favorite. Please check your connection or permissions.</string>
+</resources>

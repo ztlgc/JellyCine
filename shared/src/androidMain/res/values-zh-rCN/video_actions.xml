@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_detail_delete">删除视频</string>
+    <string name="video_detail_deleted">已删除：%1$s</string>
+    <string name="video_detail_delete_failed">删除“%1$s”失败：%2$s</string>
+    <string name="video_detail_delete_unavailable">当前视频或登录会话无法删除</string>
+    <string name="video_detail_favorite_failed">收藏操作失败，请检查网络或服务器权限</string>
+</resources>

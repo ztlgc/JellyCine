@@ -35,6 +35,7 @@ class MpvPlayerController(
     private var positionMs: Long = 0L
     private var bufferedPositionMs: Long = 0L
     private var playWhenReady = true
+    private var appliedGainPercent: Int? = null
     private var pendingSubtitleUrls: List<String> = emptyList()
     private var pendingSelectedSubtitleUrl: String? = null
     private val playerPreferences = PlayerPreferences(context.applicationContext)
@@ -91,6 +92,7 @@ class MpvPlayerController(
     ) {
         if (released) return
         ready = false
+        appliedGainPercent = null
         playWhenReady = startPlayback
         val startPositionSeconds = startPositionMs
             ?.takeIf { it > 0L }
@@ -199,6 +201,37 @@ class MpvPlayerController(
         if (!released) {
             mpv.setPropertyDouble("volume", (volume.coerceIn(0f, 1f) * 100f).toDouble())
         }
+    }
+
+    fun setPlaybackSpeed(speed: Float) {
+        if (!released) {
+            mpv.setPropertyBoolean("audio-pitch-correction", true)
+            mpv.setPropertyDouble("speed", com.jellycine.player.core.PlaybackOptions.validSpeed(speed).toDouble())
+        }
+    }
+
+    fun setAudioGainPercent(percent: Int): Boolean {
+        if (released) return false
+        return runCatching {
+            val valid = com.jellycine.player.core.PlaybackOptions.validGain(percent)
+            if (appliedGainPercent != valid) {
+                // Set before changing the chain: MPV can emit PLAYBACK_RESTART as filters change.
+                appliedGainPercent = valid
+                mpv.setPropertyDouble("volume-gain", 0.0)
+                if (valid == 0) {
+                    if (mpv.getPropertyString("af").orEmpty().contains("jellycine_gain")) {
+                        mpv.command(arrayOf("af", "remove", "@jellycine_gain"))
+                    }
+                } else {
+                    val multiplier = com.jellycine.player.core.PlaybackOptions.gainMultiplier(valid)
+                    // Named filters replace the previous gain filter rather than stack multipliers.
+                    mpv.command(arrayOf("af", "add", "@jellycine_gain:lavfi=[volume=$multiplier]"))
+                }
+            }
+            val outputFormat = mpv.getPropertyString("audio-out-params/format").orEmpty()
+            !outputFormat.startsWith("spdif", ignoreCase = true) &&
+                (valid == 0 || mpv.getPropertyString("af").orEmpty().contains("jellycine_gain"))
+        }.getOrDefault(false)
     }
 
     fun selectAudioTrack(trackId: String) {

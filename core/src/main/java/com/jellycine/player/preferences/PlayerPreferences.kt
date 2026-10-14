@@ -256,6 +256,22 @@ class PlayerPreferences(context: Context) {
         return prefs.getFloat(KEY_PLAYER_VOLUME, DEFAULT_VOLUME)
             .coerceIn(0.0f, 1.0f)
     }
+
+    fun getPlaybackSpeed(): Float = com.jellycine.player.core.PlaybackOptions.validSpeed(
+        prefs.getFloat("playback_speed", 1f)
+    )
+
+    fun setPlaybackSpeed(speed: Float) {
+        prefs.edit().putFloat("playback_speed", com.jellycine.player.core.PlaybackOptions.validSpeed(speed)).apply()
+    }
+
+    fun getAudioGainPercent(): Int = com.jellycine.player.core.PlaybackOptions.validGain(
+        prefs.getInt("audio_gain_percent", 0)
+    )
+
+    fun setAudioGainPercent(percent: Int) {
+        prefs.edit().putInt("audio_gain_percent", com.jellycine.player.core.PlaybackOptions.validGain(percent)).apply()
+    }
     
     /**
      * Save the current player volume level

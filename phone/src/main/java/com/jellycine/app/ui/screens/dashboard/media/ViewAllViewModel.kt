@@ -195,7 +195,8 @@ class ViewAllViewModel @Inject constructor(
                             recursive = true,
                             fields = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,CriticRating,ProductionYear,Overview,UserData"
                         )
-                        ContentType.HOME_MEDIA -> mediaRepository.getUserItems(
+                        ContentType.HOME_MEDIA -> if (isFavoritesRequest) mediaRepository.getFavoriteItems(includeItemTypes = "Video",
+                            limit = pageSize, startIndex = currentPage * pageSize) else mediaRepository.getUserItems(
                             parentId = parentId, recursive = false, limit = pageSize,
                             startIndex = currentPage * pageSize, sortBy = "SortName", sortOrder = "Ascending"
                         )

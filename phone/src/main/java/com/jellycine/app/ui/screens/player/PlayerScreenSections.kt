@@ -47,6 +47,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -336,9 +338,16 @@ internal fun PlayerScreenEffects(
         uiStateProvider().controlsVisible,
         playerState.hasStartedPlayback,
         autoHideKey,
-        isScrubbing
+        isScrubbing,
+        showAudioTrackDialog,
+        showSubtitleTrackDialog,
+        showStreamingQualityDialog,
+        showAudioTranscodingDialog,
+        showMediaInfo
     ) {
-        if (uiStateProvider().controlsVisible && playerState.hasStartedPlayback && !isScrubbing) {
+        if (uiStateProvider().controlsVisible && playerState.hasStartedPlayback && !isScrubbing &&
+            !showAudioTrackDialog && !showSubtitleTrackDialog && !showStreamingQualityDialog &&
+            !showAudioTranscodingDialog && !showMediaInfo) {
             delay(3000L)
             onUiStateChange(uiStateProvider().copy(controlsVisible = false))
         }
@@ -406,7 +415,19 @@ internal fun BoxScope.PlayerOverlayHost(
     }
 
     if (uiState.controlsVisible) {
+        val activity = LocalContext.current as? Activity
+        val configuration = LocalConfiguration.current
         ControlsOverlay(
+            playbackSpeed = playerState.playbackSpeed,
+            audioGainPercent = playerState.audioGainPercent,
+            audioGainAvailable = playerState.audioGainAvailable,
+            onPlaybackSpeedChange = { resetAutoHideTimer(); viewModel.setPlaybackSpeed(it) },
+            onAudioGainChange = { resetAutoHideTimer(); viewModel.setAudioGainPercent(it) },
+            onToggleOrientation = {
+                resetAutoHideTimer()
+                activity?.requestedOrientation = if (configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE)
+                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            },
             title = playerState.mediaTitle,
             mediaLogoUrl = playerState.mediaLogoUrl,
             seasonEpisodeLabel = playerState.seasonEpisodeLabel,

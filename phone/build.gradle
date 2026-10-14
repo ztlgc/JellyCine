@@ -115,6 +115,25 @@ androidComponents {
     }
 }
 
+// Fail before compiling release code when local signing configuration is incomplete.
+def checkReleaseSigningConfiguration = tasks.register('checkReleaseSigningConfiguration') {
+    doLast {
+        def releaseSigning = android.signingConfigs.release
+        if (releaseSigning.storeFile == null ||
+            releaseSigning.storePassword == null ||
+            releaseSigning.keyAlias == null ||
+            releaseSigning.keyPassword == null) {
+            throw new GradleException('Release signing is not configured. Set storeFile, storePassword, keyAlias and keyPassword in root keystore.properties, or the corresponding JELLYCINE_* environment variables. See docs/ANDROID_BUILD.md.')
+        }
+        if (!releaseSigning.storeFile.isFile()) {
+            throw new GradleException('Release keystore file does not exist: ' + releaseSigning.storeFile + '. Paths in keystore.properties are relative to phone/.')
+        }
+    }
+}
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
+    dependsOn(checkReleaseSigningConfiguration)
+}
+
 dependencies {
     // Project modules
     implementation project(':shared')

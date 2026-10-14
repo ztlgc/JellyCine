@@ -52,6 +52,10 @@ fun LibraryBrowserScreen(
     val collectionsLoading by model.collectionsLoading.collectAsStateWithLifecycle()
     val collectionsError by model.collectionsError.collectAsStateWithLifecycle()
     val refresh by UserDataRefreshSignals.refreshEvent.collectAsState()
+    val deletedItems by UserDataRefreshSignals.deletedItems.collectAsState()
+    val activeSessionId = com.jellycine.data.repository.AuthRepositoryProvider.getInstance(LocalContext.current)
+        .getActiveSessionSnapshot().activeServerId
+    val deletedIds = deletedItems[activeSessionId].orEmpty()
     val repository = MediaRepositoryProvider.getInstance(LocalContext.current)
     var previousRefresh by remember { mutableStateOf(refresh) }
     LaunchedEffect(libraryId, refresh) {
@@ -68,8 +72,8 @@ fun LibraryBrowserScreen(
     var folderError by remember { mutableStateOf<String?>(null) }
     var folderRetry by remember { mutableIntStateOf(0) }
     val folderId = folderIds.last()
-    LaunchedEffect(state.tab, folderId, folderRetry, state.loaded, state.loading) {
-        if (state.tab == LibraryTab.FOLDERS && !state.loading) {
+    LaunchedEffect(state.tab, folderId, folderRetry, refresh) {
+        if (state.tab == LibraryTab.FOLDERS) {
             folderLoading = true; folderError = null; folderItems = emptyList()
             try { folderItems = model.fetchAll(folderId, false) }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
@@ -105,11 +109,11 @@ fun LibraryBrowserScreen(
     val filtered = remember(source, state.items, state.genres, state.watched, collectionContents, state.tab) {
         filterLibrary(source, state.items, state.genres, state.watched, collectionContents, state.tab == LibraryTab.FOLDERS)
     }
-    val display = remember(filtered, state.sort, state.descending, state.randomSeed) {
-        sortLibrary(filtered, state.sort, state.descending, state.randomSeed)
+    val display = remember(filtered, state.sort, state.descending, state.randomSeed, deletedIds) {
+        sortLibrary(filtered.filterNot { it.id in deletedIds }, state.sort, state.descending, state.randomSeed)
     }
-    val groups = remember(filtered, state.tab, state.sort, state.descending, state.randomSeed) {
-        filtered.flatMap { if (state.tab == LibraryTab.GENRES) it.genres.orEmpty() else it.tags.orEmpty() }
+    val groups = remember(filtered, grouped, state.tab, state.sort, state.descending, state.randomSeed) {
+        if (!grouped) emptyList() else filtered.flatMap { if (state.tab == LibraryTab.GENRES) it.genres.orEmpty() else it.tags.orEmpty() }
             .filter { it.isNotBlank() }.distinct().let { names ->
                 sortLibrary(names.map { BaseItemDto(id = it, name = it) }, state.sort, state.descending, state.randomSeed).map { it.name!! }
             }
@@ -118,8 +122,13 @@ fun LibraryBrowserScreen(
         (state.tab == LibraryTab.COLLECTIONS && collectionsLoading)
     val error = state.error ?: if (state.tab == LibraryTab.FOLDERS) folderError else if (state.tab == LibraryTab.COLLECTIONS) collectionsError else null
     val gridState = rememberLazyGridState()
-    var visibleCount by remember(libraryId, state.tab, group, folderId, state.sort, state.descending, state.randomSeed, state.genres, state.watched) { mutableIntStateOf(60) }
-    LaunchedEffect(state.tab, group, folderId, state.sort, state.descending, state.randomSeed, state.genres, state.watched) { gridState.scrollToItem(0) }
+    var visibleCount by rememberSaveable(libraryId, state.tab, group, folderId, state.sort, state.descending, state.randomSeed, state.genres, state.watched) { mutableIntStateOf(60) }
+    val scrollIdentity = "$libraryId:${state.tab}:$group:$folderId:${state.sort}:${state.descending}:${state.randomSeed}:${state.genres}:${state.watched}"
+    var lastScrollIdentity by rememberSaveable(libraryId) { mutableStateOf<String?>(null) }
+    LaunchedEffect(scrollIdentity) {
+        if (lastScrollIdentity != null && lastScrollIdentity != scrollIdentity) gridState.scrollToItem(0)
+        lastScrollIdentity = scrollIdentity
+    }
     val genres = remember(media) { media.flatMap { it.genres.orEmpty() }.distinct().sorted() }
     val playable = if (grouped || collectionRoot || busy || error != null) emptyList() else libraryPlayableQueue(display, state.items)
         .filter { state.watched == null || (it.userData?.played == true) == state.watched }
@@ -147,7 +156,7 @@ fun LibraryBrowserScreen(
         }
         FlowRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween,
             verticalArrangement = Arrangement.Center) {
-            Text(if (busy) stringResource(R.string.library_loading_count, state.loaded, state.total)
+            Text(if (busy && source.isEmpty()) stringResource(R.string.library_loading_count, state.loaded, state.total)
                 else stringResource(R.string.library_count, if (grouped) groups.size else display.size),
                 color = Color(0xFFBABDC4), modifier = Modifier.padding(vertical = 14.dp, horizontal = 4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -170,9 +179,22 @@ fun LibraryBrowserScreen(
                 }
             }
         }
+        if (busy && source.isNotEmpty()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = LibraryBlue)
+        if (error != null && source.isNotEmpty()) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.library_error), color = Color.Gray, modifier = Modifier.weight(1f))
+                TextButton(onClick = {
+                    if (state.error != null) model.open(libraryId, true) else when (state.tab) {
+                        LibraryTab.FOLDERS -> folderRetry++
+                        LibraryTab.COLLECTIONS -> model.loadCollections()
+                        else -> model.open(libraryId, true)
+                    }
+                }) { Text(stringResource(R.string.library_retry)) }
+            }
+        }
         when {
-            busy -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = LibraryBlue) }
-            error != null -> Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            busy && source.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = LibraryBlue) }
+            error != null && source.isEmpty() -> Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center) {
                 Text(stringResource(R.string.library_error), color = Color.White)
                 Text(error, color = Color.Gray, maxLines = 3)
@@ -206,7 +228,7 @@ fun LibraryBrowserScreen(
                                 state.tab == LibraryTab.FOLDERS && (item.isFolder == true || item.type == "Folder" || item.type == "PhotoAlbum") -> {
                                     folderIds = folderIds + item.id!!; folderNames = folderNames + item.name.orEmpty()
                                 }
-                                contentType == ContentType.HOME_MEDIA && item.isLibraryPlayable() -> onPlayQueue(listOf(item.id!!))
+                                contentType == ContentType.HOME_MEDIA && item.isLibraryPlayable() -> onItemClick(item)
                                 else -> onItemClick(item)
                             }
                         }
