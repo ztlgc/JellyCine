@@ -315,6 +315,7 @@ private fun ReviewDetailSheet(
                 color = Color.White.copy(alpha = 0.9f),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .weight(1f, fill = false)
                     .heightIn(max = 460.dp)
                     .verticalScroll(rememberScrollState())
             )

@@ -32,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.jellycine.app.ui.components.common.PhoneDialog
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -43,8 +44,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.jellycine.data.model.MediaStream
 import com.jellycine.player.core.defaultSubtitleDisplayTitle
 import com.jellycine.player.core.mediaStreamDisplayTitles
@@ -321,12 +320,9 @@ internal fun OptionSelectorRow(
     }
 
     if (showDialog) {
-        Dialog(
-            onDismissRequest = { showDialog = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
+        PhoneDialog(onDismiss = { showDialog = false }, maxWidth = 420.dp) {
             Surface(
-                modifier = Modifier.fillMaxWidth(0.92f).widthIn(max = 420.dp),
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 color = Color.Black,
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f))
@@ -342,7 +338,7 @@ internal fun OptionSelectorRow(
                     )
                     Spacer(modifier = Modifier.height(14.dp))
                     Column(
-                        modifier = Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState()),
+                        modifier = Modifier.weight(1f, fill = false).heightIn(max = 380.dp).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         options.forEach { option ->

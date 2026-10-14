@@ -31,6 +31,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -38,6 +40,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -151,6 +155,9 @@ fun SearchContainer(
     val keyboardController = LocalSoftwareKeyboardController.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val isSearchActive = searchQuery.isNotBlank()
+    val density = LocalDensity.current
+    var searchBarHeightPx by remember { mutableIntStateOf(0) }
+    val searchBarHeight = with(density) { searchBarHeightPx.toDp() }
     val hasSearchResults = remember(
         uiState.movieResults,
         uiState.showResults,
@@ -218,13 +225,13 @@ fun SearchContainer(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .imePadding()
     ) {
         if (isSearchActive) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
-                    .padding(top = 72.dp)
+                    .padding(top = searchBarHeight + 8.dp)
             ) {
                 if (uiState.isSearching) {
                     SearchResultsViewSkeleton()
@@ -255,8 +262,8 @@ fun SearchContainer(
                     onNavigateToDetail(item.withJellyfinNavigationId())
                 },
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 20.dp),
+                    .fillMaxSize(),
+                discoveryTopPadding = searchBarHeight + 8.dp,
                 discoveryTabs = if (uiState.isSeerrConnected) SearchDiscoveryTab.entries.toList() else listOf(SearchDiscoveryTab.SUGGESTIONS),
                 selectedDiscoveryTab = selectedDiscoveryTab,
                 onDiscoveryTabClick = viewModel::selectDiscoveryTab
@@ -272,6 +279,7 @@ fun SearchContainer(
             keyboardController = keyboardController,
             modifier = Modifier
                 .align(Alignment.TopCenter)
+                .onSizeChanged { searchBarHeightPx = it.height }
                 .statusBarsPadding()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         )
@@ -318,7 +326,8 @@ private fun SearchBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .heightIn(min = 48.dp)
+                    .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
@@ -341,6 +350,7 @@ private fun SearchBar(
                             fontSize = 16.sp
                         ),
                         cursorBrush = SolidColor(Color.White),
+                        singleLine = true,
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(
                             onSearch = {
@@ -365,7 +375,7 @@ private fun SearchBar(
                 if (query.isNotEmpty()) {
                     IconButton(
                         onClick = { onQueryChange("") },
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,

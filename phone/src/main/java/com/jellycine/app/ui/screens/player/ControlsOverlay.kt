@@ -109,6 +109,19 @@ fun ControlsOverlay(
     val panelColor = Color.Black.copy(alpha = 0.55f)
     val panelShape = RoundedCornerShape(28.dp)
     val speedLabel = "${playbackSpeed}×"
+    val optionsContent: @Composable () -> Unit = {
+        DropdownMenu(expanded = optionsMenu, onDismissRequest = { optionsMenu = false }) {
+            DropdownMenuItem(text = { Text(stringResource(R.string.player_speed_title)) },
+                onClick = { optionsMenu = false; speedDialog = true })
+            DropdownMenuItem(text = { Text(stringResource(R.string.player_gain_title)) },
+                onClick = { optionsMenu = false; gainDialog = true })
+            if (showPlaybackSettingsButton) DropdownMenuItem(
+                text = { Text(stringResource(R.string.player_control_settings)) },
+                onClick = { optionsMenu = false; onShowPlaybackSettings() })
+            DropdownMenuItem(text = { Text(stringResource(R.string.player_control_info)) },
+                onClick = { optionsMenu = false; onShowMediaInfo() })
+        }
+    }
     BoxWithConstraints(modifier.fillMaxSize().safeDrawingPadding()) {
         val portrait = maxHeight > maxWidth
         val compact = maxWidth < 400.dp || maxHeight < 360.dp
@@ -121,12 +134,12 @@ fun ControlsOverlay(
                     Text(title, Modifier.weight(1f).padding(horizontal = 12.dp), color = Color.White,
                         fontSize = if (compact) 16.sp else 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     if (!portrait) {
-                        PlayerTopActions(onToggleOrientation, onCycleAspectRatio, { optionsMenu = true })
+                        PlayerTopActions(onToggleOrientation, onCycleAspectRatio, { optionsMenu = true }, optionsContent)
                     }
                 }
                 if (portrait) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        PlayerTopActions(onToggleOrientation, onCycleAspectRatio, { optionsMenu = true })
+                        PlayerTopActions(onToggleOrientation, onCycleAspectRatio, { optionsMenu = true }, optionsContent)
                     }
                 }
             }
@@ -205,19 +218,6 @@ fun ControlsOverlay(
                     }
                 }
             }
-            Box(Modifier.align(Alignment.TopEnd).padding(top = if (portrait) 116.dp else 68.dp, end = edge)) {
-                DropdownMenu(expanded = optionsMenu, onDismissRequest = { optionsMenu = false }) {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.player_speed_title)) },
-                        onClick = { optionsMenu = false; speedDialog = true })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.player_gain_title)) },
-                        onClick = { optionsMenu = false; gainDialog = true })
-                    if (showPlaybackSettingsButton) DropdownMenuItem(
-                        text = { Text(stringResource(R.string.player_control_settings)) },
-                        onClick = { optionsMenu = false; onShowPlaybackSettings() })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.player_control_info)) },
-                        onClick = { optionsMenu = false; onShowMediaInfo() })
-                }
-            }
         }
     }
     if (speedDialog) AlertDialog(
@@ -244,11 +244,19 @@ fun ControlsOverlay(
 }
 
 @Composable
-private fun PlayerTopActions(onRotate: () -> Unit, onAspect: () -> Unit, onMore: () -> Unit) {
+private fun PlayerTopActions(
+    onRotate: () -> Unit,
+    onAspect: () -> Unit,
+    onMore: () -> Unit,
+    menu: @Composable () -> Unit
+) {
     Row(Modifier.background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(28.dp))) {
         IconButton(onClick = onRotate) { Icon(Icons.Filled.ScreenRotation, stringResource(R.string.player_control_rotate), tint = Color.White) }
         IconButton(onClick = onAspect) { Icon(Icons.Outlined.AspectRatio, stringResource(R.string.player_control_aspect), tint = Color.White) }
-        IconButton(onClick = onMore) { Icon(Icons.Filled.MoreHoriz, stringResource(R.string.player_control_more), tint = Color.White) }
+        Box {
+            IconButton(onClick = onMore) { Icon(Icons.Filled.MoreHoriz, stringResource(R.string.player_control_more), tint = Color.White) }
+            menu()
+        }
     }
 }
 

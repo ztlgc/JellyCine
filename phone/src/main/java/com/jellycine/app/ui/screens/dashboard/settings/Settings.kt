@@ -9,6 +9,8 @@ import android.provider.Settings as AndroidSettings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -126,8 +128,8 @@ fun Settings(
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
             state = listState,
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            contentPadding = PaddingValues(bottom = 96.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
             item {
                 UserProfileSection(
@@ -581,7 +583,7 @@ private fun UserProfileSection(
 private fun QuickActionsRow(
     onNavigateToPlayerSettings: () -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         ActionTile(
             modifier = Modifier.fillMaxWidth(),
             icon = Icons.Rounded.PlayArrow,
@@ -730,7 +732,7 @@ private fun SettingsItem(
         modifier = Modifier
             .fillMaxWidth()
             .then(clickableModifier)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -824,7 +826,7 @@ private fun NetworkSettingsDialog(
         textContentColor = Color.White,
         title = { Text(stringResource(R.string.settings_network)) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 NetworkDialogItem(
                     title = stringResource(R.string.settings_request_timeout),
                     value = "$requestTimeoutMs ms",
@@ -905,7 +907,10 @@ private fun TimeoutValueDialog(
         textContentColor = Color.White,
         title = { Text(stringResource(field.titleRes)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 OutlinedTextField(
                     value = textValue,
                     onValueChange = { input ->

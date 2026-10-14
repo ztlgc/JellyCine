@@ -9,12 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -45,13 +43,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.jellycine.shared.R
+import com.jellycine.app.ui.components.common.PhoneDialog
 import com.jellycine.data.model.AudioTranscodeMode
 import com.jellycine.player.core.AudioTrackInfo
 import com.jellycine.player.core.SubtitleTrackInfo
@@ -235,32 +232,21 @@ private fun <T> TrackSelectionDialog(
     isTrackSelected: (T, T?) -> Boolean,
     trackDisplayInfo: (T) -> TrackDisplayInfo
 ) where T : Any {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
+    PhoneDialog(onDismiss = onDismiss, maxWidth = 460.dp, scrimColor = Color.Black.copy(alpha = 0.64f)) {
         HideSystemBarsForDialogWindow()
 
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.64f))
-                .clickable(onClick = onDismiss),
+                .fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
             BoxWithConstraints {
                 val isLandscape = maxWidth > maxHeight
-                val dialogWidthFraction = if (isLandscape) 0.68f else 0.84f
-                val dialogMaxWidth: Dp = if (isLandscape) 380.dp else 460.dp
                 val listMaxHeight: Dp = if (isLandscape) 220.dp else 300.dp
 
                 Surface(
                     modifier = Modifier
-                        .fillMaxWidth(dialogWidthFraction)
-                        .widthIn(max = dialogMaxWidth)
+                        .fillMaxWidth()
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -295,7 +281,7 @@ private fun <T> TrackSelectionDialog(
                             EmptyState()
                         } else {
                             LazyColumn(
-                                modifier = Modifier.heightIn(max = listMaxHeight),
+                                modifier = Modifier.weight(1f, fill = false).heightIn(max = listMaxHeight),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 itemsIndexed(

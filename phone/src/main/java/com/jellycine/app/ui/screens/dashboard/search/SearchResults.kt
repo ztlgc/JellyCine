@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import com.jellycine.app.ui.components.common.dashboardContentBottomPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -51,7 +52,7 @@ fun SearchResultsViewSkeleton(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = dashboardContentBottomPadding(keyboardHidesBar = true)),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         searchPosterSectionSkeleton(titleWidth = 90.dp)
@@ -134,7 +135,7 @@ fun SearchResultsView(
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 120.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = dashboardContentBottomPadding(keyboardHidesBar = true)),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         // Movies Section

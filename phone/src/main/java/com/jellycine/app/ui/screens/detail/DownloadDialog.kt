@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -42,7 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import com.jellycine.app.ui.components.common.PhoneDialog
 import java.util.Locale
 
 internal data class StorageSelectionOption(
@@ -113,16 +115,15 @@ internal fun DownloadDialog(
     val overflowBytes = (selectedBytes - availableBytes).coerceAtLeast(0L)
     val remainingBytes = (availableBytes - selectedBytes).coerceAtLeast(0L)
 
-    Dialog(onDismissRequest = onDismiss) {
+    PhoneDialog(onDismiss = onDismiss) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
+                .fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
             color = Color(0xFF10131A)
         ) {
             Column(
-                modifier = Modifier.padding(18.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState()).padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(

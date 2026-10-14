@@ -43,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.jellycine.app.ui.components.common.dashboardContentBottomPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -222,7 +223,7 @@ fun Favorites(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 120.dp)
+                    contentPadding = PaddingValues(bottom = dashboardContentBottomPadding())
                 ) {
                     item(key = "favorites_header") {
                         FavoritesHeader(title = headerTitle, profileImageUrl = profileImageUrl, serverTypeRaw = serverTypeRaw, onProfileClick = onProfileClick)
@@ -399,7 +400,7 @@ private fun FavoritesLoadingSkeleton() {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 120.dp),
+        contentPadding = PaddingValues(bottom = dashboardContentBottomPadding()),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         items(3) {

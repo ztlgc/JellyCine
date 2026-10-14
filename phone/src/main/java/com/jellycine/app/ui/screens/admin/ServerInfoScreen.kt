@@ -172,7 +172,7 @@ private fun ServerTab(viewModel: AdminPanelViewModel) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
     ) {
         item { ServerHeader(info) }
 
@@ -224,7 +224,7 @@ private fun ActivityLogTab(viewModel: AdminPanelViewModel) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp)
+        contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
     ) {
         items(uiState.entries) { entry ->
             ActivityLogCard(entry)

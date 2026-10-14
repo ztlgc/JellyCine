@@ -146,10 +146,10 @@ fun LibraryBrowserScreen(
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
             LibraryTab.entries.forEach { tab ->
-                Column(Modifier.clickable { group = null; model.tab(tab) }.padding(horizontal = 12.dp, vertical = 12.dp),
+                Column(Modifier.heightIn(min = 48.dp).clickable { group = null; model.tab(tab) }.padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(stringResource(tab.label), color = if (state.tab == tab) LibraryBlue else Color(0xFFBABDC4))
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(6.dp))
                     Box(Modifier.width(30.dp).height(3.dp).background(if (state.tab == tab) LibraryBlue else Color.Transparent, RoundedCornerShape(3.dp)))
                 }
             }
@@ -158,7 +158,7 @@ fun LibraryBrowserScreen(
             verticalArrangement = Arrangement.Center) {
             Text(if (busy && source.isEmpty()) stringResource(R.string.library_loading_count, state.loaded, state.total)
                 else stringResource(R.string.library_count, if (grouped) groups.size else display.size),
-                color = Color(0xFFBABDC4), modifier = Modifier.padding(vertical = 14.dp, horizontal = 4.dp))
+                color = Color(0xFFBABDC4), modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { onPlayQueue(playable.shuffled().mapNotNull { it.id }) }, enabled = playable.isNotEmpty()) {
                     Icon(Icons.Default.Shuffle, stringResource(R.string.library_shuffle), tint = if (playable.isEmpty()) Color.Gray else Color.White)
@@ -244,9 +244,9 @@ fun LibraryBrowserScreen(
     if (sortSheet) ModalBottomSheet(onDismissRequest = { sortSheet = false }, containerColor = Color(0xFF101114),
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         Text(stringResource(R.string.library_sort), color = Color.White, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(20.dp))
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).navigationBarsPadding()) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 12.dp)) {
             LibrarySort.entries.forEach { sort ->
-                Row(Modifier.fillMaxWidth().clickable { model.sort(sort); sortSheet = false }.padding(horizontal = 20.dp, vertical = 18.dp),
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable { model.sort(sort); sortSheet = false }.padding(horizontal = 20.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(sort.label), color = if (sort == state.sort) LibraryBlue else Color.White, modifier = Modifier.weight(1f))
                     if (sort == state.sort) Icon(if (sort == LibrarySort.RANDOM) Icons.Default.Check else
@@ -255,10 +255,11 @@ fun LibraryBrowserScreen(
             }
         }
     }
-    if (filterSheet) ModalBottomSheet(onDismissRequest = { filterSheet = false }, containerColor = Color(0xFF101114)) {
+    if (filterSheet) ModalBottomSheet(onDismissRequest = { filterSheet = false }, containerColor = Color(0xFF101114),
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         var draftGenres by remember { mutableStateOf(state.genres) }
         var draftWatched by remember { mutableStateOf(state.watched) }
-        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp).navigationBarsPadding()) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp).padding(bottom = 16.dp)) {
             Text(stringResource(R.string.library_filter), color = Color.White, style = MaterialTheme.typography.headlineSmall)
             Text(stringResource(R.string.library_play_state), color = Color.Gray, modifier = Modifier.padding(top = 20.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

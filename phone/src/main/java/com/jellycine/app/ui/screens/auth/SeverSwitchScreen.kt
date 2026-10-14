@@ -378,7 +378,7 @@ internal fun ServerSwitchDialog(
                 color = Color.White
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             if (serverGroups.isEmpty()) {
                 Text(
@@ -588,7 +588,7 @@ internal fun ServerSwitchDialog(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -658,7 +658,7 @@ internal fun UserSwitchDialog(
                 color = Color.White
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             if (users.isEmpty()) {
                 Text(
@@ -769,7 +769,7 @@ internal fun UserSwitchDialog(
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedButton(
                 enabled = !isSwitching,

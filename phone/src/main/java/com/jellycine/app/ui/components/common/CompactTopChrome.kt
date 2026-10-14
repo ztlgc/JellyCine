@@ -109,7 +109,7 @@ fun CompactPageHeader(
     subtitle: String? = null,
     includeStatusBarsPadding: Boolean = true,
     horizontalPadding: Dp = 16.dp,
-    verticalPadding: Dp = 16.dp,
+    verticalPadding: Dp = 12.dp,
     titleFontSize: TextUnit = 24.sp,
     titleFontWeight: FontWeight = FontWeight.SemiBold,
     subtitleFontSize: TextUnit = 14.sp,

@@ -5,10 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -22,8 +22,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.jellycine.shared.ui.theme.JellyBlue
 
 @Composable
@@ -33,42 +31,27 @@ fun AmoledDialogFrame(
     topPadding: Dp = 0.dp,
     content: @Composable () -> Unit
 ) {
-    val scrimInteractionSource = remember { MutableInteractionSource() }
     val sheetInteractionSource = remember { MutableInteractionSource() }
 
-    Dialog(
-        onDismissRequest = {
-            if (dismissOnRequest) {
-                onDismiss()
-            }
-        },
-        properties = DialogProperties(
-            dismissOnBackPress = dismissOnRequest,
-            dismissOnClickOutside = dismissOnRequest,
-            usePlatformDefaultWidth = false
-        )
+    PhoneDialog(
+        onDismiss = onDismiss,
+        dismissOnRequest = dismissOnRequest,
+        scrimColor = Color.Black.copy(alpha = 0.76f)
     ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.76f))
-                .clickable(
-                    enabled = dismissOnRequest,
-                    indication = null,
-                    interactionSource = scrimInteractionSource
-                ) { onDismiss() },
+                .fillMaxWidth()
+                .padding(top = topPadding),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = topPadding)
-                    .widthIn(max = 880.dp),
+                    .fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .matchParentSize()
                         .padding(horizontal = 20.dp, vertical = 18.dp)
                         .blur(64.dp)
                         .background(
@@ -97,6 +80,7 @@ fun AmoledDialogFrame(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
                             .background(
                                 brush = Brush.verticalGradient(
                                     colors = listOf(
@@ -105,7 +89,7 @@ fun AmoledDialogFrame(
                                     )
                                 )
                             )
-                            .padding(horizontal = 24.dp, vertical = 28.dp)
+                            .padding(horizontal = 20.dp, vertical = 20.dp)
                     ) {
                         content()
                     }

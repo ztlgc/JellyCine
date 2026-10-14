@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
+import com.jellycine.app.ui.components.common.dashboardContentBottomPadding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -1807,7 +1808,7 @@ fun Dashboard(
                 modifier = Modifier
                     .fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(1.dp),
-                contentPadding = PaddingValues(bottom = 100.dp)
+                contentPadding = PaddingValues(bottom = dashboardContentBottomPadding())
             ) {
                 if (featureCarouselEnabled && selectedCategory != HomeCategory.HOME && selectedCategory != HomeCategory.OTHER_VIDEOS) {
                     item(key = "feature_tab") {

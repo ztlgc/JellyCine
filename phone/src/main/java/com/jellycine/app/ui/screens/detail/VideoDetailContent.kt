@@ -15,6 +15,8 @@ import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import com.jellycine.app.ui.components.common.containerWidthDp
+import com.jellycine.app.ui.components.common.containerHeightDp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -106,8 +108,13 @@ internal fun VideoDetailContent(
     val listState = rememberLazyListState()
     val source = item.activeDetailMediaSources().firstOrNull()
     val path = source?.path?.takeIf(String::isNotBlank) ?: item.path
-    val pageWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
-    val heroHeight = (pageWidth * 1.28f).coerceIn(340f, 520f).dp
+    val pageWidth = containerWidthDp()
+    val pageHeight = containerHeightDp()
+    val heroHeight = if (pageWidth > pageHeight) {
+        (pageHeight * 0.85f).coerceIn(200.dp, 360.dp)
+    } else {
+        (pageWidth * 1.28f).coerceIn(340.dp, 520.dp)
+    }
     Box(Modifier.fillMaxSize().background(VideoPageBackground)) {
         LazyColumn(
             state = listState,

@@ -61,14 +61,14 @@ fun AmoledSelectionDialog(
                 color = Color.White
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 340.dp)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 options.forEach { option ->
                     val isSelected = option.value == selectedValue
@@ -95,7 +95,8 @@ fun AmoledSelectionDialog(
                             )
                             .clip(RoundedCornerShape(14.dp))
                             .clickable { onOptionSelected(option.value) }
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                            .heightIn(min = 48.dp)
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {

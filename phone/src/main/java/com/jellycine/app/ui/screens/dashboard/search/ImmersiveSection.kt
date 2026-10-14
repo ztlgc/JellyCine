@@ -51,6 +51,7 @@ fun ImmersiveSection(
     isLoading: Boolean,
     onItemClick: (BaseItemDto) -> Unit,
     modifier: Modifier = Modifier,
+    discoveryTopPadding: androidx.compose.ui.unit.Dp = 72.dp,
     discoveryTabs: List<SearchDiscoveryTab> = emptyList(),
     selectedDiscoveryTab: SearchDiscoveryTab? = null,
     onDiscoveryTabClick: (SearchDiscoveryTab) -> Unit = {}
@@ -181,8 +182,7 @@ fun ImmersiveSection(
             LazyRow(
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .statusBarsPadding()
-                    .padding(top = 60.dp),
+                    .padding(top = discoveryTopPadding),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(horizontal = 24.dp)
             ) {

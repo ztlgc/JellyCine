@@ -100,7 +100,7 @@ fun MediaInfoDialog(
             focusable = false,
             dismissOnBackPress = false,
             dismissOnClickOutside = false,
-            clippingEnabled = false
+            clippingEnabled = true
         )
     ) {
         Card(
@@ -118,9 +118,11 @@ fun MediaInfoDialog(
                         .verticalScroll(rememberScrollState())
                         .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
                 ) {
-                    SectionTitle("Stream")
-                    PrimaryLine(buildStreamLine(mediaInfo))
-                    SecondaryLine("-> ${mediaInfo.playMethod}")
+                    Column(modifier = Modifier.padding(end = 36.dp)) {
+                        SectionTitle("Stream")
+                        PrimaryLine(buildStreamLine(mediaInfo))
+                        SecondaryLine("-> ${mediaInfo.playMethod}")
+                    }
 
                     Spacer(modifier = Modifier.height(6.dp))
 
@@ -147,8 +149,7 @@ fun MediaInfoDialog(
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(top = 8.dp, end = 12.dp)
-                        .size(20.dp)
+                        .size(40.dp)
                         .clickable(onClick = onDismiss),
                     contentAlignment = Alignment.Center
                 ) {

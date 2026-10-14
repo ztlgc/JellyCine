@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,7 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
+import com.jellycine.app.ui.components.common.PhoneDialog
 import com.jellycine.data.model.MediaStream
 import com.jellycine.player.preferences.TranscodeProfile
 import com.jellycine.player.preferences.TranscodeProfiles
@@ -88,9 +90,9 @@ internal fun DownloadQualityPicker(
         else onSelected(DownloadQualitySelection(profile))
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    PhoneDialog(onDismiss = onDismiss) {
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
             color = Color(0xFF10131A)
         ) {
@@ -194,7 +196,10 @@ private fun StepContent(
     onDismiss: () -> Unit,
     content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (onBack != null) {
                 IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {

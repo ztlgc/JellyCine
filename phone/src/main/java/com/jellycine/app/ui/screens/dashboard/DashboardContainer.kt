@@ -15,6 +15,8 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import com.jellycine.app.ui.components.common.DashboardBarHeight
+import com.jellycine.app.ui.components.common.DashboardBarMargin
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -198,7 +200,7 @@ fun DashboardContainer(
     val isNetworkAvailable = networkStatus.isAvailable
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
-    val bottomBarHeight = 60.dp
+    val bottomBarHeight = DashboardBarHeight
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isTablet = configuration.screenWidthDp >= 600
     val shouldUseMobileBarWidth = isLandscape || isTablet
@@ -541,12 +543,14 @@ fun DashboardContainer(
                 navigateToDestination(DashboardDestination.Home)
             }
 
-            if (currentRoute != DashboardDestination.Settings.route) {
+            val searchKeyboardVisible = currentRoute == DashboardDestination.Search.route &&
+                WindowInsets.ime.getBottom(density) > 0
+            if (currentRoute != DashboardDestination.Settings.route && !searchKeyboardVisible) {
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .windowInsetsPadding(WindowInsets.navigationBars)
-                        .padding(horizontal = barOuterHorizontalPadding, vertical = 10.dp)
+                        .padding(horizontal = barOuterHorizontalPadding, vertical = DashboardBarMargin)
                         .widthIn(max = mobileLikeBarWidth)
                         .fillMaxWidth()
                         .graphicsLayer {

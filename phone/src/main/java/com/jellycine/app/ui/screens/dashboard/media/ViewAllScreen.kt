@@ -252,7 +252,7 @@ fun ViewAllScreen(
                 modifier = modifier,
                 includeStatusBarsPadding = false,
                 horizontalPadding = if (usesCompactHeader) 0.dp else horizontalPadding,
-                verticalPadding = if (usesCompactHeader) 18.dp else 20.dp,
+                verticalPadding = 12.dp,
                 titleFontSize = if (isTablet) 28.sp else 24.sp,
                 titleFontWeight = FontWeight.Bold,
                 subtitleFontSize = if (isTablet) 15.sp else 13.sp,
@@ -266,7 +266,7 @@ fun ViewAllScreen(
                 .fillMaxWidth()
                 .padding(
                     horizontal = if (usesCompactHeader) 0.dp else horizontalPadding,
-                    vertical = if (usesCompactHeader) 18.dp else 20.dp
+                    vertical = 12.dp
                 ),
             horizontalAlignment = if (usesCompactHeader) {
                 Alignment.CenterHorizontally
@@ -966,15 +966,14 @@ private fun SortBottomSheet(
                     else it 
                 }
                 .heightIn(max = if (isTablet) 700.dp else 560.dp)
-                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp)
-                .windowInsetsPadding(WindowInsets.navigationBars)
                 .verticalScroll(rememberScrollState())
+                .padding(start = 20.dp, end = 20.dp, bottom = 16.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 24.dp)
+                modifier = Modifier.padding(bottom = 16.dp)
             ) {
                 Surface(
                     modifier = Modifier.size(44.dp),
@@ -1024,7 +1023,7 @@ private fun SortBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
