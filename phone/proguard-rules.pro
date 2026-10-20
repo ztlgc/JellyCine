@@ -28,3 +28,9 @@
 
 # Google Cast
 -keep class com.jellycine.app.cast.JellyCineCastOptionsProvider { *; }
+
+# The pinned MPV 1.0.4 bridge reads this JNI handle field by name.
+-keepclassmembers class org.jellycine.mpv.MPVLib {
+    long nativeInstance;
+}
+-keep class com.jellycine.app.player.mpv.MpvAudioNative { *; }

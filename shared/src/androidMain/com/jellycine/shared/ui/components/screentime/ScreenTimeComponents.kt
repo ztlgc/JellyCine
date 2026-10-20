@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -92,11 +94,11 @@ fun StatCard(
             style = MaterialTheme.typography.labelMedium,
             color = AccentBlue
         )
-        Text(
+        BasicText(
             text = value,
-            style = MaterialTheme.typography.headlineMedium,
-            color = Color.White,
-            fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.headlineMedium.copy(color = Color.White, fontWeight = FontWeight.Bold),
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 16.sp, maxFontSize = MaterialTheme.typography.headlineMedium.fontSize)
         )
         if (delta != null) {
             DeltaIndicator(delta = delta)
@@ -140,20 +142,24 @@ fun SectionCard(
     }
 }
 
-fun formatMinutes(minutes: Long): String {
-    val hours = minutes / 60
-    val mins = minutes % 60
+fun formatWatchTime(durationMs: Long): String {
+    val seconds = durationMs.coerceAtLeast(0L) / 1000
+    val hours = seconds / 3600
+    val mins = seconds / 60 % 60
+    val secs = seconds % 60
     return when {
-        hours == 0L -> "${mins}m"
-        mins == 0L -> "${hours}h"
-        else -> "${hours}h ${mins}m"
+        hours > 0 -> "${hours}h ${mins}m"
+        mins > 0 -> "${mins}m ${secs}s"
+        seconds > 0 -> "${secs}s"
+        durationMs > 0 -> "<1s"
+        else -> "0s"
     }
 }
 
 private const val NO_CHANGE_SENTINEL = "__no_change__"
 
-fun formatDelta(deltaMinutes: Long): String {
-    if (deltaMinutes == 0L) return NO_CHANGE_SENTINEL
-    val prefix = if (deltaMinutes > 0) "+" else ""
-    return "$prefix${formatMinutes(kotlin.math.abs(deltaMinutes))}"
+fun formatDelta(deltaMs: Long): String {
+    if (deltaMs == 0L) return NO_CHANGE_SENTINEL
+    val prefix = if (deltaMs > 0) "+" else "−"
+    return "$prefix${formatWatchTime(kotlin.math.abs(deltaMs))}"
 }

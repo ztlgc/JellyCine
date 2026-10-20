@@ -125,7 +125,7 @@ class PlayerPreferences(context: Context) {
         const val MAX_SEEK_INTERVAL_SECONDS = 30
         const val MIN_SEEK_INTERVAL_SECONDS = 5
         const val SEEK_INTERVAL_STEP_SECONDS = 5
-        const val DEFAULT_USE_DEVICE_VOLUME_IN_PLAYER = false
+        const val DEFAULT_USE_DEVICE_VOLUME_IN_PLAYER = true
         const val DEFAULT_USE_DEVICE_BRIGHTNESS_IN_PLAYER = false
         const val DEFAULT_CACHE_NEXT_EPISODE = false
         const val DEFAULT_SKIP_INTRO_ENABLED = true
@@ -252,8 +252,8 @@ class PlayerPreferences(context: Context) {
      * Get the saved player volume level (0.0f to 1.0f)
      * Returns the last used volume or default if none saved
      */
-    fun getPlayerVolume(): Float {
-        return prefs.getFloat(KEY_PLAYER_VOLUME, DEFAULT_VOLUME)
+    fun getPlayerVolume(fallback: Float = DEFAULT_VOLUME): Float {
+        return prefs.getFloat(KEY_PLAYER_VOLUME, fallback)
             .coerceIn(0.0f, 1.0f)
     }
 
@@ -265,12 +265,18 @@ class PlayerPreferences(context: Context) {
         prefs.edit().putFloat("playback_speed", com.jellycine.player.core.PlaybackOptions.validSpeed(speed)).apply()
     }
 
-    fun getAudioGainPercent(): Int = com.jellycine.player.core.PlaybackOptions.validGain(
+    fun getAudioGainPercent(): Int = com.jellycine.player.core.PlaybackOptions.restoreGain(
         prefs.getInt("audio_gain_percent", 0)
     )
 
     fun setAudioGainPercent(percent: Int) {
         prefs.edit().putInt("audio_gain_percent", com.jellycine.player.core.PlaybackOptions.validGain(percent)).apply()
+    }
+
+    fun isAudioNormalizationEnabled(): Boolean = prefs.getBoolean("audio_normalization", false)
+
+    fun setAudioNormalizationEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean("audio_normalization", enabled).apply()
     }
     
     /**

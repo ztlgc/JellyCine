@@ -9,7 +9,11 @@ data class UserDataRefreshEvent(
     val played: Boolean? = null,
     val deleted: Boolean = false,
     val serverId: String? = null,
-    val timestampMs: Long = System.currentTimeMillis()
+    val timestampMs: Long = System.currentTimeMillis(),
+    val favorite: Boolean? = null,
+    val playbackPositionTicks: Long? = null,
+    val communityRating: Float? = null,
+    val ratingChanged: Boolean = false
 )
 
 object UserDataRefreshSignals {
@@ -18,16 +22,27 @@ object UserDataRefreshSignals {
     private val _refreshEvent = MutableStateFlow<UserDataRefreshEvent?>(null)
     val refreshEvent: StateFlow<UserDataRefreshEvent?> = _refreshEvent.asStateFlow()
 
+    fun notifyRatingChanged(serverId: String, itemId: String, rating: Float?) {
+        _refreshEvent.value = UserDataRefreshEvent(
+            itemId = itemId, serverId = serverId, communityRating = rating, ratingChanged = true
+        )
+    }
+
     @Synchronized
     fun notifyItemDeleted(serverId: String, itemId: String) {
         _deletedItems.value = _deletedItems.value + (serverId to (_deletedItems.value[serverId].orEmpty() + itemId))
         _refreshEvent.value = UserDataRefreshEvent(itemId = itemId, deleted = true, serverId = serverId)
     }
 
-    fun notifyUserDataChanged(itemId: String?, played: Boolean? = null) {
+    fun notifyUserDataChanged(
+        itemId: String?, played: Boolean? = null,
+        favorite: Boolean? = null, playbackPositionTicks: Long? = null
+    ) {
         _refreshEvent.value = UserDataRefreshEvent(
             itemId = itemId,
-            played = played
+            played = played,
+            favorite = favorite,
+            playbackPositionTicks = playbackPositionTicks
         )
     }
 }

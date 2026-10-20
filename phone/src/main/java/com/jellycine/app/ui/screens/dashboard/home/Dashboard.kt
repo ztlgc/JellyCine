@@ -59,6 +59,7 @@ import com.jellycine.app.ui.screens.auth.ServerSwitchViewModel
 import com.jellycine.app.ui.screens.auth.ProfileImageLoader
 import com.jellycine.app.ui.screens.auth.rememberServerSwitchDialogsState
 import com.jellycine.app.ui.screens.dashboard.settings.DownloadsScreen
+import com.jellycine.app.ui.screens.dashboard.media.withoutLibraryPhotos
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
@@ -112,6 +113,7 @@ import coil3.size.Precision
 import com.jellycine.shared.util.image.imageTagFor
 import com.jellycine.shared.util.image.WarmImageUrl
 import com.jellycine.shared.playback.UserDataRefreshSignals
+import com.jellycine.app.ui.screens.dashboard.media.withLibraryUserData
 import java.util.concurrent.ConcurrentHashMap
 
 @Stable
@@ -1555,6 +1557,7 @@ fun Dashboard(
                                 !libraryName.isNullOrBlank() &&
                                 collectionType != "playlists" &&
                                 collectionType != "folders" &&
+                                !collectionType.equals("photos", true) &&
                                 (type == "CollectionFolder" || type == "Folder")
                         }
                         .distinctBy { it.id }
@@ -1609,9 +1612,10 @@ fun Dashboard(
             emptyList()
         }
         val LibrarySections = (homeLibraryBurstQuery.data ?: persistedLibrarySections).map {
-            it.copy(items = it.items.filterNot { video -> video.id in deletedIds })
+            it.copy(items = withoutLibraryPhotos(it.items).filterNot { video -> video.id in deletedIds })
         }.filter {
-            selectedCategory != HomeCategory.OTHER_VIDEOS || it.collectionType.equals("homevideos", true)
+            !it.collectionType.equals("photos", true) &&
+                (selectedCategory != HomeCategory.OTHER_VIDEOS || it.collectionType.equals("homevideos", true))
         }
 
         val persistedMyMediaLibraries = if (isNetworkAvailable) {
@@ -1621,6 +1625,7 @@ fun Dashboard(
         }
         val MyMediaLibraries = if (selectedCategory == HomeCategory.HOME || selectedCategory == HomeCategory.OTHER_VIDEOS) {
             HomeCategory.librariesForCategory(selectedCategory, homeMyMediaLibrariesQuery.data ?: persistedMyMediaLibraries)
+                .filterNot { it.collectionType.equals("photos", true) }
         } else {
             emptyList()
         }
@@ -1676,7 +1681,20 @@ fun Dashboard(
             continueWatchingEnabled,
             nextUpEnabled
         ) {
-            if (userDataRefreshEvent == null) return@LaunchedEffect
+            val event = userDataRefreshEvent ?: return@LaunchedEffect
+            if (event.serverId != null && event.serverId != sessionSnapshot.activeServerId) return@LaunchedEffect
+            if (event.ratingChanged) {
+                for (queryKey in listOf("featured_home", "featured_other_videos", "recent_watching_home",
+                    "recent_watching_other_videos", "home_next_up_api_v1")) {
+                    val cached = queryManager.getQuery<List<BaseItemDto>>(queryKey)
+                    cached.data?.let { queryManager.setQuery(queryKey, cached.copy(data = it.withLibraryUserData(event))) }
+                }
+                val sections = queryManager.getQuery<List<HomeLibrarySectionUi>>("home_library_burst_v2")
+                sections.data?.let { items -> queryManager.setQuery("home_library_burst_v2", sections.copy(
+                    data = items.map { it.copy(items = it.items.withLibraryUserData(event)) })) }
+                persistedHomeSnapshot = mediaRepository.loadPersistedHomeSnapshot()
+                return@LaunchedEffect
+            }
 
             queryManager.invalidateQuery("home_library_burst_v2")
             if (continueWatchingEnabled) {
@@ -2680,7 +2698,6 @@ private fun ContinueWatchingCard(
     Column(
         modifier = Modifier
             .width(200.dp)
-            .height(180.dp)
     ) {
         Card(
             modifier = Modifier
@@ -2756,8 +2773,7 @@ private fun ContinueWatchingCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp) // Fixed height for title area
-                .padding(top = 8.dp, start = 4.dp, end = 4.dp),
+                .padding(top = 4.dp, start = 4.dp, end = 4.dp, bottom = 4.dp),
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -2772,9 +2788,8 @@ private fun ContinueWatchingCard(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(4.dp))
-
             if (metadataText.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = metadataText,
                     color = Color.White.copy(alpha = 0.7f),
@@ -2971,10 +2986,8 @@ internal fun LibraryItemCard(
 
     val landscapeLayout = useLandscapeLayout || useWatchedEpisodeImage
     val cardWidth = if (landscapeLayout) 200.dp else 112.dp
-    val cardHeight = if (landscapeLayout) 182.dp else 214.dp
     val imageHeight = if (landscapeLayout) 120.dp else 166.dp
-    val titleAreaHeight = if (landscapeLayout) 64.dp else 46.dp
-    val titleTopPadding = if (landscapeLayout) 6.dp else 4.dp
+    val titleTopPadding = 4.dp
     val titleFontSize = 13.sp
     val titleLineHeight = 15.sp
     val titleMaxLines = if (useWatchedEpisodeImage) 1 else if (landscapeLayout) 2 else 1
@@ -2984,7 +2997,7 @@ internal fun LibraryItemCard(
     Column(
         modifier = modifier
             .width(cardWidth)
-            .height(cardHeight)
+            .then(if (landscapeLayout) Modifier else Modifier.height(214.dp))
     ) {
         Card(
             modifier = Modifier
@@ -3066,7 +3079,7 @@ internal fun LibraryItemCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(titleAreaHeight)
+                .then(if (landscapeLayout) Modifier else Modifier.height(46.dp))
                 .padding(top = titleTopPadding, start = 4.dp, end = 4.dp),
             contentAlignment = Alignment.TopCenter
         ) {

@@ -2,6 +2,8 @@ package com.jellycine.app.ui.screens.dashboard.media
 
 import com.jellycine.app.R
 import com.jellycine.data.model.BaseItemDto
+import com.jellycine.data.model.HomeMediaKind
+import com.jellycine.data.model.homeMediaKind
 import java.util.Locale
 import java.time.OffsetDateTime
 import kotlin.random.Random
@@ -29,13 +31,17 @@ internal fun libraryPlayableQueue(display: List<BaseItemDto>, catalog: List<Base
         .distinctBy { it.id }
 }
 
-internal fun libraryMedia(items: List<BaseItemDto>, contentType: ContentType): List<BaseItemDto> = items.filter {
+/** Keep folders navigable, including Emby albums, while excluding photo leaves from every browser source. */
+internal fun withoutLibraryPhotos(items: List<BaseItemDto>): List<BaseItemDto> =
+    items.filterNot { it.homeMediaKind() == HomeMediaKind.PHOTO }
+
+internal fun libraryMedia(items: List<BaseItemDto>, contentType: ContentType): List<BaseItemDto> = withoutLibraryPhotos(items).filter {
     when (contentType) {
         ContentType.MOVIES -> it.type == "Movie"
         ContentType.SERIES -> it.type == "Series"
         ContentType.EPISODES -> it.type == "Episode"
-        ContentType.HOME_MEDIA -> it.type in setOf("Video", "Photo", "Movie", "Audio", "MusicVideo")
-        else -> it.type in setOf("Movie", "Series", "Video", "Photo", "Audio", "MusicVideo")
+        ContentType.HOME_MEDIA -> it.type in setOf("Video", "Movie", "Audio", "MusicVideo")
+        else -> it.type in setOf("Movie", "Series", "Video", "Audio", "MusicVideo")
     }
 }
 
@@ -43,14 +49,15 @@ internal fun filterLibrary(
     items: List<BaseItemDto>, catalog: List<BaseItemDto>, genres: Set<String>, watched: Boolean?,
     collections: Map<String, List<BaseItemDto>>, directoryMode: Boolean
 ): List<BaseItemDto> {
-    if (genres.isEmpty() && watched == null) return items
+    val visibleItems = withoutLibraryPhotos(items)
+    if (genres.isEmpty() && watched == null) return visibleItems
     fun matches(item: BaseItemDto) = genres.all { it in item.genres.orEmpty() } &&
         (watched == null || (item.userData?.played == true) == watched)
     // Keep directories leading to matching descendants accessible, even without their own genre/user data.
     val matchingAncestors = mutableSetOf<String>()
     if (directoryMode) {
         val byId = catalog.associateBy { it.id }
-        catalog.filter(::matches).forEach { item ->
+        withoutLibraryPhotos(catalog).filter(::matches).forEach { item ->
             var parent = item.parentId
             val visited = mutableSetOf<String>()
             while (parent != null && visited.add(parent)) {
@@ -59,9 +66,9 @@ internal fun filterLibrary(
             }
         }
     }
-    return items.filter { item ->
+    return visibleItems.filter { item ->
         when {
-            item.type == "BoxSet" -> collections[item.id].orEmpty().any(::matches)
+            item.type == "BoxSet" -> withoutLibraryPhotos(collections[item.id].orEmpty()).any(::matches)
             directoryMode && (item.isFolder == true || item.type in setOf("Folder", "PhotoAlbum", "Season", "Series", "MusicAlbum")) ->
                 item.id in matchingAncestors || (item.type in setOf("Series", "MusicAlbum") && matches(item))
             else -> matches(item)

@@ -118,11 +118,20 @@ object CodecUtils {
     /**
      * Format runtime from ticks to human readable format
      */
-    fun formatRuntime(ticks: Long?): String {
+    fun formatRuntime(ticks: Long?, includeSeconds: Boolean = false): String {
         if (ticks == null) return ""
-        val minutes = (ticks / 10000000) / 60
+        val totalSeconds = ticks.coerceAtLeast(0L) / 10_000_000L
+        val minutes = totalSeconds / 60
         val hours = minutes / 60
         val remainingMinutes = minutes % 60
+        if (includeSeconds) {
+            val seconds = (totalSeconds % 60).toString().padStart(2, '0')
+            return if (hours > 0) {
+                "$hours:${remainingMinutes.toString().padStart(2, '0')}:$seconds"
+            } else {
+                "$minutes:$seconds"
+            }
+        }
         return if (hours > 0) "${hours}h ${remainingMinutes}m" else "${minutes}m"
     }
 

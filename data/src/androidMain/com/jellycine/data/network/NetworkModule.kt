@@ -18,6 +18,7 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -41,10 +42,14 @@ object NetworkModule {
     private const val OFFLINE_DEBOUNCE_MS = 3000L
     private val deviceId by lazy { "jellycine-android-${UUID.randomUUID()}" }
     private val apiCache = ConcurrentHashMap<String, MediaServerApi>()
-    @Volatile
-    private var boundNetwork: Network? = null
+    private val networkBindingLock = Any()
+    private var networkObserverCount = 0
+    @Volatile private var boundNetwork: Network? = null
 
     fun getClientDeviceId(): String = deviceId
+
+    internal fun mediaServerRouteKey(context: Context, baseUrl: String): Long =
+        localServerNetwork(context, baseUrl)?.networkHandle ?: 0L
 
     fun isInternetAvailable(context: Context): Boolean {
         val caps = getActiveCapabilities(context) ?: return false
@@ -66,20 +71,19 @@ object NetworkModule {
         return cm.getNetworkCapabilities(network)
     }
 
-    private fun updateNetworkBinding(context: Context, status: NetworkStatus) {
-        val cm = context.applicationContext
-            .getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        if (status is NetworkStatus.LocalNetwork) {
-            val network = cm.activeNetwork
-            if (network != null && network != boundNetwork) {
-                cm.bindProcessToNetwork(network)
-                boundNetwork = network
-                Log.d(NETWORK_LOG_TAG, "Bound process to local network")
-            }
+    // Preserve offline LAN routing for native playback and image clients, but never keep a lost binding.
+    private fun updateNetworkBinding(context: Context, status: NetworkStatus) = synchronized(networkBindingLock) {
+        val manager = context.applicationContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = manager.activeNetwork
+        val capabilities = network?.let(manager::getNetworkCapabilities)
+        val localTransport = capabilities?.let {
+            it.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) || it.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+        } == true
+        if (status == NetworkStatus.LocalNetwork && network != null && localTransport) {
+            if (network != boundNetwork && manager.bindProcessToNetwork(network)) boundNetwork = network
         } else if (boundNetwork != null) {
-            cm.bindProcessToNetwork(null)
+            manager.bindProcessToNetwork(null)
             boundNetwork = null
-            Log.d(NETWORK_LOG_TAG, "Restored default network routing")
         }
     }
 
@@ -89,6 +93,7 @@ object NetworkModule {
         val appContext = context.applicationContext
         val connectivityManager =
             appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        synchronized(networkBindingLock) { networkObserverCount++ }
         var offlineDebounce: Job? = null
         var lastEmitted: NetworkStatus? = null
 
@@ -127,7 +132,15 @@ object NetworkModule {
 
         val callback = object : ConnectivityManager.NetworkCallback() {
             override fun onAvailable(network: Network) { scheduleCheck() }
-            override fun onLost(network: Network) { scheduleCheck() }
+            override fun onLost(network: Network) {
+                synchronized(networkBindingLock) {
+                    if (network == boundNetwork) {
+                        connectivityManager.bindProcessToNetwork(null)
+                        boundNetwork = null
+                    }
+                }
+                scheduleCheck()
+            }
             override fun onCapabilitiesChanged(
                 network: Network,
                 networkCapabilities: NetworkCapabilities
@@ -148,6 +161,13 @@ object NetworkModule {
         awaitClose {
             offlineDebounce?.cancel()
             runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+            synchronized(networkBindingLock) {
+                networkObserverCount--
+                if (networkObserverCount == 0 && boundNetwork != null) {
+                    connectivityManager.bindProcessToNetwork(null)
+                    boundNetwork = null
+                }
+            }
         }
     }
 
@@ -156,9 +176,11 @@ object NetworkModule {
         accessToken: String? = null,
         serverType: ServerType? = null,
         storageDir: File? = null,
-        timeoutConfig: NetworkTimeoutConfig? = null
+        timeoutConfig: NetworkTimeoutConfig? = null,
+        context: Context? = null
     ): MediaServerApi {
-        val baseUrlStd = trimTrailingSlash(baseUrl, trailingSlash = true)
+        val baseUrlStd = trimTrailingSlash(baseUrl.trim(), trailingSlash = true)
+        val localNetwork = localServerNetwork(context, baseUrlStd)
         val endpointType = serverType ?: inferServerType(baseUrlStd)
         val resolvedTimeoutConfig = timeoutConfig ?: defaultTimeoutConfig()
         val cacheKey = buildString {
@@ -173,6 +195,8 @@ object NetworkModule {
             append(resolvedTimeoutConfig.connectionTimeoutMs)
             append("|")
             append(resolvedTimeoutConfig.socketTimeoutMs)
+            append("|")
+            append(localNetwork?.networkHandle ?: 0L)
         }
         apiCache[cacheKey]?.let { return it }
 
@@ -180,7 +204,9 @@ object NetworkModule {
             accessToken = accessToken,
             serverType = endpointType,
             storageDir = storageDir,
-            timeoutConfig = resolvedTimeoutConfig
+            timeoutConfig = resolvedTimeoutConfig,
+            baseUrl = baseUrlStd,
+            localNetwork = localNetwork
         )
         val httpClient = createHttpClient(
             baseUrl = baseUrlStd,
@@ -207,7 +233,8 @@ object NetworkModule {
                 val api = createMediaServerApi(
                     baseUrl = candidate,
                     storageDir = storageDir,
-                    timeoutConfig = timeoutConfig
+                    timeoutConfig = timeoutConfig,
+                    context = context
                 )
                 val response = api.getPublicSystemInfo()
                 if (response.isSuccessful && response.body() != null) {
@@ -226,6 +253,7 @@ object NetworkModule {
                     context.getString(R.string.data_error_server_endpoint_http, response.code())
                 )
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 lastError = e
             }
         }
@@ -239,7 +267,9 @@ object NetworkModule {
         accessToken: String? = null,
         serverType: ServerType,
         storageDir: File? = null,
-        timeoutConfig: NetworkTimeoutConfig
+        timeoutConfig: NetworkTimeoutConfig,
+        baseUrl: String,
+        localNetwork: Network?
     ): OkHttpClient {
         val dispatcher = Dispatcher().apply {
             maxRequests = 128
@@ -254,6 +284,13 @@ object NetworkModule {
             .dispatcher(dispatcher)
             .connectionPool(ConnectionPool(32, 5, TimeUnit.MINUTES))
             .retryOnConnectionFailure(true)
+            .directLocalServer(baseUrl)
+
+        // A scoped socket factory avoids stale process-wide bindings affecting login and other clients.
+        if (localNetwork != null) {
+            builder.socketFactory(localNetwork.socketFactory)
+            builder.dns { hostname -> localNetwork.getAllByName(hostname).toList() }
+        }
 
         if (storageDir != null) {
             val networkStore = File(storageDir, "media_store/network_http_cache")

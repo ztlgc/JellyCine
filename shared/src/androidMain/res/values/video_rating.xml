@@ -1,10 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="video_rating_action">Rate</string>
-    <string name="video_rating_value">My rating: %1$d/10</string>
-    <string name="video_rating_title">Rate this video</string>
-    <string name="video_rating_local">Choose 1–10. Your rating is saved on this device.</string>
+    <string name="video_rating_value">Rating: %1$.1f/10</string>
+    <string name="video_rating_title">Video rating</string>
+    <string name="video_rating_current">Current: %1$s</string>
+    <string name="video_rating_unrated">Not rated</string>
+    <string name="video_rating_high_scores">Usual ratings · 6–10</string>
+    <string name="video_rating_other_scores">Other ratings · 1.0–5.9</string>
+    <string name="video_rating_score_unit">/10</string>
+    <string name="video_rating_not_selected">Not selected</string>
+    <string name="video_rating_expand">Expand</string>
+    <string name="video_rating_collapse">Collapse</string>
+    <string name="video_rating_save_score">Save %1$s</string>
+    <string name="video_rating_score_description">%1$s out of 10</string>
+    <string name="video_rating_permission_error">This account cannot edit media metadata. Ask the server administrator to grant access.</string>
+    <string name="video_rating_load_error">Could not read the current server rating.</string>
+    <string name="video_rating_retry">Retry</string>
+    <string name="video_rating_unconfirmed_error">The server has not confirmed this rating. Reload or retry before leaving.</string>
+    <string name="video_rating_session_error">The server or account changed. Reopen this video.</string>
     <string name="video_rating_save">Save</string>
     <string name="video_rating_cancel">Cancel</string>
-    <string name="video_rating_save_error">Could not save your rating. Try again.</string>
+    <string name="video_rating_save_error">Could not confirm the saved server rating. Check the connection and retry.</string>
 </resources>

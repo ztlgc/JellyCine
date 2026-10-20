@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -31,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import java.util.Locale
+import com.jellycine.shared.R
 
 data class MediaMetadataInfo(
     val hdrFormat: HdrFormatInfo? = null,
@@ -39,7 +41,8 @@ data class MediaMetadataInfo(
     val hardwareAcceleration: HardwareAccelerationInfo? = null,
     val streamContainer: String? = null,
     val streamBitrateKbps: Int? = null,
-    val playMethod: String = "Direct Play"
+    val playMethod: String = "Direct Play",
+    val audioProcessing: AudioGainPlaybackInfo? = null
 )
 
 data class HdrFormatInfo(
@@ -144,6 +147,19 @@ fun MediaInfoDialog(
                     mediaInfo.audioFormat?.sampleRate?.let { PrimaryLine(it) }
                     mediaInfo.audioFormat?.bitrate?.let { PrimaryLine(it) }
                     SecondaryLine("-> ${mediaInfo.playMethod}")
+                    mediaInfo.audioProcessing?.let { info ->
+                        Spacer(modifier = Modifier.height(6.dp))
+                        SectionTitle(stringResource(R.string.player_audio_processing))
+                        val measuredGain = info.measuredGainDb
+                        val peak = info.outputPeakDbfs
+                        if (measuredGain != null && peak != null && peak.isFinite()) {
+                            PrimaryLine(stringResource(R.string.player_audio_measurement, measuredGain, peak))
+                        } else if (peak != null && peak.isFinite()) {
+                            PrimaryLine(stringResource(R.string.player_audio_peak_measurement, peak))
+                        } else {
+                            SecondaryLine(stringResource(R.string.player_audio_measurement_pending))
+                        }
+                    }
                 }
 
                 Box(

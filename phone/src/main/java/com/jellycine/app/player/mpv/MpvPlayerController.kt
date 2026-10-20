@@ -2,10 +2,12 @@ package com.jellycine.app.player.mpv
 
 import android.content.Context
 import android.view.Surface
+import com.jellycine.player.core.PlaybackOptions
 import com.jellycine.player.preferences.PlayerPreferences
 import org.jellycine.mpv.MPVLib
 import org.jellycine.mpv.MPVLib.MpvEvent
 import org.jellycine.mpv.MPVLib.MpvFormat
+import kotlin.math.abs
 
 class MpvPlayerController(
     context: Context,
@@ -24,18 +26,22 @@ class MpvPlayerController(
         fun onBuffering()
         fun onReady()
         fun onEnded()
+        fun onStopped() = Unit
     }
 
     private val appContext = context.applicationContext
     private val mpv = MPVLib.create(appContext)
         ?: error("MPVLib.create() returned null")
+    @Volatile
     private var released = false
-    private var ready = false
+    @Volatile private var ready = false
+    @Volatile private var pausedForCache = false
+    @Volatile private var paused = true
+    private var appliedAudioGain: Pair<Int, Boolean>? = null
     private var durationMs: Long = 0L
     private var positionMs: Long = 0L
     private var bufferedPositionMs: Long = 0L
     private var playWhenReady = true
-    private var appliedGainPercent: Int? = null
     private var pendingSubtitleUrls: List<String> = emptyList()
     private var pendingSelectedSubtitleUrl: String? = null
     private val playerPreferences = PlayerPreferences(context.applicationContext)
@@ -43,7 +49,7 @@ class MpvPlayerController(
     private var listener: Listener = listener
 
     val isPlaying: Boolean
-        get() = ready && playWhenReady
+        get() = ready && playWhenReady && !paused && !pausedForCache && !released
 
     val currentPosition: Long
         get() = positionMs
@@ -78,6 +84,7 @@ class MpvPlayerController(
         mpv.observeProperty("demuxer-cache-time", MpvFormat.MPV_FORMAT_DOUBLE)
         mpv.observeProperty("demuxer-cache-duration", MpvFormat.MPV_FORMAT_DOUBLE)
         mpv.observeProperty("paused-for-cache", MpvFormat.MPV_FORMAT_FLAG)
+        mpv.observeProperty("pause", MpvFormat.MPV_FORMAT_FLAG)
         mpv.observeProperty("eof-reached", MpvFormat.MPV_FORMAT_FLAG)
     }
 
@@ -92,7 +99,7 @@ class MpvPlayerController(
     ) {
         if (released) return
         ready = false
-        appliedGainPercent = null
+        appliedAudioGain = null
         playWhenReady = startPlayback
         val startPositionSeconds = startPositionMs
             ?.takeIf { it > 0L }
@@ -210,28 +217,40 @@ class MpvPlayerController(
         }
     }
 
-    fun setAudioGainPercent(percent: Int): Boolean {
+    @Synchronized
+    fun setAudioGainPercent(percent: Int, normalize: Boolean = false): Boolean {
         if (released) return false
         return runCatching {
-            val valid = com.jellycine.player.core.PlaybackOptions.validGain(percent)
-            if (appliedGainPercent != valid) {
-                // Set before changing the chain: MPV can emit PLAYBACK_RESTART as filters change.
-                appliedGainPercent = valid
-                mpv.setPropertyDouble("volume-gain", 0.0)
-                if (valid == 0) {
-                    if (mpv.getPropertyString("af").orEmpty().contains("jellycine_gain")) {
-                        mpv.command(arrayOf("af", "remove", "@jellycine_gain"))
-                    }
-                } else {
-                    val multiplier = com.jellycine.player.core.PlaybackOptions.gainMultiplier(valid)
-                    // Named filters replace the previous gain filter rather than stack multipliers.
-                    mpv.command(arrayOf("af", "add", "@jellycine_gain:lavfi=[volume=$multiplier]"))
+            val selected = PlaybackOptions.validGain(percent) to normalize
+            // All amplification belongs before the limiter. A post-filter MPV gain
+            // would amplify its protected output again and undo that protection.
+            mpv.setPropertyDouble("volume-gain", 0.0)
+            val appliedDb = mpv.getPropertyDouble("volume-gain") ?: return@runCatching false
+            if (abs(appliedDb) >= 0.001) return@runCatching false
+            if (appliedAudioGain != selected) {
+                val result = MpvAudioNative.command(
+                    mpv,
+                    arrayOf("af", "set", MpvAudioGain.filters(selected.first, normalize))
+                )
+                if (result < 0) {
+                    appliedAudioGain = null
+                    return@runCatching false
                 }
+                appliedAudioGain = selected
             }
             val outputFormat = mpv.getPropertyString("audio-out-params/format").orEmpty()
-            !outputFormat.startsWith("spdif", ignoreCase = true) &&
-                (valid == 0 || mpv.getPropertyString("af").orEmpty().contains("jellycine_gain"))
+            outputFormat.isNotBlank() &&
+                !outputFormat.startsWith("spdif", ignoreCase = true)
         }.getOrDefault(false)
+    }
+
+    @Synchronized
+    fun audioGainDiagnostics(): MpvAudioGainDiagnostics? {
+        if (released) return null
+        val stats = MpvAudioNative.pcmStats(mpv) ?: return null
+        return MpvAudioGainDiagnostics.fromPcmStats(
+            stats, mpv.getPropertyString("audio-out-params/format").orEmpty()
+        )
     }
 
     fun selectAudioTrack(trackId: String) {
@@ -252,8 +271,13 @@ class MpvPlayerController(
     }
 
     fun release() {
-        if (released) return
-        released = true
+        // Wait for current JNI reads/writes, then close their gate. destroy()
+        // joins the MPV callback thread, so it must run outside this monitor:
+        // an in-flight onReady callback may itself be waiting to set the gain.
+        synchronized(this) {
+            if (released) return
+            released = true
+        }
         runCatching { mpv.removeObserver(this) }
         runCatching { mpv.removeLogObserver(MpvLogBridge) }
         runCatching { mpv.detachSurface() }
@@ -287,13 +311,31 @@ class MpvPlayerController(
 
     override fun eventProperty(property: String, value: Boolean) {
         when (property) {
-            "paused-for-cache" -> if (value) listener.onBuffering() else listener.onReady()
-            "eof-reached" -> if (value) listener.onEnded()
+            "paused-for-cache" -> {
+                pausedForCache = value
+                if (value) listener.onBuffering() else listener.onReady()
+            }
+            "pause" -> {
+                paused = value
+                if (pausedForCache) listener.onBuffering() else listener.onReady()
+            }
+            "eof-reached" -> if (value) {
+                ready = false
+                listener.onEnded()
+            }
         }
     }
 
     override fun event(eventId: Int) {
         when (eventId) {
+            MpvEvent.MPV_EVENT_SEEK -> {
+                ready = false
+                listener.onBuffering()
+            }
+            MpvEvent.MPV_EVENT_END_FILE -> {
+                ready = false
+                listener.onStopped()
+            }
             MpvEvent.MPV_EVENT_FILE_LOADED -> {
                 durationMs = (mpv.getPropertyDouble("duration")?.times(1000.0))
                     ?.toLong()
@@ -391,6 +433,9 @@ class MpvPlayerController(
             mpv.setOptionString("video-sync", "audio")
         }
         mpv.setOptionString("ao", audioOutput)
+        // Passthrough bypasses decoded PCM filters and cannot support this DSP.
+        mpv.setOptionString("audio-spdif", "")
+        mpv.setOptionString("volume-gain", "0")
         mpv.setOptionString("hwdec", hardwareDecoding)
         mpv.setOptionString("hwdec-codecs", "h264,hevc,mpeg4,mpeg2video,vp8,vp9,av1")
         mpv.setOptionString("tls-verify", "no")

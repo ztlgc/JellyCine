@@ -1,0 +1,16 @@
+<resources>
+    <string name="screen_time_local_caption">On this phone · Actual video watch time</string>
+    <string name="screen_time_watched_duration">Watch time</string>
+    <string name="screen_time_video_count">Videos opened</string>
+    <string name="screen_time_open_count">Times opened</string>
+    <string name="screen_time_top_duration">Top 5 by watch time</string>
+    <string name="screen_time_top_opens">Top 5 by times opened</string>
+    <string name="screen_time_times">%1$d opens</string>
+    <string name="screen_time_empty_history">No video activity in this period</string>
+    <string name="screen_time_no_ranking">No records in this period</string>
+    <string name="screen_time_unnamed_video">Untitled video</string>
+    <string name="screen_time_load_failed">Could not load watch history</string>
+    <string name="screen_time_retry">Retry</string>
+    <string name="screen_time_previous_period">Previous period</string>
+    <string name="screen_time_next_period">Next period</string>
+</resources>

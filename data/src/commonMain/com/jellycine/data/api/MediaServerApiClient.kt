@@ -32,11 +32,18 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
 import io.ktor.http.URLBuilder
 import io.ktor.http.contentType
+import kotlinx.serialization.json.JsonObject
 
 internal class MediaServerApiClient(
     private val client: HttpClient,
     private val baseUrl: String
 ) : MediaServerApi {
+    override suspend fun getItemForUpdate(userId: String, itemId: String): ApiResponse<JsonObject> =
+        get("Users/$userId/Items/$itemId", listOf("_" to currentTimeMillis()))
+
+    override suspend fun updateItem(itemId: String, item: JsonObject): ApiResponse<Unit> =
+        post("Items/$itemId", requestBody = item)
+
 
     override suspend fun getPublicSystemInfo(): ApiResponse<ServerInfo> =
         get("System/Info/Public")
@@ -421,11 +428,15 @@ internal class MediaServerApiClient(
         recursive: Boolean,
         limit: Int?,
         fields: String?,
-        mediaTypes: String?
+        mediaTypes: String?,
+        startIndex: Int?
     ): ApiResponse<QueryResult<BaseItemDto>> = get(
         endpoint = "Users/$userId/Items",
         queryParameters = listOf(
             "searchTerm" to searchTerm,
+            "startIndex" to startIndex,
+            "sortBy" to startIndex?.let { "SortName" },
+            "sortOrder" to startIndex?.let { "Ascending" },
             "includeItemTypes" to includeItemTypes,
             "mediaTypes" to mediaTypes,
             "recursive" to recursive,
@@ -441,11 +452,15 @@ internal class MediaServerApiClient(
         recursive: Boolean,
         limit: Int?,
         fields: String?,
-        mediaTypes: String?
+        mediaTypes: String?,
+        startIndex: Int?
     ): ApiResponse<QueryResult<BaseItemDto>> = get(
         endpoint = "Users/$userId/Items",
         queryParameters = listOf(
             "nameStartsWith" to nameStartsWith,
+            "startIndex" to startIndex,
+            "sortBy" to startIndex?.let { "SortName" },
+            "sortOrder" to startIndex?.let { "Ascending" },
             "includeItemTypes" to includeItemTypes,
             "mediaTypes" to mediaTypes,
             "recursive" to recursive,
@@ -532,7 +547,10 @@ internal class MediaServerApiClient(
             }
             if (requestBody != null) {
                 contentType(ContentType.Application.Json)
-                setBody(requestBody)
+                // JsonObject also implements Map. Preserve its type so Ktor does not guess
+                // serializers for internal JsonLiteral values and fail before sending.
+                if (requestBody is JsonObject) setBody<JsonObject>(requestBody)
+                else setBody(requestBody)
             }
         }
         return response.toApiResponse()

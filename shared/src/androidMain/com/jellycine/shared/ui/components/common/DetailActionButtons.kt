@@ -164,18 +164,19 @@ fun DetailDownloadActionButton(
     progress: Float,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    iconOnly: Boolean = false
+    iconOnly: Boolean = false,
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(24.dp)
 ) {
     OutlinedButton(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
+        shape = shape,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = Color(0xFF1F1F24),
             contentColor = Color.White
         ),
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+        contentPadding = PaddingValues(horizontal = if (iconOnly) 8.dp else 14.dp, vertical = 0.dp)
     ) {
         AnimatedContent(
             targetState = state,

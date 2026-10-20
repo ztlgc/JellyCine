@@ -29,17 +29,7 @@ class HardwareAcceleration(
             .setAudioProcessors(arrayOf(processor))
             .build()
         // Passthrough and offload bypass PCM processors; require decoding for this player.
-        return object : androidx.media3.exoplayer.audio.AudioSink by sink {
-            override fun supportsFormat(format: androidx.media3.common.Format): Boolean =
-                format.sampleMimeType == androidx.media3.common.MimeTypes.AUDIO_RAW && sink.supportsFormat(format)
-
-            override fun getFormatSupport(format: androidx.media3.common.Format): Int =
-                if (format.sampleMimeType == androidx.media3.common.MimeTypes.AUDIO_RAW) sink.getFormatSupport(format)
-                else androidx.media3.exoplayer.audio.AudioSink.SINK_FORMAT_UNSUPPORTED
-
-            override fun getFormatOffloadSupport(format: androidx.media3.common.Format): androidx.media3.exoplayer.audio.AudioOffloadSupport =
-                androidx.media3.exoplayer.audio.AudioOffloadSupport.DEFAULT_UNSUPPORTED
-        }
+        return PcmOnlyAudioSink(sink)
     }
     
     companion object {

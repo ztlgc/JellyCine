@@ -1,122 +1,166 @@
 package com.jellycine.app.ui.screens.detail
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import com.jellycine.data.preferences.VideoRatingStore
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.jellycine.data.model.BaseItemDto
+import com.jellycine.data.repository.MediaRepository
+import com.jellycine.data.repository.VideoRatingPermissionException
+import com.jellycine.data.repository.VideoRatingNotConfirmedException
+import com.jellycine.data.repository.VideoRatingSessionException
+import com.jellycine.app.ui.screens.dashboard.media.LibraryCatalogCache
+import com.jellycine.app.ui.components.common.PhoneDialog
+import com.jellycine.shared.playback.UserDataRefreshSignals
 import com.jellycine.shared.R
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun VideoRatingSection(sessionId: String?, itemId: String?, store: VideoRatingStore) {
-    key(sessionId, itemId) {
+internal fun VideoRatingSection(sessionId: String?, item: BaseItemDto, repository: MediaRepository) {
+    key(sessionId, item.id) {
+        val itemId = item.id
         val canRate = !sessionId.isNullOrBlank() && !itemId.isNullOrBlank()
-        val ratingFlow = remember(sessionId, itemId, store) {
-            if (canRate) store.observeRating(sessionId.orEmpty(), itemId.orEmpty()) else kotlinx.coroutines.flow.flowOf(null)
-        }
-        val rating by ratingFlow.collectAsState(initial = null)
+        var serverItem by remember { mutableStateOf(item) }
+        val rating = serverItem.communityRating?.takeIf { it.isFinite() && it in 0f..10f }
         var showDialog by rememberSaveable { mutableStateOf(false) }
-        var selectedScore by rememberSaveable { mutableStateOf<Int?>(null) }
+        var selectedScoreTenths by rememberSaveable { mutableStateOf<Int?>(null) }
+        var lowScoresExpanded by rememberSaveable { mutableStateOf(false) }
         var saving by remember { mutableStateOf(false) }
-        var saveError by remember { mutableStateOf(false) }
+        var loading by remember { mutableStateOf(true) }
+        var loadFailed by remember { mutableStateOf(false) }
+        var saveError by remember { mutableStateOf<Int?>(null) }
+        var refreshVersion by remember { mutableIntStateOf(0) }
         val scope = rememberCoroutineScope()
-        val accent = Color(0xFF9FC9FB)
-
-        OutlinedButton(
-            onClick = { selectedScore = rating; saveError = false; showDialog = true },
-            enabled = canRate,
-            modifier = Modifier.height(32.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = accent),
-            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-        ) {
-            Icon(Icons.Rounded.Star, null, modifier = Modifier.size(16.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(if (rating == null) stringResource(R.string.video_rating_action)
-                else stringResource(R.string.video_rating_value, rating!!), style = MaterialTheme.typography.labelSmall)
+        val context = LocalContext.current
+        val lifecycleOwner = LocalLifecycleOwner.current
+        suspend fun publish(confirmed: BaseItemDto) {
+            serverItem = confirmed
+            UserDataRefreshSignals.notifyRatingChanged(sessionId.orEmpty(), itemId.orEmpty(), confirmed.communityRating)
+            try {
+                LibraryCatalogCache.getInstance(context.cacheDir).updateRating(
+                    sessionId.orEmpty(), itemId.orEmpty(), confirmed.communityRating)
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { /* The server result is already confirmed. */ }
         }
+        DisposableEffect(lifecycleOwner) {
+            val observer = LifecycleEventObserver { _, event ->
+                if (event == Lifecycle.Event.ON_RESUME) refreshVersion++
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        }
+        LaunchedEffect(showDialog, refreshVersion) {
+            if (canRate && !saving) {
+                loading = true
+                loadFailed = false
+                try {
+                    repository.loadVideoRating(itemId.orEmpty(), sessionId.orEmpty()).fold(
+                        onSuccess = { confirmed ->
+                            publish(confirmed)
+                            if (showDialog) {
+                                selectedScoreTenths = VideoRatingScale.fromServer(confirmed.communityRating)
+                                lowScoresExpanded = selectedScoreTenths?.let { it in VideoRatingScale.lowScores } == true
+                            }
+                        },
+                        onFailure = { loadFailed = true }
+                    )
+                } finally { loading = false }
+            }
+        }
+        VideoRatingButton(rating = rating, enabled = canRate,
+            onClick = {
+                selectedScoreTenths = VideoRatingScale.fromServer(rating)
+                lowScoresExpanded = selectedScoreTenths?.let { it in VideoRatingScale.lowScores } == true
+                saveError = null
+                loading = true
+                loadFailed = false
+                showDialog = true
+            })
 
         if (showDialog) {
-            AlertDialog(
-                onDismissRequest = { if (!saving) showDialog = false },
-                title = { Text(stringResource(R.string.video_rating_title)) },
-                text = {
-                    Column(
-                        Modifier.verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(stringResource(R.string.video_rating_local), style = MaterialTheme.typography.bodySmall)
-                        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            for (row in 0..1) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    for (column in 1..5) {
-                                        val score = row * 5 + column
-                                        val selected = score == selectedScore
-                                        Surface(
-                                            shape = RoundedCornerShape(10.dp),
-                                            color = if (selected) accent else MaterialTheme.colorScheme.surfaceVariant,
-                                            contentColor = if (selected) Color(0xFF0A3454) else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                                                .selectable(selected = selected, enabled = !saving, role = Role.RadioButton,
-                                                    onClick = { selectedScore = score; saveError = false })
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) { Text(score.toString()) }
-                                        }
-                                    }
+            PhoneDialog(
+                onDismiss = { showDialog = false },
+                dismissOnRequest = !saving,
+                maxWidth = 352.dp,
+                scrimColor = Color.Black.copy(alpha = 0.6f)
+            ) {
+                VideoRatingDialogContent(
+                    currentRating = rating,
+                    selectedScoreTenths = selectedScoreTenths,
+                    lowScoresExpanded = lowScoresExpanded,
+                    enabled = canRate && !saving && !loading && !loadFailed && serverItem.canEditItems != false,
+                    loading = loading,
+                    saving = saving,
+                    errorMessage = when {
+                        saveError != null -> stringResource(saveError!!)
+                        loadFailed -> stringResource(R.string.video_rating_load_error)
+                        serverItem.canEditItems == false -> stringResource(R.string.video_rating_permission_error)
+                        else -> null
+                    },
+                    onScoreSelected = { selectedScoreTenths = it; saveError = null },
+                    onLowScoresToggle = { lowScoresExpanded = !lowScoresExpanded },
+                    onRetry = if (loadFailed) ({ refreshVersion++ }) else null,
+                    onSave = saveRating@ {
+                        val score = selectedScoreTenths?.let(VideoRatingScale::toServer) ?: return@saveRating
+                        saving = true
+                        saveError = null
+                        scope.launch {
+                            try {
+                                val confirmed = repository.saveVideoRating(itemId.orEmpty(), score, sessionId.orEmpty()).getOrThrow()
+                                publish(confirmed)
+                                showDialog = false
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (error: Exception) {
+                                saveError = when (error) {
+                                    is VideoRatingPermissionException -> R.string.video_rating_permission_error
+                                    is VideoRatingNotConfirmedException -> R.string.video_rating_unconfirmed_error
+                                    is VideoRatingSessionException -> R.string.video_rating_session_error
+                                    else -> R.string.video_rating_save_error
                                 }
+                            } finally {
+                                saving = false
                             }
                         }
-                        if (saveError) {
-                            Text(stringResource(R.string.video_rating_save_error), color = MaterialTheme.colorScheme.error)
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        enabled = selectedScore != null && !saving,
-                        onClick = {
-                            val score = selectedScore ?: return@TextButton
-                            saving = true
-                            saveError = false
-                            scope.launch {
-                                try {
-                                    store.saveRating(sessionId.orEmpty(), itemId.orEmpty(), score)
-                                    showDialog = false
-                                } catch (cancelled: CancellationException) {
-                                    throw cancelled
-                                } catch (_: Exception) {
-                                    saveError = true
-                                } finally {
-                                    saving = false
-                                }
-                            }
-                        }
-                    ) {
-                        if (saving) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                        else Text(stringResource(R.string.video_rating_save))
-                    }
-                },
-                dismissButton = {
-                    TextButton(enabled = !saving, onClick = { showDialog = false }) {
-                        Text(stringResource(R.string.video_rating_cancel))
-                    }
-                }
-            )
+                    },
+                    onCancel = { showDialog = false }
+                )
+            }
         }
+    }
+}
+
+@Composable
+internal fun VideoRatingButton(rating: Float?, enabled: Boolean = true, onClick: () -> Unit) {
+    val ratingDescription = stringResource(R.string.video_rating_title)
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.height(32.dp).semantics { contentDescription = ratingDescription },
+        shape = RoundedCornerShape(6.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9FC9FB), contentColor = Color(0xFF08243A)),
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Icon(Icons.Rounded.Star, null, modifier = Modifier.size(14.dp))
+        Spacer(Modifier.width(4.dp))
+        Text(if (rating == null) stringResource(R.string.video_rating_action)
+            else String.format(java.util.Locale.getDefault(), "%.1f", rating), style = MaterialTheme.typography.labelSmall)
+        Spacer(Modifier.width(6.dp))
+        Icon(Icons.Outlined.Edit, null, modifier = Modifier.size(13.dp))
     }
 }

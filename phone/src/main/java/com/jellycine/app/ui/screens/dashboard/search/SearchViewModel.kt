@@ -11,6 +11,7 @@ import com.jellycine.data.model.filterSeerTitles
 import com.jellycine.data.repository.AuthRepositoryProvider
 import com.jellycine.data.repository.MediaRepository
 import com.jellycine.data.repository.SeerrRepository
+import com.jellycine.shared.playback.UserDataRefreshSignals
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import javax.inject.Inject
 
 @HiltViewModel
@@ -40,8 +43,29 @@ class SearchViewModel @Inject constructor(
 
     private var searchJob: Job? = null
     private var seerrScopeId: String? = null
+    private var searchSeerrTitles: List<SeerrRecommendationTitle> = emptyList()
+    private val searchPager = SearchPager(
+        scope = viewModelScope,
+        fetch = { query, cursor -> mediaRepository.searchVideosPage(query, cursor) },
+        mergeKey = mediaRepository::versionMergeKey,
+        rank = ::rankSearchItems
+    )
 
     init {
+        viewModelScope.launch {
+            UserDataRefreshSignals.refreshEvent.collect { event ->
+                val itemId = event?.itemId
+                if (event?.ratingChanged == true && itemId != null &&
+                    event.serverId == authRepository.getActiveSessionSnapshot().activeServerId) {
+                    searchPager.updateRating(itemId, event.communityRating)
+                }
+            }
+        }
+        viewModelScope.launch {
+            searchPager.state.collect { paging ->
+                if (paging.query == _searchQuery.value) applySearchResults(paging)
+            }
+        }
         loadsuggestions()
         refreshSeerrConnectionState()
     }
@@ -58,83 +82,33 @@ class SearchViewModel @Inject constructor(
 
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
-
-        searchJob?.cancel()
-
-        if (query.isNotBlank()) {
-            _uiState.value = _uiState.value.copy(
-                isSearching = true,
-                error = null
-            )
-            searchJob = viewModelScope.launch {
-                delay(300)
-                searchAndCategorize(query)
-            }
-        } else {
-            _uiState.value = _uiState.value.copy(
-                movieResults = emptyList(),
-                showResults = emptyList(),
-                episodeResults = emptyList(),
-                videoResults = emptyList(),
-                seerrMovieResults = emptyList(),
-                seerrShowResults = emptyList(),
-                isSearching = false,
-                error = null
-            )
-        }
+        startSearch(query, debounceMillis = 300)
     }
 
     fun executeSearch() {
         val query = _searchQuery.value
         if (query.isNotBlank()) {
-            searchJob?.cancel()
-            searchJob = viewModelScope.launch {
-                searchAndCategorize(query)
-            }
+            startSearch(query)
         }
     }
 
-    private suspend fun searchAndCategorize(query: String) {
-        _uiState.value = _uiState.value.copy(
-            isSearching = true,
-            error = null
-        )
+    fun loadMoreSearchResults() = searchPager.loadMore()
 
-        val activeServerId = authRepository.getActiveSessionSnapshot().activeServerId
-        val isSeerrConnected = seerrRepository.getSavedConnectionInfo(activeServerId)?.isVerified == true
-        val seerrTitles = fetchSeerrTitles(
-            query = query,
-            activeServerId = activeServerId,
-            isSeerrConnected = isSeerrConnected
-        )
-
-        val localItems = mediaRepository.searchVideos(
-            searchTerm = query,
-            limit = 60
-        ).getOrNull()?.let { items ->
-            rankSearchItems(items, query)
+    private fun startSearch(query: String, debounceMillis: Long = 0) {
+        searchJob?.cancel()
+        searchSeerrTitles = emptyList()
+        searchPager.search(query, debounceMillis)
+        applySearchResults(searchPager.state.value)
+        if (query.isBlank()) return
+        searchJob = viewModelScope.launch {
+            delay(debounceMillis)
+            val activeServerId = authRepository.getActiveSessionSnapshot().activeServerId
+            val connected = seerrRepository.getSavedConnectionInfo(activeServerId)?.isVerified == true
+            val titles = fetchSeerrTitles(query, activeServerId, connected)
+            currentCoroutineContext().ensureActive()
+            searchSeerrTitles = titles
+            applySearchResults(searchPager.state.value)
         }
-        if (localItems == null) {
-            if (seerrTitles.isNotEmpty()) {
-                applySearchResults(
-                    localItems = emptyList(),
-                    seerrTitles = seerrTitles,
-                    query = query
-                )
-            } else {
-                _uiState.value = _uiState.value.copy(
-                    isSearching = false,
-                    error = "Search failed"
-                )
-            }
-            return
-        }
-
-        applySearchResults(
-            localItems = localItems,
-            seerrTitles = seerrTitles,
-            query = query
-        )
     }
 
     private fun loadsuggestions() {
@@ -175,10 +149,13 @@ class SearchViewModel @Inject constructor(
         val scopeChanged = seerrScopeId != scopeId
         val wasSeerrConnected = _uiState.value.isSeerrConnected
         seerrScopeId = scopeId
+        if (scopeChanged && _searchQuery.value.isNotBlank()) executeSearch()
         val isSeerrConnected = scopeId != null &&
             seerrRepository.getSavedConnectionInfo(scopeId)?.isVerified == true
 
         if (!isSeerrConnected) {
+            searchJob?.cancel()
+            searchSeerrTitles = emptyList()
             _selectedDiscoveryTab.value = SearchDiscoveryTab.SUGGESTIONS
             _uiState.value = _uiState.value.copy(
                 isSeerrConnected = false,
@@ -195,7 +172,7 @@ class SearchViewModel @Inject constructor(
             seerrDiscoveryItems = if (scopeChanged) emptyList() else _uiState.value.seerrDiscoveryItems
         )
 
-        if ((_searchQuery.value.isNotBlank()) && (!wasSeerrConnected || scopeChanged)) {
+        if (_searchQuery.value.isNotBlank() && !scopeChanged && !wasSeerrConnected) {
             executeSearch()
             return
         }
@@ -276,11 +253,10 @@ class SearchViewModel @Inject constructor(
             }
     }
 
-    private fun applySearchResults(
-        localItems: List<BaseItemDto>,
-        seerrTitles: List<SeerrRecommendationTitle>,
-        query: String
-    ) {
+    private fun applySearchResults(paging: SearchPagingState) {
+        val localItems = paging.items
+        val seerrTitles = searchSeerrTitles
+        val query = paging.query
         val movieResults = localItems.filter { it.type.equals("Movie", ignoreCase = true) }
         val showResults = localItems.filter { it.type.equals("Series", ignoreCase = true) }
         val episodeResults = localItems.filter { it.type.equals("Episode", ignoreCase = true) }
@@ -305,7 +281,14 @@ class SearchViewModel @Inject constructor(
                 query = query,
                 localItems = showResults
             ),
-            isSearching = false,
+            isSearching = paging.isLoading && localItems.isEmpty() && seerrTitles.isEmpty(),
+            isLoadingMore = paging.isLoading && (localItems.isNotEmpty() || seerrTitles.isNotEmpty()),
+            hasMoreResults = query.isNotBlank() && paging.cursor.hasMore,
+            hasMoreVideos = query.isNotBlank() && paging.cursor.videos != null,
+            hasMoreSeries = query.isNotBlank() && paging.cursor.series != null,
+            searchLoadFailed = paging.failed,
+            searchGeneration = paging.generation,
+            loadedSearchPages = paging.loadedPages,
             error = null
         )
     }
@@ -369,6 +352,13 @@ data class SearchUiState(
     val seerrDiscoveryItems: List<BaseItemDto> = emptyList(),
     val isSeerrConnected: Boolean = false,
     val isSearching: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val hasMoreResults: Boolean = false,
+    val hasMoreVideos: Boolean = false,
+    val hasMoreSeries: Boolean = false,
+    val searchLoadFailed: Boolean = false,
+    val searchGeneration: Long = 0,
+    val loadedSearchPages: Int = 0,
     val SuggestionsLoading: Boolean = false,
     val seerrDiscoveryLoading: Boolean = false,
     val error: String? = null

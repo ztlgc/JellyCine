@@ -582,7 +582,7 @@
     <string name="detail_person_read_more">阅读更多</string>
     <string name="detail_person_read_less">少读</string>
     <string name="settings_screen_time">屏幕时间</string>
-    <string name="settings_screen_time_subtitle">查看您的手表活动和统计数据</string>
+    <string name="settings_screen_time_subtitle">普通视频观看时长、打开次数与排行</string>
     <string name="screen_time_back">返回</string>
     <string name="screen_time_total">总计</string>
     <string name="screen_time_daily_average">每日平均值</string>
@@ -599,7 +599,7 @@
     <string name="screen_time_morning">早上</string>
     <string name="screen_time_afternoon">下午</string>
     <string name="screen_time_evening">晚上</string>
-    <string name="screen_time_night">晚上</string>
+    <string name="screen_time_night">夜间</string>
     <string name="interface_theme_music">主题音乐</string>
     <string name="interface_theme_music_subtitle">在浏览详细信息的同时播放主题曲。</string>
     <string name="interface_theme_music_no">没有</string>
@@ -620,7 +620,7 @@
     <string name="auth_discovering">正在扫描本地网络…</string>
     <string name="auth_no_servers_found">在本地网络上找不到服务器</string>
     <string name="auth_discovered_servers">您网络上的服务器</string>
-    <string name="home_media_library">家庭视频和照片</string>
+    <string name="home_media_library">家庭视频</string>
     <string name="home_media_back">返回</string>
     <string name="home_media_refresh">刷新</string>
     <string name="home_media_load_error">无法加载此目录</string>
@@ -631,5 +631,7 @@
     <string name="home_media_next">下一张照片</string>
     <string name="home_media_unsupported">暂不支持此条目</string>
     <string name="home_other_videos">其他视频</string>
-    <string name="home_other_videos_empty">暂无家庭视频和照片媒体库</string>
+    <string name="home_other_videos_empty">暂无家庭视频媒体库</string>
+    <string name="search_load_failed">搜索结果加载失败</string>
+    <string name="player_hold_speed_active">2× 倍速播放</string>
 </resources>

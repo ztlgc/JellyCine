@@ -115,8 +115,9 @@ fun PlayerScreen(
     var showAudioTranscodingDialog by remember { mutableStateOf(false) }
     var pendingStreamingQualitySelection by remember { mutableStateOf<String?>(null) }
     var showMediaInfo by remember { mutableStateOf(false) }
-    val mediaInfoSnapshot = remember(showMediaInfo, viewModel) {
-        if (showMediaInfo) viewModel.getMediaMetadataInfo() else null
+    val audioGainDiagnostics by viewModel.audioGainDiagnostics.collectAsState()
+    val mediaInfoSnapshot = remember(showMediaInfo, viewModel, audioGainDiagnostics) {
+        if (showMediaInfo) viewModel.getMediaMetadataInfo().copy(audioProcessing = audioGainDiagnostics) else null
     }
 
     // Player state from ViewModel
@@ -158,7 +159,7 @@ fun PlayerScreen(
             if (useDeviceVolumeInPlayer) {
                 readCurrentDeviceVolume(audioManager)
             } else {
-                playerPreferences.getPlayerVolume()
+                playerPreferences.getPlayerVolume(readCurrentDeviceVolume(audioManager))
             }
         )
     }
@@ -388,15 +389,15 @@ fun PlayerScreen(
             onVolumeChange = { level ->
                 if (!playerState.isLocked) {
                     playerVolume = level.coerceIn(0f, 1f)
-                    if (!useDeviceVolumeInPlayer) {
-                        playerPreferences.setPlayerVolume(playerVolume)
-                    }
-
                     // Apply volume to system
                     val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
                     val newVolume = (playerVolume * maxVolume).toInt().coerceIn(0, maxVolume)
                     audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVolume, 0)
-
+                    // Read back the actual index, including device output limits.
+                    playerVolume = readCurrentDeviceVolume(audioManager)
+                    if (!useDeviceVolumeInPlayer) {
+                        playerPreferences.setPlayerVolume(playerVolume)
+                    }
                     uiState = uiState.copy(volumeLevel = playerVolume)
                 }
             },
@@ -418,7 +419,7 @@ fun PlayerScreen(
                     }
                 }
             },
-            getCurrentVolumeLevel = { playerVolume },
+            getCurrentVolumeLevel = { readCurrentDeviceVolume(audioManager) },
             getCurrentBrightnessLevel = { playerBrightness },
             onSeek = { delta ->
                 if (!playerState.isLocked) {
@@ -438,6 +439,8 @@ fun PlayerScreen(
                 uiState = uiState.copy(controlsVisible = !uiState.controlsVisible)
             },
             onTogglePlayPause = viewModel::togglePlayPause,
+            onHoldPlaybackSpeedStart = viewModel::startHoldPlaybackSpeed,
+            onHoldPlaybackSpeedEnd = viewModel::stopHoldPlaybackSpeed,
             onZoomChange = { isZooming ->
                 viewModel.handlePinchZoom(isZooming)
             },

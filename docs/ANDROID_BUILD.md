@@ -2,6 +2,36 @@
 
 本仓库只开发 Android 手机端，TV 和 iOS 专用项目、源码及对应打包配置已移除。Android 手机端保留 `phone`、`data`、`shared`、`core` 四个模块。
 
+## 更高增益与服务器评分（2026-10-18）
+
+- 新增 +3000%、+6000%、+12000%，对应 31、61、121 倍幅度（约 +29.83、+35.71、+41.66 dB）。MPV / ExoPlayer 的总增益上限均跟随最高档位，最终峰值限幅保留；高峰值素材的实际倍率受限幅影响。
+- 普通视频评分由本机 DataStore 改为服务器公共 `CommunityRating`（1–10 分），网页和读取该字段的其他客户端可共享。当前账号需要编辑媒体资料的权限，评分会影响所有用户。
+- 按 Emby 完整单项 GET → 修改评分和该字段锁 → POST → GET 回读校验的流程，保留未知字段及其余元数据。不使用可能清空其他资料的局部 DTO 提交。旧本机分数保留但不再参与显示，不自动上传覆盖服务器。
+- 详情重新进入/回到前台或打开评分框时读取服务器；已确认变化更新目录缓存、搜索已有分页和首页磁盘快照，保持缓存原刷新时间，避免全量目录请求。
+- 本次正式 ARM64 APK：`artifacts/android/JellyCine_1.3.6_arm64_gain-rating_20261018.apk`。验证记录在 `artifacts/server-rating-20261018/`，本地测试与构建不代表真机或真实 Emby 验收。
+- 接口依据：[Emby 官方完整资料更新说明](https://emby.media/community/topic/125696-update-an-item-with-api/)、[完整单项读取](https://dev.emby.media/reference/RestAPI/UserLibraryService/getUsersByUseridItemsById.html)、[评分字段锁](https://dev.emby.media/reference/pluginapi/MediaBrowser.Model.Entities.MetadataFields.html)。
+
+## 音频增益与限幅（2026-10-17）
+
+- 默认沿用系统当前媒体音量，不再在进入播放页时使用初始 50% 覆盖它；显式记忆播放器音量的设置保留。
+- 原有增益档位保留，增加 +800%（9 倍）与 +1500%（16 倍，约 +24.08 dB），同时显示 dB。两引擎采用增益后最终限幅，并提供默认关闭的音量均衡。
+- MPV 补充原生滤镜与返回真实错误码的 JNI 桥。原 AAR 与新增库均有校验和，保留四 ABI；原生构建与边界见 [重建说明](../phone/native/mpv-audio-dsp/README.md)。
+- 家庭媒体目录、旧缓存和首页过滤照片，移除手机照片查看入口；文件夹中的视频仍可导航。
+- 正式 ARM64 APK：`artifacts/android/JellyCine_1.3.6_arm64_audio-gain_20261017.apk`；包名、版本仍为 `com.jellycine.app`、`1.3.6` / code `26`，沿用现有正式签名。
+- 构建、测试、签名、APK 内原生库与源码身份检查记录：`artifacts/audio-gain-20261017/validation.json`。交付目录同时提供 `.apk.sha256` 和 `.apk.validation.json`。
+- PCM/桌面数字音频测试不等于真机响度、安装或真实 Emby 验收。当前无连接设备，需在固定视频、音轨、系统媒体音量和输出设备条件下试听比较。
+
+## 长按 2 倍速正式包（2026-10-15）
+
+- APK：`artifacts/android/JellyCine_1.3.6_arm64_hold-2x_release.apk`，42,233,958 字节。
+- 播放中长按画面临时 2 倍速，松手恢复原倍速；取消、多指触摸、暂停、锁定及退出时结束临时加速。MPV 与 ExoPlayer 共用该手势，不保存临时倍速。
+- 同时包含关闭、30%、80%、150%、200%、400% 增益档位、MPV 内置增益修复，以及详情页秒级时长。
+- 包名 `com.jellycine.app`，版本 `1.3.6` / code `26`，最低 API `27`、target SDK `36`，仅 ARM64。
+- release 构建成功；core 13 项、phone 47 项、data 26 项测试通过，包含 5 项长按倍速恢复测试。
+- APK v2 签名通过，证书与已有 JellyCine 正式包一致；ZIP 完整性、16 KiB ZIP 对齐、包信息、ABI、功能映射及打包资源检查通过。
+- SHA-256：`76b09e713cd601c19956985d6a82216596f9e55dc87e40330c6dbc8f167e2d3d`。同目录提供 `.apk.sha256` 与 `.apk.validation.json`。
+- 构建与检查记录位于 `artifacts/hold-2x-release/`；构建期间 377 个源码/配置文件的哈希未变。当前没有连接 Android 设备，未进行安装、实际长按、播放响度或真实服务器验收。
+
 平台移除后的独立构建、19 项测试及 Android 产物对比结果见 [平台清理记录](PLATFORM_CLEANUP.md)。
 
 ## 构建

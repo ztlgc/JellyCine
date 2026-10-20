@@ -902,7 +902,6 @@ fun ContinueWatchingSkeleton(
             Column(
                 modifier = Modifier
                     .width(200.dp)
-                    .height(180.dp)
             ) {
                 // Image skeleton
                 ShimmerEffect(
@@ -916,8 +915,7 @@ fun ContinueWatchingSkeleton(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(60.dp)
-                        .padding(top = 8.dp, start = 4.dp, end = 4.dp),
+                        .padding(top = 4.dp, start = 4.dp, end = 4.dp, bottom = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {

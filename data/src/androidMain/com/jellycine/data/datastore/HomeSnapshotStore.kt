@@ -114,6 +114,24 @@ class HomeSnapshotStore(
         }
     }
 
+    suspend fun updateRating(expectedSnapshotKey: String, itemId: String, rating: Float?) {
+        withContext(Dispatchers.IO) {
+            homeSnapshotMutex.withLock {
+                val file = getHomeSnapshotFile()
+                val existing = readSnapshot(file)?.takeIf { it.snapshotKey == expectedSnapshotKey } ?: return@withLock
+                fun List<BaseItemDto>.rated() = map { if (it.id == itemId) it.copy(communityRating = rating) else it }
+                writeSnapshotAtomically(file, existing.copy(
+                    featuredHomeItems = existing.featuredHomeItems.rated(),
+                    continueWatchingItems = existing.continueWatchingItems.rated(),
+                    recentWatchingItems = existing.recentWatchingItems?.rated(),
+                    recentOtherVideoItems = existing.recentOtherVideoItems?.rated(),
+                    nextUpItems = existing.nextUpItems?.rated(),
+                    homeLibrarySections = existing.homeLibrarySections.map { it.copy(items = it.items.rated()) }
+                ))
+            }
+        }
+    }
+
     suspend fun clearPersistedHomeSnapshot() {
         withContext(Dispatchers.IO) {
             homeSnapshotMutex.withLock {

@@ -6,6 +6,61 @@ plugins {
     id 'com.google.devtools.ksp'
 }
 
+configurations {
+    mpvBaseArchive {
+        canBeConsumed = false
+        transitive = false
+    }
+}
+
+// Keep the original decoder/player binaries and replace only the matching audio-filter library.
+// A local repack avoids mutating Maven/Gradle caches or checking a complete AAR into source control.
+def mpvAudioDirectory = file('native/mpv-audio-dsp')
+def prepareMpvAudioDsp = tasks.register('prepareMpvAudioDsp', Zip) {
+    archiveFileName.set('libmpv-1.0.4-jellycine-audio.aar')
+    destinationDirectory.set(layout.buildDirectory.dir('generated/mpv-audio-dsp'))
+    from({ zipTree(configurations.mpvBaseArchive.singleFile) }) {
+        exclude 'jni/**/libavfilter.so'
+    }
+    from(new File(mpvAudioDirectory, 'jni')) { into 'jni' }
+    from(new File(mpvAudioDirectory, 'COPYING.GPLv3')) { into 'assets/jellycine-audio-dsp' }
+    from(new File(mpvAudioDirectory, 'README.md')) { into 'assets/jellycine-audio-dsp' }
+    from(new File(mpvAudioDirectory, 'manifest.json')) { into 'assets/jellycine-audio-dsp' }
+    inputs.files(configurations.mpvBaseArchive)
+    inputs.file(new File(mpvAudioDirectory, 'manifest.json'))
+    inputs.file(new File(mpvAudioDirectory, 'mpv_audio_bridge.cpp'))
+    inputs.file(new File(mpvAudioDirectory, 'build.py'))
+    inputs.dir(new File(mpvAudioDirectory, 'jni'))
+    doFirst {
+        def manifest = new groovy.json.JsonSlurper().parse(new File(mpvAudioDirectory, 'manifest.json'))
+        def digest = { File path ->
+            path.withInputStream { stream ->
+                def md = java.security.MessageDigest.getInstance('SHA-256')
+                byte[] buffer = new byte[65536]
+                int count
+                while ((count = stream.read(buffer)) != -1) md.update(buffer, 0, count)
+                md.digest().encodeHex().toString()
+            }
+        }
+        if (digest(configurations.mpvBaseArchive.singleFile) != manifest.base_aar_sha256) {
+            throw new GradleException('MPV base dependency changed. Rebuild and verify the audio DSP libraries first.')
+        }
+        if (digest(new File(mpvAudioDirectory, 'mpv_audio_bridge.cpp')) != manifest.bridge_source_sha256 ||
+            digest(new File(mpvAudioDirectory, 'build.py')) != manifest.build_script_sha256) {
+            throw new GradleException('MPV audio DSP build sources changed. Rebuild the native libraries and manifest first.')
+        }
+        ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'].each { abi ->
+            ['libavfilter.so', 'libjellycine_mpv_audio.so'].each { name ->
+                def binary = new File(mpvAudioDirectory, "jni/${abi}/${name}")
+                def expected = manifest.jni[abi]?.get(name)
+                if (!binary.isFile() || expected == null || digest(binary) != expected.sha256) {
+                    throw new GradleException("Missing or changed MPV audio DSP binary: ${abi}/${name}. Run phone/native/mpv-audio-dsp/build.py.")
+                }
+            }
+        }
+    }
+}
+
 def keystoreProperties = new Properties()
 def keystorePropertiesFile = rootProject.file("keystore.properties")
 if (keystorePropertiesFile.exists()) {
@@ -91,6 +146,10 @@ android {
     }
     
     packagingOptions {
+        jniLibs {
+            // These binaries are already stripped and checksummed by the native build.
+            keepDebugSymbols += ['**/libavfilter.so', '**/libjellycine_mpv_audio.so']
+        }
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
         }
@@ -188,7 +247,8 @@ dependencies {
     implementation 'androidx.media3:media3-session:1.11.1'
     implementation 'androidx.media3:media3-common:1.11.1'
     implementation 'org.jellyfin.media3:media3-ffmpeg-decoder:1.9.0+1'
-    implementation 'org.jellycine.mpv:libmpv:1.0.4'
+    mpvBaseArchive 'org.jellycine.mpv:libmpv:1.0.4'
+    implementation files(prepareMpvAudioDsp.flatMap { it.archiveFile }).builtBy(prepareMpvAudioDsp)
 
     // Audio and video processing
     implementation 'androidx.media3:media3-effect:1.11.1'
@@ -211,4 +271,14 @@ dependencies {
     androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}
+
+// Host-side previews are opt-in and never enter the installed APK.
+if (providers.gradleProperty('playbackScreenshot').isPresent()) {
+    android.sourceSets.debug.res.srcDir('src/screenshotTest/res')
+    android.experimentalProperties['android.experimental.enableScreenshotTest'] = true
+    apply plugin: 'com.android.compose.screenshot'
+    dependencies.add('screenshotTestImplementation', 'com.android.tools.screenshot:screenshot-validation-api:0.0.1-alpha16')
+    dependencies.add('screenshotTestImplementation', dependencies.platform('androidx.compose:compose-bom:2026.09.00'))
+    dependencies.add('screenshotTestImplementation', 'androidx.compose.ui:ui-tooling')
 }

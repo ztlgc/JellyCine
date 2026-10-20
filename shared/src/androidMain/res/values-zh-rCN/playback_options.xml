@@ -17,6 +17,11 @@
     <string name="player_control_info">媒体信息</string>
     <string name="player_control_close">关闭</string>
     <string name="player_gain_off">关闭增益</string>
+    <string name="player_audio_normalization">音量均衡</string>
+    <string name="player_audio_processing">音频处理</string>
+    <string name="player_audio_measurement_pending">等待音频测量</string>
+    <string name="player_audio_measurement">PCM 增益：%1$+.1f dB · 峰值：%2$.1f dBFS</string>
+    <string name="player_audio_peak_measurement">PCM 输出峰值：%1$.1f dBFS</string>
     <string name="player_gain_unavailable">当前设备或音频输出不支持增益</string>
     <string name="player_control_rotate">横竖屏切换</string>
     <string name="player_control_aspect">画面比例</string>

@@ -12,7 +12,7 @@
   <a href="https://play.google.com/store/apps/details?id=com.jellycine.app">
     <img src="https://img.shields.io/badge/Google_Play-Download-34A853?style=for-the-badge&logo=google-play&logoColor=white" alt="Google Play">
   </a>
-  <a href="https://github.com/sureshfizzy/JellyCine/releases">
+  <a href="https://github.com/ztlgc/JellyCine/releases">
     <img src="https://img.shields.io/badge/GitHub-APK_Download-181717?style=for-the-badge&logo=github&logoColor=white" alt="GitHub Releases">
   </a>
 </p>
@@ -28,6 +28,16 @@
 
 ---
 
+## Android 手机定制版
+
+面向 Emby / Jellyfin 普通视频媒体库，保留文件夹导航，提供实际观看时长、打开次数与排行、服务器公共评分，以及手机播放和声音控制。
+
+- [下载正式 APK](https://github.com/ztlgc/JellyCine/releases/latest)
+- [2026-10-20 更新说明与校验信息](docs/releases/2026-10-20.md)
+- [观看统计口径](docs/SCREEN_TIME.md) · [Android 构建说明](docs/ANDROID_BUILD.md)
+
+观看统计从新版本开始在本机累计，按服务器和账号隔离；当前不与服务器或其他设备同步。
+
 ## Features
 
 ### Playback
@@ -35,8 +45,8 @@
 - **Custom MPV player** set as default engine — built from a custom fork with HDR10/HDR10+/Dolby Vision support and format badges
 - HDR passthrough with dynamic dataspace switching and headroom hints (Android 14+)
 - Configurable tone-mapping, rendering quality, and GPU filter settings
-- Audio passthrough (TrueHD, DTS-HD, Atmos) when supported by device/output
-- Spatial audio passthrough on compatible devices
+- PCM audio gain and limiting for MPV and ExoPlayer, with optional normalization
+- Spatial audio capability diagnostics
 - Media3 ExoPlayer fallback when MPV cannot render
 - Jellyfin FFmpeg extension integration for broad codec coverage
 - In-player quality selection, audio transcoding controls, and configurable player cache
@@ -48,12 +58,12 @@
 
 ### Discovery
 
-- Home videos & photos libraries: folder browsing, photo viewing with zoom on phones, and video playback
+- Ordinary-video libraries with folder navigation, video playback and cached catalog loading
 - **In-app Trailers** with autoplay in feature carousel (capped to 720p on phones)
 - Trailers & Extras section on detail screens
 - **For You** personalized recommendations with watched feed
 - Awards category powered by Wikidata
-- Immersive search with suggestions, live results, and categorized output
+- Video search across accessible libraries with paged loading, ratings, resolution and duration
 - Favorites tab with compact header and view-all navigation
 
 ### Seerr Integration
@@ -72,11 +82,10 @@
 
 ### Screen Time
 
-- Watch activity stats with daily breakdown charts
-- Watched items list with poster images and media type filter
-- Dual chart filters for media type and time range
-- Week and month navigation for historical viewing
-- Tablet-optimized layout
+- Actual foreground playback time and opens for ordinary `Video` items, without requiring completion
+- Daily and time-of-day breakdowns, with week, month and year navigation
+- Top five videos by watch time and by opens within the selected period
+- Local SQLite history isolated by server and account, including offline playback
 
 ### Multi-Server & Connections
 
@@ -149,7 +158,7 @@ This checkout is developed for Android phones only. The TV and iOS projects and 
 ./gradlew :phone:assembleDebug -PandroidAbis=arm64-v8a
 ```
 
-APK naming: `jellycine-{debug|release}-<version>.apk`
+APK naming: `jellycine-phone-{debug|release}-<version>-<abi>.apk`
 
 ---
 

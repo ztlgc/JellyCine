@@ -17,6 +17,11 @@
     <string name="player_control_info">Media information</string>
     <string name="player_control_close">Close</string>
     <string name="player_gain_off">Off</string>
+    <string name="player_audio_normalization">Volume leveling</string>
+    <string name="player_audio_processing">Audio processing</string>
+    <string name="player_audio_measurement_pending">Waiting for audio measurements</string>
+    <string name="player_audio_measurement">PCM gain: %1$+.1f dB · peak: %2$.1f dBFS</string>
+    <string name="player_audio_peak_measurement">PCM output peak: %1$.1f dBFS</string>
     <string name="player_gain_unavailable">Gain is unavailable for the current device or audio output</string>
     <string name="player_control_rotate">Switch orientation</string>
     <string name="player_control_aspect">Aspect ratio</string>

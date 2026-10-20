@@ -6,14 +6,19 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.horizontalScroll
+import com.jellycine.player.core.AudioTrackInfo
+import com.jellycine.player.core.PlaybackOptions
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
@@ -92,199 +97,209 @@ fun ControlsOverlay(
     playbackSpeed: Float = 1f,
     audioGainPercent: Int = 0,
     audioGainAvailable: Boolean = false,
+    audioNormalizationEnabled: Boolean = false,
     onPlaybackSpeedChange: (Float) -> Unit = {},
     onAudioGainChange: (Int) -> Unit = {},
-    onToggleOrientation: () -> Unit = {}
+    onAudioNormalizationChange: (Boolean) -> Unit = {},
+    onToggleOrientation: () -> Unit = {},
+    videoFormatLabel: String = "",
+    aspectRatioMode: String = "Fit",
+    audioTracks: List<AudioTrackInfo> = emptyList(),
+    currentAudioTrack: AudioTrackInfo? = null,
+    onSelectAudioTrack: ((String) -> Unit)? = null,
+    initialSoundPanelVisible: Boolean = false
 ) {
     var scrubPreviewProgress by remember { mutableStateOf<Float?>(null) }
     var optionsMenu by remember { mutableStateOf(false) }
     var speedDialog by remember { mutableStateOf(false) }
-    var gainDialog by remember { mutableStateOf(false) }
+    var soundPanel by remember { mutableStateOf(initialSoundPanelVisible) }
+    var expandAudioTracks by remember { mutableStateOf(false) }
     val latestScrubCallback by rememberUpdatedState(onScrubStateChange)
-    DisposableEffect(optionsMenu, speedDialog, gainDialog) {
-        if (optionsMenu || speedDialog || gainDialog) latestScrubCallback(true)
-        onDispose { if (optionsMenu || speedDialog || gainDialog) latestScrubCallback(false) }
+    DisposableEffect(optionsMenu, speedDialog, soundPanel) {
+        val open = optionsMenu || speedDialog || soundPanel
+        if (open) latestScrubCallback(true)
+        onDispose { if (open) latestScrubCallback(false) }
+    }
+    LaunchedEffect(isLocked) {
+        if (isLocked) { optionsMenu = false; speedDialog = false; soundPanel = false }
     }
     val displayedPosition = scrubPreviewProgress?.let { (duration * it).toLong() } ?: currentPosition
-    val panelColor = Color.Black.copy(alpha = 0.55f)
-    val panelShape = RoundedCornerShape(28.dp)
-    val speedLabel = "${playbackSpeed}×"
-    val optionsContent: @Composable () -> Unit = {
-        DropdownMenu(expanded = optionsMenu, onDismissRequest = { optionsMenu = false }) {
-            DropdownMenuItem(text = { Text(stringResource(R.string.player_speed_title)) },
-                onClick = { optionsMenu = false; speedDialog = true })
-            DropdownMenuItem(text = { Text(stringResource(R.string.player_gain_title)) },
-                onClick = { optionsMenu = false; gainDialog = true })
-            if (showPlaybackSettingsButton) DropdownMenuItem(
-                text = { Text(stringResource(R.string.player_control_settings)) },
-                onClick = { optionsMenu = false; onShowPlaybackSettings() })
-            DropdownMenuItem(text = { Text(stringResource(R.string.player_control_info)) },
-                onClick = { optionsMenu = false; onShowMediaInfo() })
-        }
-    }
-    BoxWithConstraints(modifier.fillMaxSize().safeDrawingPadding()) {
+    val speedLabel = String.format(Locale.ROOT, if (playbackSpeed % 1f == 0f) "%.1f×" else "%s×", playbackSpeed)
+    val qualityLabel = if (currentStreamingQuality.isBlank() || currentStreamingQuality.equals("Original", true))
+        stringResource(R.string.player_quality_original_short) else currentStreamingQuality
+    val gainLabel = if (audioGainPercent == 0) stringResource(R.string.player_gain_off_short) else "+$audioGainPercent%"
+    val openSound: (Boolean) -> Unit = { expandAudioTracks = it; soundPanel = true }
+    BoxWithConstraints(modifier.fillMaxSize()) {
         val portrait = maxHeight > maxWidth
-        val compact = maxWidth < 400.dp || maxHeight < 360.dp
-        val edge = if (compact) 12.dp else 24.dp
-        Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().padding(edge),
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (!isLocked) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    PlayerRoundButton(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.player_control_back), onBackClick)
-                    Text(title, Modifier.weight(1f).padding(horizontal = 12.dp), color = Color.White,
-                        fontSize = if (compact) 16.sp else 20.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        val compact = maxHeight < 360.dp || maxWidth < 400.dp
+        val edge = if (compact) 12.dp else 22.dp
+        if (!isLocked) {
+            Box(Modifier.fillMaxWidth().height(if (portrait) 144.dp else 104.dp)
+                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.68f), Color.Transparent))))
+            if (!soundPanel) Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(if (portrait) 200.dp else 148.dp)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.84f)))))
+            Row(Modifier.align(Alignment.TopCenter).fillMaxWidth().safeDrawingPadding()
+                .padding(horizontal = edge, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBackClick) { Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                    stringResource(R.string.player_control_back), tint = Color.White) }
+                Column(Modifier.weight(1f).padding(start = 4.dp, end = 8.dp)) {
+                    Text(title, color = Color.White, fontSize = if (compact) 16.sp else 18.sp,
+                        fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val detail = listOfNotNull(seasonEpisodeLabel?.takeIf(String::isNotBlank), videoFormatLabel.takeIf(String::isNotBlank),
+                        if (isHdrEnabled) osdHdrLabel(hdrFormat) else null).joinToString(" · ")
+                    if (detail.isNotBlank()) Text(detail, color = Color(0xFFBDC8D5), fontSize = 11.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp))
+                }
+                IconButton(onClick = onToggleOrientation) { Icon(Icons.Outlined.ScreenRotation,
+                    stringResource(R.string.player_control_rotate), tint = Color.White, modifier = Modifier.size(22.dp)) }
+                TextButton(onClick = onCycleAspectRatio, contentPadding = PaddingValues(horizontal = 6.dp)) {
+                    Icon(Icons.Outlined.AspectRatio, stringResource(R.string.player_control_aspect), tint = Color.White,
+                        modifier = Modifier.size(21.dp))
                     if (!portrait) {
-                        PlayerTopActions(onToggleOrientation, onCycleAspectRatio, { optionsMenu = true }, optionsContent)
+                        Spacer(Modifier.width(6.dp))
+                        Text(stringResource(when (aspectRatioMode) {
+                            "Fill" -> R.string.player_aspect_fill_short
+                            "Zoom" -> R.string.player_aspect_zoom_short
+                            else -> R.string.player_aspect_fit_short
+                        }), color = Color.White, fontSize = 12.sp)
                     }
                 }
-                if (portrait) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        PlayerTopActions(onToggleOrientation, onCycleAspectRatio, { optionsMenu = true }, optionsContent)
+                Box {
+                    IconButton(onClick = { optionsMenu = true }) { Icon(Icons.Outlined.MoreHoriz,
+                        stringResource(R.string.player_control_more), tint = Color.White) }
+                    DropdownMenu(expanded = optionsMenu, onDismissRequest = { optionsMenu = false }) {
+                        if (portrait && canPlayPreviousEpisode) DropdownMenuItem(
+                            text = { Text(stringResource(R.string.player_previous_episode)) },
+                            onClick = { optionsMenu = false; onPlayPreviousEpisode() })
+                        if (portrait && canPlayNextEpisode) DropdownMenuItem(
+                            text = { Text(stringResource(R.string.player_next_episode)) },
+                            onClick = { optionsMenu = false; onPlayNextEpisode() })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.player_speed_title)) },
+                            onClick = { optionsMenu = false; speedDialog = true })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.player_sound_title)) },
+                            onClick = { optionsMenu = false; openSound(false) })
+                        if (showPlaybackSettingsButton) DropdownMenuItem(text = { Text(stringResource(R.string.player_control_settings)) },
+                            onClick = { optionsMenu = false; onShowPlaybackSettings() })
+                        DropdownMenuItem(text = { Text(stringResource(R.string.player_control_info)) },
+                            onClick = { optionsMenu = false; onShowMediaInfo() })
                     }
                 }
             }
         }
-        PlayerRoundButton(if (isLocked) Icons.Filled.Lock else Icons.Outlined.LockOpen,
-            stringResource(if (isLocked) R.string.player_control_unlock else R.string.player_control_lock),
-            onToggleLock, Modifier.align(Alignment.CenterStart).padding(start = edge)
-                .offset(y = if (portrait) (-100).dp else 0.dp))
-        if (!isLocked) {
+        if (!soundPanel) PlayerRoundButton(if (isLocked) Icons.Outlined.Lock else Icons.Outlined.LockOpen,
+            stringResource(if (isLocked) R.string.player_control_unlock else R.string.player_control_lock), onToggleLock,
+            Modifier.align(Alignment.CenterStart).safeDrawingPadding().padding(start = edge))
+        if (!isLocked && !soundPanel) {
             Row(Modifier.align(Alignment.Center), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 24.dp)) {
-                if (canPlayPreviousEpisode) PlayerRoundButton(Icons.Filled.SkipPrevious,
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 18.dp else 30.dp)) {
+                if (canPlayPreviousEpisode && !portrait) PlayerRoundButton(Icons.Filled.SkipPrevious,
                     stringResource(R.string.player_previous_episode), onPlayPreviousEpisode)
-                PlayerRoundButton(replayIcon(seekBackwardSeconds),
-                    stringResource(R.string.player_control_rewind, seekBackwardSeconds), onSeekBackward)
-                PlayerRoundButton(if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    stringResource(if (isPlaying) R.string.player_control_pause else R.string.player_control_play),
-                    onPlayPause, size = if (compact) 64.dp else 80.dp)
-                PlayerRoundButton(replayforwardIcon(seekForwardSeconds),
-                    stringResource(R.string.player_control_forward, seekForwardSeconds), onSeekForward)
-                if (canPlayNextEpisode) PlayerRoundButton(Icons.Filled.SkipNext,
+                PlayerRoundButton(replayIcon(seekBackwardSeconds), stringResource(R.string.player_control_rewind, seekBackwardSeconds),
+                    onSeekBackward, size = if (compact) 52.dp else 64.dp)
+                PlayerRoundButton(if (isPlaying) Icons.Filled.Pause else Icons.Rounded.PlayArrow,
+                    stringResource(if (isPlaying) R.string.player_control_pause else R.string.player_control_play), onPlayPause,
+                    size = if (compact) 72.dp else 84.dp)
+                PlayerRoundButton(replayforwardIcon(seekForwardSeconds), stringResource(R.string.player_control_forward, seekForwardSeconds),
+                    onSeekForward, size = if (compact) 52.dp else 64.dp)
+                if (canPlayNextEpisode && !portrait) PlayerRoundButton(Icons.Filled.SkipNext,
                     stringResource(R.string.player_next_episode), onPlayNextEpisode)
             }
-            if (!portrait) {
-                Column(Modifier.align(Alignment.CenterEnd).padding(end = edge)
-                    .background(panelColor, panelShape), horizontalAlignment = Alignment.CenterHorizontally) {
-                    IconButton(onClick = { onPlaybackSpeedChange(com.jellycine.player.core.PlaybackOptions.stepSpeed(playbackSpeed, -1)) },
-                        enabled = playbackSpeed > 0.5f) {
-                        Icon(Icons.Filled.Remove, stringResource(R.string.player_speed_slower), tint = Color.White)
-                    }
-                    TextButton(onClick = { speedDialog = true }) { Text(speedLabel, color = Color.White) }
-                    IconButton(onClick = { onPlaybackSpeedChange(com.jellycine.player.core.PlaybackOptions.stepSpeed(playbackSpeed, 1)) },
-                        enabled = playbackSpeed < 2f) {
-                        Icon(Icons.Filled.Add, stringResource(R.string.player_speed_faster), tint = Color.White)
-                    }
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().safeDrawingPadding()
+                .padding(horizontal = edge, vertical = 6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(formatTime(displayedPosition), color = Color.White, fontSize = 12.sp)
+                    SeekBar(progress = if (duration > 0) (currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f,
+                        bufferedProgress = if (duration > 0) (bufferedPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f,
+                        duration = duration, chapterMarkers = chapterMarkers, onSeek = onSeek,
+                        onScrubProgressChange = { scrubPreviewProgress = it; onScrubStateChange(it != null) }, modifier = Modifier.weight(1f))
+                    Text(formatTime(duration.coerceAtLeast(0)), color = Color.White, fontSize = 12.sp)
                 }
-            }
-            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(edge),
-                verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (!seasonEpisodeLabel.isNullOrBlank()) Text(seasonEpisodeLabel, color = Color.White,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 14.sp)
-                Column(Modifier.fillMaxWidth().background(panelColor, panelShape).padding(horizontal = 12.dp, vertical = 4.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("${formatTime(displayedPosition)} / ${formatTime(duration.coerceAtLeast(0))}",
-                            Modifier.weight(1f), color = Color.White, fontSize = 13.sp)
-                        if (portrait) {
-                            IconButton(onClick = { onPlaybackSpeedChange(com.jellycine.player.core.PlaybackOptions.stepSpeed(playbackSpeed, -1)) },
-                                enabled = playbackSpeed > 0.5f) {
-                                Icon(Icons.Filled.Remove, stringResource(R.string.player_speed_slower), tint = Color.White)
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val toolbarMinWidth = maxWidth
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).widthIn(min = toolbarMinWidth), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = if (portrait) Arrangement.spacedBy(6.dp) else Arrangement.SpaceEvenly) {
+                        Surface(color = Color.Black.copy(alpha = 0.24f), shape = RoundedCornerShape(7.dp),
+                            border = BorderStroke(1.dp, Color(0xFF394652))) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { onPlaybackSpeedChange(PlaybackOptions.stepSpeed(playbackSpeed, -1)) },
+                                    enabled = playbackSpeed > 0.5f, modifier = Modifier.size(40.dp)) {
+                                    Icon(Icons.Filled.Remove, stringResource(R.string.player_speed_slower),
+                                        tint = Color.White.copy(alpha = if (playbackSpeed > 0.5f) 1f else 0.35f), modifier = Modifier.size(20.dp)) }
+                                TextButton(onClick = { speedDialog = true }, contentPadding = PaddingValues(horizontal = 2.dp)) {
+                                    Text(speedLabel, color = Color.White, fontSize = 13.sp) }
+                                IconButton(onClick = { onPlaybackSpeedChange(PlaybackOptions.stepSpeed(playbackSpeed, 1)) },
+                                    enabled = playbackSpeed < 2f, modifier = Modifier.size(40.dp)) {
+                                    Icon(Icons.Filled.Add, stringResource(R.string.player_speed_faster),
+                                        tint = Color.White.copy(alpha = if (playbackSpeed < 2f) 1f else 0.35f), modifier = Modifier.size(20.dp)) }
                             }
-                            TextButton(onClick = { speedDialog = true }, contentPadding = PaddingValues(4.dp)) {
-                                Text(speedLabel, color = Color.White)
-                            }
-                            IconButton(onClick = { onPlaybackSpeedChange(com.jellycine.player.core.PlaybackOptions.stepSpeed(playbackSpeed, 1)) },
-                                enabled = playbackSpeed < 2f) {
-                                Icon(Icons.Filled.Add, stringResource(R.string.player_speed_faster), tint = Color.White)
-                            }
-                        } else {
-                            if (isHdrEnabled) Text(osdHdrLabel(hdrFormat), color = Color.White, fontSize = 12.sp)
-                            if (isSpatialAudioEnabled) Icon(ImageVector.vectorResource(R.drawable.ic_spatial_audio),
-                                contentDescription = null, tint = Color.White, modifier = Modifier.padding(start = 8.dp).size(20.dp))
                         }
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SeekBar(progress = if (duration > 0) (currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f,
-                            bufferedProgress = if (duration > 0) (bufferedPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f,
-                            duration = duration, chapterMarkers = chapterMarkers, onSeek = onSeek,
-                            onScrubProgressChange = { scrubPreviewProgress = it; onScrubStateChange(it != null) },
-                            modifier = Modifier.weight(1f))
-                        IconButton(onClick = onShowAudioTrackSelection) {
-                            Icon(Icons.Outlined.Audiotrack, stringResource(R.string.player_control_audio), tint = Color.White)
-                        }
-                        IconButton(onClick = onShowSubtitleTrackSelection) {
-                            Icon(Icons.Outlined.Subtitles, stringResource(R.string.player_control_subtitles), tint = Color.White)
-                        }
+                        if (!portrait) PlayerToolbarDivider()
+                        PlayerToolbarAction(Icons.Outlined.Image, qualityLabel, onShowPlaybackSettings,
+                            enabled = showPlaybackSettingsButton)
+                        if (!portrait) PlayerToolbarDivider()
+                        PlayerToolbarAction(Icons.Outlined.Audiotrack, stringResource(R.string.player_audio_short), { openSound(true) })
+                        if (!portrait) PlayerToolbarDivider()
+                        PlayerToolbarAction(Icons.Outlined.Subtitles, stringResource(R.string.player_subtitles_short), onShowSubtitleTrackSelection)
+                        if (!portrait) PlayerToolbarDivider()
+                        PlayerToolbarAction(Icons.AutoMirrored.Outlined.VolumeUp, stringResource(R.string.player_gain_short, gainLabel), { openSound(false) })
                     }
                 }
             }
         }
     }
-    if (speedDialog) AlertDialog(
-        onDismissRequest = { speedDialog = false }, title = { Text(stringResource(R.string.player_speed_title)) },
+    if (speedDialog) AlertDialog(onDismissRequest = { speedDialog = false },
+        containerColor = Color(0xFF151C26), titleContentColor = Color.White,
+        title = { Text(stringResource(R.string.player_speed_title)) },
         text = { Column(Modifier.heightIn(max = 280.dp).verticalScroll(rememberScrollState())) {
-            com.jellycine.player.core.PlaybackOptions.speeds.forEach { speed ->
+            PlaybackOptions.speeds.forEach { speed ->
                 TextButton(onClick = { onPlaybackSpeedChange(speed); speedDialog = false }, modifier = Modifier.fillMaxWidth()) {
-                    Text("${if (speed == playbackSpeed) "✓  " else ""}$speed×")
+                    Text("${if (speed == playbackSpeed) "✓  " else ""}$speed×", color = if (speed == playbackSpeed) PlayerAccent else Color.White)
                 }
             }
         } }, confirmButton = { TextButton(onClick = { speedDialog = false }) { Text(stringResource(R.string.player_control_close)) } })
-    if (gainDialog) AlertDialog(
-        onDismissRequest = { gainDialog = false }, title = { Text(stringResource(R.string.player_gain_title)) },
-        text = { Column(Modifier.heightIn(max = 280.dp).verticalScroll(rememberScrollState())) {
-            if (!audioGainAvailable) Text(stringResource(R.string.player_gain_unavailable))
-            com.jellycine.player.core.PlaybackOptions.gainPercentages.forEach { percent ->
-                TextButton(onClick = { onAudioGainChange(percent); gainDialog = false }, enabled = percent == 0 || audioGainAvailable,
-                    modifier = Modifier.fillMaxWidth()) {
-                    Text((if (percent == audioGainPercent) "✓  " else "") +
-                        if (percent == 0) stringResource(R.string.player_gain_off) else "+$percent%")
-                }
-            }
-        } }, confirmButton = { TextButton(onClick = { gainDialog = false }) { Text(stringResource(R.string.player_control_close)) } })
+    if (soundPanel) PlayerSoundPanel(audioGainPercent = audioGainPercent, audioGainAvailable = audioGainAvailable,
+        normalizationEnabled = audioNormalizationEnabled, audioTracks = audioTracks, currentAudioTrack = currentAudioTrack,
+        initiallyExpandTracks = expandAudioTracks, onGainChange = onAudioGainChange, onNormalizationChange = onAudioNormalizationChange,
+        onTrackSelected = onSelectAudioTrack, onOpenTrackDialog = { soundPanel = false; onShowAudioTrackSelection() },
+        onDismiss = { soundPanel = false })
+}
+
+internal val PlayerAccent = Color(0xFF9FC9FB)
+
+@Composable
+private fun PlayerToolbarDivider() {
+    VerticalDivider(Modifier.height(22.dp), color = Color(0xFF394652))
 }
 
 @Composable
-private fun PlayerTopActions(
-    onRotate: () -> Unit,
-    onAspect: () -> Unit,
-    onMore: () -> Unit,
-    menu: @Composable () -> Unit
-) {
-    Row(Modifier.background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(28.dp))) {
-        IconButton(onClick = onRotate) { Icon(Icons.Filled.ScreenRotation, stringResource(R.string.player_control_rotate), tint = Color.White) }
-        IconButton(onClick = onAspect) { Icon(Icons.Outlined.AspectRatio, stringResource(R.string.player_control_aspect), tint = Color.White) }
-        Box {
-            IconButton(onClick = onMore) { Icon(Icons.Filled.MoreHoriz, stringResource(R.string.player_control_more), tint = Color.White) }
-            menu()
-        }
+private fun PlayerToolbarAction(icon: ImageVector, label: String, onClick: () -> Unit, enabled: Boolean = true) {
+    TextButton(onClick = onClick, enabled = enabled, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)) {
+        Icon(icon, null, tint = Color.White.copy(alpha = if (enabled) 1f else 0.55f), modifier = Modifier.size(21.dp))
+        Spacer(Modifier.width(7.dp))
+        Text(label, color = Color.White.copy(alpha = if (enabled) 1f else 0.55f), fontSize = 12.sp, maxLines = 1)
     }
 }
 
 @Composable
 private fun PlayerRoundButton(icon: ImageVector, label: String, onClick: () -> Unit,
     modifier: Modifier = Modifier, size: androidx.compose.ui.unit.Dp = 48.dp) {
-    IconButton(onClick = onClick, modifier = modifier.size(size)
-        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape(50))) {
-        Icon(icon, label, tint = Color.White, modifier = Modifier.size(if (size > 48.dp) 40.dp else 28.dp))
+    IconButton(onClick = onClick, modifier = modifier.size(size).background(Color.Black.copy(alpha = 0.50f), RoundedCornerShape(50))
+        .then(if (size > 70.dp) Modifier.border(1.dp, Color.White.copy(alpha = 0.40f), RoundedCornerShape(50)) else Modifier)) {
+        Icon(icon, label, tint = Color.White, modifier = Modifier.size(if (size > 70.dp) 38.dp else 28.dp))
     }
 }
 
-private fun replayIcon(seconds: Int): ImageVector {
-    return when (seconds) {
-        5 -> Icons.Filled.Replay5
-        10 -> Icons.Filled.Replay10
-        30 -> Icons.Filled.Replay30
-        else -> Icons.Filled.Replay
-    }
+private fun replayIcon(seconds: Int): ImageVector = when (seconds) {
+    5 -> Icons.Filled.Replay5
+    10 -> Icons.Filled.Replay10
+    30 -> Icons.Filled.Replay30
+    else -> Icons.Filled.Replay
 }
-
-private fun replayforwardIcon(seconds: Int): ImageVector {
-    return when (seconds) {
-        5 -> Icons.Filled.Forward5
-        10 -> Icons.Filled.Forward10
-        30 -> Icons.Filled.Forward30
-        else -> Icons.Filled.Replay
-    }
+private fun replayforwardIcon(seconds: Int): ImageVector = when (seconds) {
+    5 -> Icons.Filled.Forward5
+    10 -> Icons.Filled.Forward10
+    30 -> Icons.Filled.Forward30
+    else -> Icons.Filled.FastForward
 }
 
 @Composable
@@ -302,11 +317,11 @@ private fun SeekBar(
     var widthPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val trackHeightFraction by animateFloatAsState(
-        targetValue = if (dragActive) 0.95f else 0.55f,
+        targetValue = if (dragActive) 0.30f else 0.17f,
         label = "seekTrackHeight"
     )
     val thumbRadiusFraction by animateFloatAsState(
-        targetValue = if (dragActive) 0.52f else 0.36f,
+        targetValue = if (dragActive) 0.70f else 0.58f,
         label = "seekThumbRadius"
     )
     val bubbleYOffsetPx = with(density) { (-42).dp.roundToPx() }
@@ -319,7 +334,7 @@ private fun SeekBar(
 
     Box(
         modifier = modifier
-            .height(PROGRESS_BAR_HEIGHT_DP.dp)
+            .height(40.dp)
             .onSizeChanged { widthPx = it.width }
             .pointerInteropFilter { event ->
                 if (widthPx <= 0) return@pointerInteropFilter false
@@ -360,7 +375,7 @@ private fun SeekBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(PROGRESS_BAR_HEIGHT_DP.dp)
-                .align(Alignment.BottomCenter)
+                .align(Alignment.Center)
         ) {
             val yOffset = size.height / 2
             val trackInset = 2.dp.toPx()
@@ -369,7 +384,7 @@ private fun SeekBar(
             val trackHeight = size.height * trackHeightFraction
             val markerSpacingPx = 6.dp.toPx()
             val markerStrokeWidth = 1.5.dp.toPx()
-            val markerVerticalInset = 1.dp.toPx()
+            val markerHalfHeight = maxOf(trackHeight / 2f, 3.dp.toPx())
             var progressX: Float? = null
 
             // Background full track
@@ -398,7 +413,7 @@ private fun SeekBar(
             if (renderedProgress > 0f) {
                 progressX = trackStart.x + (trackEnd.x - trackStart.x) * renderedProgress
                 drawLine(
-                    color = Color.White.copy(alpha = 0.95f),
+                    color = PlayerAccent,
                     start = trackStart,
                     end = Offset(progressX, yOffset),
                     strokeWidth = trackHeight,
@@ -418,8 +433,8 @@ private fun SeekBar(
 
                     drawLine(
                         color = Color.White.copy(alpha = 0.95f),
-                        start = Offset(markerX, yOffset - trackHeight / 2f + markerVerticalInset),
-                        end = Offset(markerX, yOffset + trackHeight / 2f - markerVerticalInset),
+                        start = Offset(markerX, yOffset - markerHalfHeight),
+                        end = Offset(markerX, yOffset + markerHalfHeight),
                         strokeWidth = markerStrokeWidth,
                         cap = StrokeCap.Round
                     )
@@ -429,7 +444,7 @@ private fun SeekBar(
 
             progressX?.let { thumbX ->
                 drawCircle(
-                    color = Color.White,
+                    color = PlayerAccent,
                     radius = size.height * thumbRadiusFraction,
                     center = Offset(thumbX, yOffset)
                 )

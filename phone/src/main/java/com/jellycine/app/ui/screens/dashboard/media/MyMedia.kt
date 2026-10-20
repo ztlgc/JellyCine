@@ -115,6 +115,7 @@ fun MyMedia(
                                 !it.name.isNullOrBlank() &&
                                 it.collectionType != "playlists" &&
                                 it.collectionType != "folders" &&
+                                !it.collectionType.equals("photos", true) &&
                                 (it.type == "CollectionFolder" || it.type == "Folder")
                             } ?: emptyList()
 
@@ -565,7 +566,7 @@ private fun LibraryCardSkeleton(
 private fun getLibraryIcon(collectionType: String?): ImageVector {
     return when (collectionType?.lowercase()) {
         "movies" -> Icons.Filled.Movie
-        "homevideos" -> Icons.Filled.PhotoLibrary
+        "homevideos" -> Icons.Filled.VideoLibrary
         "tvshows" -> Icons.Filled.Tv
         else -> Icons.Filled.VideoLibrary
     }

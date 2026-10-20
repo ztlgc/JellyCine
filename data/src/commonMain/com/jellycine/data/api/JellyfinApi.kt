@@ -19,8 +19,14 @@ import com.jellycine.data.model.SystemInfoFull
 import com.jellycine.data.model.ThemeMediaResult
 import com.jellycine.data.model.UserDto
 import com.jellycine.data.network.ApiResponse
+import kotlinx.serialization.json.JsonObject
 
 interface MediaServerApi {
+    /** Full single-item document, including fields unknown to this client, for metadata edits. */
+    suspend fun getItemForUpdate(userId: String, itemId: String): ApiResponse<JsonObject>
+
+    suspend fun updateItem(itemId: String, item: JsonObject): ApiResponse<Unit>
+
     suspend fun deleteItem(itemId: String): ApiResponse<Unit>
 
     suspend fun getPublicSystemInfo(): ApiResponse<ServerInfo>
@@ -223,7 +229,8 @@ interface MediaServerApi {
         recursive: Boolean = true,
         limit: Int? = 50,
         fields: String? = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview",
-        mediaTypes: String? = null
+        mediaTypes: String? = null,
+        startIndex: Int? = null
     ): ApiResponse<QueryResult<BaseItemDto>>
 
     suspend fun searchItemsByName(
@@ -233,7 +240,8 @@ interface MediaServerApi {
         recursive: Boolean = true,
         limit: Int? = 50,
         fields: String? = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview",
-        mediaTypes: String? = null
+        mediaTypes: String? = null,
+        startIndex: Int? = null
     ): ApiResponse<QueryResult<BaseItemDto>>
 
     suspend fun reportPlaybackStart(request: PlaybackStartRequest): ApiResponse<Unit>

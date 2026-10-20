@@ -142,6 +142,7 @@ internal fun PlayerScreenEffects(
         }
 
         onDispose {
+            viewModel.stopHoldPlaybackSpeed()
             currentView.keepScreenOn = false
             activity?.let { act ->
                 act.requestedOrientation =
@@ -160,11 +161,17 @@ internal fun PlayerScreenEffects(
     }
 
     DisposableEffect(lifecycleOwner) {
+        viewModel.setWatchScreenActive(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
         val observer = LifecycleEventObserver { _, event ->
+            viewModel.setWatchScreenActive(event == Lifecycle.Event.ON_RESUME)
+            if (event == Lifecycle.Event.ON_PAUSE || event == Lifecycle.Event.ON_STOP) {
+                viewModel.stopHoldPlaybackSpeed()
+            }
             onLifecycleChange(event)
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            viewModel.setWatchScreenActive(false)
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
@@ -246,6 +253,7 @@ internal fun PlayerScreenEffects(
             val currentPosition = viewModel.getCurrentPosition()
             val bufferedPosition = viewModel.getBufferedPosition()
             val isPlayingNow = viewModel.isPlayingNow()
+            viewModel.refreshAudioGainDiagnostics()
             val uiState = uiStateProvider()
             if (uiState.currentPosition != currentPosition ||
                 uiState.bufferedPosition != bufferedPosition ||
@@ -288,9 +296,12 @@ internal fun PlayerScreenEffects(
             act.window.attributes = layoutParams
         }
 
-        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        val initialVolume = (playerVolume * maxVolume).toInt().coerceIn(0, maxVolume)
-        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, initialVolume, 0)
+        // Device-volume mode must not write a stale index back on entry or route changes.
+        if (!useDeviceVolumeInPlayer) {
+            val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            val initialVolume = (playerVolume * maxVolume).toInt().coerceIn(0, maxVolume)
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, initialVolume, 0)
+        }
     }
 
     LaunchedEffect(uiStateProvider().volumeLevel) {
@@ -418,11 +429,25 @@ internal fun BoxScope.PlayerOverlayHost(
         val activity = LocalContext.current as? Activity
         val configuration = LocalConfiguration.current
         ControlsOverlay(
+            videoFormatLabel = listOfNotNull(playerState.currentVideoTrack?.takeIf { it.width > 0 && it.height > 0 }?.let {
+                when {
+                    it.height >= 2160 -> "4K"
+                    it.height >= 1080 -> "1080p"
+                    it.height >= 720 -> "720p"
+                    else -> "${it.width} × ${it.height}"
+                }
+            }, playerState.currentVideoTrack?.codec?.uppercase(java.util.Locale.ROOT)).joinToString(" · "),
+            aspectRatioMode = playerState.aspectRatioMode,
+            audioTracks = playerState.availableAudioTracks,
+            currentAudioTrack = playerState.currentAudioTrack,
+            onSelectAudioTrack = { resetAutoHideTimer(); viewModel.selectAudioTrack(it) },
             playbackSpeed = playerState.playbackSpeed,
             audioGainPercent = playerState.audioGainPercent,
             audioGainAvailable = playerState.audioGainAvailable,
+            audioNormalizationEnabled = playerState.audioNormalizationEnabled,
             onPlaybackSpeedChange = { resetAutoHideTimer(); viewModel.setPlaybackSpeed(it) },
             onAudioGainChange = { resetAutoHideTimer(); viewModel.setAudioGainPercent(it) },
+            onAudioNormalizationChange = { resetAutoHideTimer(); viewModel.setAudioNormalizationEnabled(it) },
             onToggleOrientation = {
                 resetAutoHideTimer()
                 activity?.requestedOrientation = if (configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE)
@@ -597,6 +622,22 @@ internal fun BoxScope.PlayerOverlayHost(
                 )
             }
         }
+    }
+
+    AnimatedVisibility(
+        visible = playerState.isHoldPlaybackSpeedActive,
+        enter = fadeIn(),
+        exit = fadeOut(),
+        modifier = Modifier.align(Alignment.TopCenter).padding(top = 72.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.player_hold_speed_active),
+            color = Color.White,
+            fontSize = 14.sp,
+            modifier = Modifier.clip(RoundedCornerShape(999.dp))
+                .background(Color.Black.copy(alpha = 0.68f))
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        )
     }
 
     GestureIndicators(

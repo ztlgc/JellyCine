@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_detail_resume_at">继续播放  %1$s</string>
+    <string name="video_detail_played">已播放 %1$s</string>
+    <string name="video_detail_remaining">剩余 %1$s</string>
+    <string name="video_detail_overview">简介</string>
+    <string name="player_quality_original_short">原画</string>
+    <string name="player_sound_title">声音</string>
+    <string name="player_audio_short">音轨</string>
+    <string name="player_subtitles_short">字幕</string>
+    <string name="player_gain_short">增益 %1$s</string>
+    <string name="player_gain_more">更多档位 ›</string>
+    <string name="player_audio_default">默认音轨</string>
+    <string name="player_aspect_fit_short">适应</string>
+    <string name="player_aspect_fill_short">填充</string>
+    <string name="player_aspect_zoom_short">缩放</string>
+    <string name="player_gain_off_short">关闭</string>
+    <string name="video_detail_mono">单声道</string>
+    <string name="video_detail_stereo">双声道</string>
+</resources>

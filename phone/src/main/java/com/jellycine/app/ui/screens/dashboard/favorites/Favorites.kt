@@ -61,6 +61,7 @@ import com.jellycine.app.ui.screens.dashboard.home.UserProfileAvatar
 import com.jellycine.app.ui.screens.dashboard.media.ContentType
 import com.jellycine.shared.R
 import com.jellycine.shared.playback.UserDataRefreshSignals
+import com.jellycine.app.ui.screens.dashboard.media.withLibraryUserData
 import com.jellycine.data.model.BaseItemDto
 import com.jellycine.data.repository.AuthRepositoryProvider
 import com.jellycine.data.repository.MediaRepository
@@ -106,13 +107,25 @@ fun Favorites(
     val deletedItems by UserDataRefreshSignals.deletedItems.collectAsState()
     val deletedIds = deletedItems[sessionSnapshot.activeServerId].orEmpty()
 
-    LaunchedEffect(refreshKey, refreshEvent, sessionSnapshot.activeServerId) {
+    LaunchedEffect(refreshEvent) {
+        val event = refreshEvent ?: return@LaunchedEffect
+        if (event.serverId != null && event.serverId != sessionSnapshot.activeServerId) return@LaunchedEffect
+        if (event.ratingChanged) favorites = favorites.withLibraryUserData(event)
+        else refreshKey++
+    }
+
+    LaunchedEffect(refreshKey, sessionSnapshot.activeServerId) {
         isLoading = true
         error = null
+        val startedAt = System.currentTimeMillis()
         val result = withContext(Dispatchers.IO) { mediaRepository.getFavoriteItems() }
         result.fold(
             onSuccess = { queryResult ->
                 favorites = queryResult.items.orEmpty().filterNot { it.id in deletedIds }
+                val latest = UserDataRefreshSignals.refreshEvent.value
+                if (latest?.ratingChanged == true && latest.serverId == sessionSnapshot.activeServerId && latest.timestampMs >= startedAt) {
+                    favorites = favorites.withLibraryUserData(latest)
+                }
                 isLoading = false
             },
             onFailure = { throwable ->

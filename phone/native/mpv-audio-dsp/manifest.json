@@ -1,0 +1,61 @@
+{
+  "base_dependency": "org.jellycine.mpv:libmpv:1.0.4",
+  "base_aar_sha256": "22c7e16003f59a03fd430063eb78036eb8cfb1844f9eb900387ee72c5fe7ce76",
+  "ffmpeg": "9.0.1",
+  "source_sha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
+  "mpv_client_header_sha256": "3c073236a09cb456c6e80587d5523c8771c32fb22ca014e0f99cc3d43905b75c",
+  "ndk": "28.2.13676358",
+  "bridge_source_sha256": "9b2564dbbd5878ae3cce36ad7ff8f04e18ca57fd34a72accb94c47c06f34e95a",
+  "build_script_sha256": "7f418a2c52a87640045a4927b6c09c5d5a9621d05d5e6569adcdb86129b6d3eb",
+  "filters": [
+    "aformat",
+    "anull",
+    "aresample",
+    "volume",
+    "alimiter",
+    "dynaudnorm",
+    "astats"
+  ],
+  "jni": {
+    "arm64-v8a": {
+      "libavfilter.so": {
+        "sha256": "4ec4ba77b40fd2ea10e742b9bd185b26eb9b9f73bea95b79330f7bc6cf232291",
+        "bytes": 210608
+      },
+      "libjellycine_mpv_audio.so": {
+        "sha256": "692e67a1f67cf7d8b6b57cd86c8fd8e9fc254d1d38b93cc9dc6c051218a9410f",
+        "bytes": 6960
+      }
+    },
+    "armeabi-v7a": {
+      "libavfilter.so": {
+        "sha256": "9cfde3975097a3f9846096c24c1670b2b036bb7a7b9f8d0d690cc90d23d2f0d6",
+        "bytes": 190468
+      },
+      "libjellycine_mpv_audio.so": {
+        "sha256": "3998a992a1c828cd57369eaa55cd9e18dc75ca25415a7498a5cb6b32ed548259",
+        "bytes": 5512
+      }
+    },
+    "x86": {
+      "libavfilter.so": {
+        "sha256": "83dd911c93b46cfd57fcac24db2cd37c7bfc2e8b07ae9cd4111f715c00b4b2f0",
+        "bytes": 258196
+      },
+      "libjellycine_mpv_audio.so": {
+        "sha256": "75037ee40a57fe4faaf974303172d9b5708272f7991cdfe3b26ff0625e74fa8a",
+        "bytes": 5796
+      }
+    },
+    "x86_64": {
+      "libavfilter.so": {
+        "sha256": "7c6c6c8e8008387a7641ef1f491dd8cdb76ed74a3707596efaee4e348bf31705",
+        "bytes": 244504
+      },
+      "libjellycine_mpv_audio.so": {
+        "sha256": "5a07fb944af45ac3fb6aa69d54422074ec181dc63d7d9ba5b62827baba4f2d66",
+        "bytes": 7032
+      }
+    }
+  }
+}

@@ -43,7 +43,7 @@ private val BarColor = Color(0xFF22D3EE)
 private val BarColorDark = Color(0xFF0891B2)
 private val SubtextColor = Color.White.copy(alpha = 0.68f)
 
-private data class ChartBucket(val label: String, val minutes: Long)
+private data class ChartBucket(val label: String, val watchTimeMs: Long)
 
 @Composable
 fun DailyBreakdownChart(
@@ -55,7 +55,7 @@ fun DailyBreakdownChart(
 ) {
     val textMeasurer = rememberTextMeasurer()
     val buckets = aggregateBuckets(dailyData)
-    val maxMinutes = buckets.maxOfOrNull { it.minutes } ?: 1L
+    val maxWatchTimeMs = buckets.maxOfOrNull { it.watchTimeMs } ?: 1L
 
     val barStartX = remember { mutableFloatStateOf(0f) }
     val barWidthPx = remember { mutableFloatStateOf(0f) }
@@ -121,14 +121,14 @@ fun DailyBreakdownChart(
 
             buckets.forEachIndexed { index, bucket ->
                 val x = startX + index * (barWidth + barSpacing)
-                val barHeight = if (maxMinutes > 0)
-                    (bucket.minutes.toFloat() / maxMinutes) * chartHeight
+                val barHeight = if (maxWatchTimeMs > 0)
+                    (bucket.watchTimeMs.toFloat() / maxWatchTimeMs) * chartHeight
                 else 0f
 
                 if (barHeight > 0) {
                     val barY = topLabelHeight + chartHeight - barHeight
                     val isSelected = selectedIndex == null || selectedIndex == index
-                    val barColor = if (bucket.minutes == maxMinutes) BarColor else BarColorDark
+                    val barColor = if (bucket.watchTimeMs == maxWatchTimeMs) BarColor else BarColorDark
                     drawRoundRect(
                         color = if (isSelected) barColor else barColor.copy(alpha = 0.25f),
                         topLeft = Offset(x, barY),
@@ -137,7 +137,7 @@ fun DailyBreakdownChart(
                     )
 
                     if (barCount <= 12) {
-                        val timeLabel = formatMinutesShort(bucket.minutes)
+                        val timeLabel = formatWatchTime(bucket.watchTimeMs)
                         val timeMeasured = textMeasurer.measure(
                             timeLabel,
                             style = TextStyle(fontSize = 9.sp, color = Color.White)
@@ -178,7 +178,7 @@ private fun aggregateBuckets(dailyData: List<DailyWatchTime>): List<ChartBucket>
             dailyData.map { data ->
                 val date = LocalDate.ofEpochDay(data.dateEpochDay)
                 val label = date.dayOfWeek.getDisplayName(DateTextStyle.SHORT, Locale.getDefault())
-                ChartBucket(label, data.minutes)
+                ChartBucket(label, data.watchTimeMs)
             }
         }
         days <= 31 -> {
@@ -187,8 +187,8 @@ private fun aggregateBuckets(dailyData: List<DailyWatchTime>): List<ChartBucket>
                 val weekField = java.time.temporal.WeekFields.of(Locale.getDefault()).weekOfMonth()
                 date.get(weekField)
             }.toSortedMap().entries.mapIndexed { index, (_, weekDays) ->
-                val totalMinutes = weekDays.sumOf { it.minutes }
-                ChartBucket("W${index + 1}", totalMinutes)
+                val totalWatchTimeMs = weekDays.sumOf { it.watchTimeMs }
+                ChartBucket("W${index + 1}", totalWatchTimeMs)
             }
         }
         else -> {
@@ -196,9 +196,9 @@ private fun aggregateBuckets(dailyData: List<DailyWatchTime>): List<ChartBucket>
                 val date = LocalDate.ofEpochDay(data.dateEpochDay)
                 date.month
             }.entries.sortedBy { it.key }.map { (month, monthDays) ->
-                val totalMinutes = monthDays.sumOf { it.minutes }
+                val totalWatchTimeMs = monthDays.sumOf { it.watchTimeMs }
                 val label = month.getDisplayName(DateTextStyle.SHORT, Locale.getDefault())
-                ChartBucket(label, totalMinutes)
+                ChartBucket(label, totalWatchTimeMs)
             }
         }
     }
@@ -212,7 +212,7 @@ fun PeakHoursChart(
     onClearSelection: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val maxCount = peakHours.maxOfOrNull { it.count } ?: 1
+    val maxTimeMs = peakHours.maxOfOrNull { it.watchTimeMs } ?: 1
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -259,11 +259,11 @@ fun PeakHoursChart(
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White,
                     fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(0.28f)
+                    modifier = Modifier.weight(0.25f)
                 )
 
-                Box(modifier = Modifier.weight(0.58f)) {
-                    val fraction = if (maxCount > 0) bucket.count.toFloat() / maxCount else 0f
+                Box(modifier = Modifier.weight(0.45f)) {
+                    val fraction = if (maxTimeMs > 0) bucket.watchTimeMs.toFloat() / maxTimeMs else 0f
                     Canvas(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -288,23 +288,14 @@ fun PeakHoursChart(
                 }
 
                 Text(
-                    text = bucket.count.toString(),
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = formatWatchTime(bucket.watchTimeMs),
+                    style = MaterialTheme.typography.bodySmall,
                     color = Color.White,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(0.14f)
+                    maxLines = 1,
+                    modifier = Modifier.weight(0.30f)
                 )
             }
         }
-    }
-}
-
-private fun formatMinutesShort(minutes: Long): String {
-    val hours = minutes / 60
-    val mins = minutes % 60
-    return when {
-        hours == 0L -> "${mins}m"
-        mins == 0L -> "${hours}h"
-        else -> "${hours}h${mins}m"
     }
 }

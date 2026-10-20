@@ -64,8 +64,10 @@ class AuthScreenViewModel(application: Application) : AndroidViewModel(applicati
     
     fun connectToServer(onSuccess: (serverUrl: String, serverName: String?) -> Unit) {
         val currentState = _uiState.value
+        if (currentState.isServerLoading) return
+        val normalizedUrl = currentState.serverUrl.trim()
         
-        if (currentState.serverUrl.isBlank()) {
+        if (normalizedUrl.isBlank()) {
             _uiState.value = currentState.copy(
                 serverErrorMessage = string(R.string.auth_error_enter_server_url)
             )
@@ -73,12 +75,13 @@ class AuthScreenViewModel(application: Application) : AndroidViewModel(applicati
         }
         
         _uiState.value = currentState.copy(
+            serverUrl = normalizedUrl,
             isServerLoading = true,
             serverErrorMessage = null
         )
         
         viewModelScope.launch {
-            val result = authRepository.testServerConnection(currentState.serverUrl)
+            val result = authRepository.testServerConnection(normalizedUrl)
             
             result.fold(
                 onSuccess = { serverInfo ->
@@ -87,7 +90,7 @@ class AuthScreenViewModel(application: Application) : AndroidViewModel(applicati
                         serverInfo = serverInfo,
                         isServerConnected = true
                     )
-                    onSuccess(currentState.serverUrl, serverInfo.serverName)
+                    onSuccess(normalizedUrl, serverInfo.serverName)
                 },
                 onFailure = { error ->
                     _uiState.value = _uiState.value.copy(

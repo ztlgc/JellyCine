@@ -1,0 +1,3 @@
+# Native build manifests pin these source bytes across Windows checkouts.
+phone/native/mpv-audio-dsp/*.py text eol=lf
+phone/native/mpv-audio-dsp/*.cpp text eol=lf

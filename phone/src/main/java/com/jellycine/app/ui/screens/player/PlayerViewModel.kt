@@ -2,6 +2,7 @@ package com.jellycine.app.ui.screens.player
 
 import android.content.Context
 import android.net.Uri
+import android.os.SystemClock
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -26,6 +27,7 @@ import com.jellycine.data.model.BaseItemDto
 import com.jellycine.data.model.MediaSource
 import com.jellycine.data.model.MediaStream
 import com.jellycine.data.model.PlaybackRequest
+import com.jellycine.data.datastore.VideoWatchHistoryStore
 import com.jellycine.data.repository.MediaRepository
 import com.jellycine.detail.CodecCapabilityManager
 import com.jellycine.player.audio.SpatializerHelper
@@ -66,6 +68,9 @@ class PlayerViewModel @Inject constructor(
 
     private val _playerState = MutableStateFlow(PlayerState())
     val playerState: StateFlow<PlayerState> = _playerState.asStateFlow()
+    private val _audioGainDiagnostics = MutableStateFlow<AudioGainPlaybackInfo?>(null)
+    val audioGainDiagnostics: StateFlow<AudioGainPlaybackInfo?> = _audioGainDiagnostics.asStateFlow()
+    private var lastAudioGainDiagnosticMs = 0L
     private val _preferredStreamIndexes = MutableStateFlow(PreferredStreamIndexes())
     val preferredStreamIndexes: StateFlow<PreferredStreamIndexes> = _preferredStreamIndexes.asStateFlow()
     private val _playbackCompletedEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
@@ -107,6 +112,27 @@ class PlayerViewModel @Inject constructor(
     private var hasRenderedFirstFrame = false
     private var mpvExternalSubtitleUrls: Map<Int, String> = emptyMap()
     private var remotePlaybackRequestKey: String? = null
+    private var watchHistoryStore: VideoWatchHistoryStore? = null
+    private val watchTracker = VideoWatchTracker(
+        monotonicMs = { SystemClock.elapsedRealtime() },
+        wallTimeMs = { System.currentTimeMillis() },
+        onOpen = { watchHistoryStore?.recordOpen(it) },
+        onSpan = { watchHistoryStore?.recordSpan(it) }
+    )
+    private var watchCheckpointJob: Job? = null
+    private var watchTrackingGeneration = 0L
+    @Volatile private var watchScreenActive = false
+
+    fun setWatchScreenActive(active: Boolean) {
+        watchScreenActive = active
+        refreshWatchTiming()
+    }
+
+    private fun refreshWatchTiming() {
+        val state = _playerState.value
+        watchTracker.setPlaying(watchScreenActive && state.isPlaying && state.hasStartedPlayback &&
+            !state.isLoading && state.error == null && isPlayingNow())
+    }
 
     private fun isMpvPlayback(): Boolean {
         return activePlayerEngine == PlayerPreferences.PLAYER_ENGINE_MPV
@@ -146,8 +172,13 @@ class PlayerViewModel @Inject constructor(
         preferredSubtitleStreamIndex: Int? = null,
         initialSeekPositionMs: Long? = null,
         startPlayback: Boolean = true,
-        forcedPlayerEngine: String? = null
+        forcedPlayerEngine: String? = null,
+        continueWatchSession: Boolean = false
     ) {
+        val trackingGeneration = ++watchTrackingGeneration
+        val openedAtMs = System.currentTimeMillis()
+        if (!continueWatchSession) watchTracker.close()
+        watchCheckpointJob?.cancel()
         viewModelScope.launch {
             try {
                 _playerState.value = _playerState.value.copy(
@@ -233,6 +264,22 @@ class PlayerViewModel @Inject constructor(
                     mediaRepository.getItemById(mediaId).getOrNull()
                 }
                 currentItemDetails = itemDetails
+                if (itemDetails?.type.equals("Video", ignoreCase = true)) {
+                    // Statistics must not prevent playback if preferences cannot be read.
+                    val historyScope = runCatching { mediaRepository.getWatchHistoryScopeKey() }.getOrNull()
+                    if (historyScope != null && trackingGeneration == watchTrackingGeneration) {
+                        watchHistoryStore = VideoWatchHistoryStore.getInstance(context)
+                        watchTracker.open(historyScope, itemDetails!!, openedAtMs, continueWatchSession)
+                        refreshWatchTiming()
+                        watchCheckpointJob = viewModelScope.launch {
+                            while (true) {
+                                delay(5_000L)
+                                refreshWatchTiming()
+                                watchTracker.checkpoint()
+                            }
+                        }
+                    }
+                }
                 val resumePositionTicks = itemDetails?.userData?.playbackPositionTicks
                 val storedResumePositionMs = if (resumePositionTicks != null && resumePositionTicks > 0) {
                     resumePositionTicks / 10000L
@@ -700,7 +747,7 @@ class PlayerViewModel @Inject constructor(
         val preferredAudioStreamIndex = _preferredStreamIndexes.value.audioStreamIndex
         val preferredSubtitleStreamIndex = _preferredStreamIndexes.value.subtitleStreamIndex
 
-        releasePlayer()
+        releasePlayer(keepWatchSession = true)
         initializePlayer(
             context = context,
             mediaId = mediaId,
@@ -709,7 +756,8 @@ class PlayerViewModel @Inject constructor(
             preferredSubtitleStreamIndex = preferredSubtitleStreamIndex,
             initialSeekPositionMs = resumePositionMs,
             startPlayback = shouldResumePlaying,
-            forcedPlayerEngine = PlayerPreferences.PLAYER_ENGINE_MPV
+            forcedPlayerEngine = PlayerPreferences.PLAYER_ENGINE_MPV,
+            continueWatchSession = true
         )
         return true
     }
@@ -759,9 +807,12 @@ class PlayerViewModel @Inject constructor(
         if (isMpvPlayback()) {
             _playerState.value = _playerState.value.copy(isPlaying = true, playWhenReady = true)
         }
+        refreshWatchTiming()
     }
 
     fun pause() {
+        watchTracker.setPlaying(false)
+        stopHoldPlaybackSpeed()
         exoPlayer?.pause()
         mpvPlayer?.pause()
         if (isMpvPlayback()) {
@@ -1018,7 +1069,8 @@ class PlayerViewModel @Inject constructor(
 
     fun togglePlayPause() {
         if (exoPlayer != null || mpvPlayer != null) {
-            if (isPlayingNow()) pause() else play()
+            // Playback intent stays true during buffering; the button must still be able to pause.
+            if (_playerState.value.playWhenReady) pause() else play()
             playbackReporter.onPlaybackPauseStateChanged()
         }
     }
@@ -1034,15 +1086,40 @@ class PlayerViewModel @Inject constructor(
     private fun createAudioGainProcessor(context: Context): com.jellycine.player.audio.AudioGainProcessor =
         com.jellycine.player.audio.AudioGainProcessor().also {
             it.setGainPercent(PlayerPreferences(context).getAudioGainPercent())
+            it.setNormalizationEnabled(PlayerPreferences(context).isAudioNormalizationEnabled())
             audioGainProcessor = it
         }
+
+    private val holdPlaybackSpeed = com.jellycine.player.core.HoldPlaybackSpeed()
 
     fun setPlaybackSpeed(speed: Float) {
         val valid = com.jellycine.player.core.PlaybackOptions.validSpeed(speed)
         playerContext?.let { PlayerPreferences(it).setPlaybackSpeed(valid) }
-        exoPlayer?.setPlaybackSpeed(valid)
-        mpvPlayer?.setPlaybackSpeed(valid)
-        _playerState.value = _playerState.value.copy(playbackSpeed = valid)
+        holdPlaybackSpeed.setPreferredSpeed(valid)
+        applyPlaybackSpeed()
+    }
+
+    fun startHoldPlaybackSpeed(): Boolean {
+        if (_playerState.value.isLocked || !isPlayingNow()) return false
+        holdPlaybackSpeed.start()
+        applyPlaybackSpeed()
+        return true
+    }
+
+    fun stopHoldPlaybackSpeed() {
+        if (!holdPlaybackSpeed.isActive) return
+        holdPlaybackSpeed.stop()
+        applyPlaybackSpeed()
+    }
+
+    private fun applyPlaybackSpeed() {
+        val speed = holdPlaybackSpeed.effectiveSpeed
+        exoPlayer?.setPlaybackSpeed(speed)
+        mpvPlayer?.setPlaybackSpeed(speed)
+        _playerState.value = _playerState.value.copy(
+            playbackSpeed = speed,
+            isHoldPlaybackSpeedActive = holdPlaybackSpeed.isActive
+        )
     }
 
     fun setAudioGainPercent(percent: Int) {
@@ -1052,18 +1129,81 @@ class PlayerViewModel @Inject constructor(
         applyAudioGain()
     }
 
+    fun setAudioNormalizationEnabled(enabled: Boolean) {
+        playerContext?.let { PlayerPreferences(it).setAudioNormalizationEnabled(enabled) }
+        _playerState.value = _playerState.value.copy(audioNormalizationEnabled = enabled)
+        applyAudioGain()
+    }
+
     private fun restorePlaybackOptions() {
         val preferences = playerContext?.let { PlayerPreferences(it) } ?: return
         setPlaybackSpeed(preferences.getPlaybackSpeed())
+        _playerState.value = _playerState.value.copy(
+            audioNormalizationEnabled = preferences.isAudioNormalizationEnabled()
+        )
         setAudioGainPercent(preferences.getAudioGainPercent())
     }
 
     private fun applyAudioGain() {
         val percent = _playerState.value.audioGainPercent
         audioGainProcessor?.setGainPercent(percent)
-        val available = mpvPlayer?.setAudioGainPercent(percent) ?:
+        audioGainProcessor?.setNormalizationEnabled(_playerState.value.audioNormalizationEnabled)
+        val available = mpvPlayer?.setAudioGainPercent(percent, _playerState.value.audioNormalizationEnabled) ?:
             (exoPlayer != null && audioGainProcessor != null)
         _playerState.value = _playerState.value.copy(audioGainAvailable = available)
+        lastAudioGainDiagnosticMs = 0L
+    }
+
+    fun refreshAudioGainDiagnostics() {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - lastAudioGainDiagnosticMs < 2_000L) return
+        lastAudioGainDiagnosticMs = now
+        val context = playerContext ?: return
+        val manager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+        val volumeIndex = manager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+        val volumeMax = manager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+        val state = _playerState.value
+        val configuredDb = com.jellycine.player.core.PlaybackOptions.gainDecibels(state.audioGainPercent)
+        fun dbfs(amplitude: Double): Double? =
+            amplitude.takeIf { it > 0.0 && it.isFinite() }?.let { 20.0 * kotlin.math.log10(it) }
+        val info = if (isMpvPlayback()) {
+            val measurement = mpvPlayer?.audioGainDiagnostics()
+            AudioGainPlaybackInfo(
+                engine = "MPV", configuredGainDb = configuredDb,
+                normalizationEnabled = state.audioNormalizationEnabled,
+                inputRmsDbfs = measurement?.inputRmsDbfs,
+                outputRmsDbfs = measurement?.outputRmsDbfs,
+                outputPeakDbfs = measurement?.outputPeakDbfs,
+                processedFrames = measurement?.processedFrames,
+                inputProcessedFrames = measurement?.inputProcessedFrames,
+                measurementPaired = measurement?.measurementPaired == true,
+                systemVolumeIndex = volumeIndex, systemVolumeMax = volumeMax,
+                outputFormat = measurement?.outputFormat
+            )
+        } else {
+            val measurement = audioGainProcessor?.diagnosticsSnapshot()
+            val measured = measurement?.takeIf {
+                it.measurementFrames > 0 &&
+                    kotlin.math.abs(it.configuredGainMultiplier -
+                        com.jellycine.player.core.PlaybackOptions.gainMultiplier(state.audioGainPercent)) < 0.00001 &&
+                    it.normalizationEnabled == state.audioNormalizationEnabled
+            }
+            AudioGainPlaybackInfo(
+                engine = "ExoPlayer", configuredGainDb = configuredDb,
+                normalizationEnabled = state.audioNormalizationEnabled,
+                inputRmsDbfs = measured?.let { dbfs(it.inputRms) },
+                outputRmsDbfs = measured?.let { dbfs(it.outputRms) },
+                outputPeakDbfs = measured?.let { dbfs(it.outputPeak) },
+                processedFrames = measurement?.outputFrames,
+                inputProcessedFrames = measurement?.inputFrames,
+                measurementPaired = measured != null,
+                limitedFrames = measurement?.limitedFrames,
+                systemVolumeIndex = volumeIndex, systemVolumeMax = volumeMax,
+                outputFormat = measurement?.let { "PCM16 ${it.sampleRate}Hz ${it.channelCount}ch" }
+            )
+        }
+        _audioGainDiagnostics.value = info
+        if (isPlayingNow()) Log.i("AudioGain", "PCM measurement (before device volume): $info measuredGainDb=${info.measuredGainDb}")
     }
 
     fun setBrightness(brightness: Float) {
@@ -1074,7 +1214,17 @@ class PlayerViewModel @Inject constructor(
         _playerState.value = _playerState.value.copy(showControls = !_playerState.value.showControls)
     }
 
-    fun releasePlayer() {
+    fun releasePlayer(keepWatchSession: Boolean = false) {
+        watchCheckpointJob?.cancel()
+        watchCheckpointJob = null
+        watchTracker.setPlaying(false)
+        if (!keepWatchSession) {
+            ++watchTrackingGeneration
+            watchTracker.close()
+        }
+        stopHoldPlaybackSpeed()
+        _audioGainDiagnostics.value = null
+        lastAudioGainDiagnosticMs = 0L
         audioGainProcessor = null
         persistPosition()
         playbackReporter.reportPlaybackStopped()
@@ -1112,6 +1262,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun handlePlaybackCompleted() {
+        watchTracker.setPlaying(false)
         if (hasHandledPlaybackCompletion) return
         hasHandledPlaybackCompletion = true
         persistPosition(markCompleted = true)
@@ -1140,6 +1291,7 @@ class PlayerViewModel @Inject constructor(
      * Toggle lock state - when locked, disable all gestures and hide controls
      */
     fun toggleLock() {
+        stopHoldPlaybackSpeed()
         val currentState = _playerState.value
         _playerState.value = currentState.copy(
             isLocked = !currentState.isLocked,
@@ -1266,6 +1418,7 @@ class PlayerViewModel @Inject constructor(
     private fun createMpvListener(): MpvPlayerController.Listener {
         return object : MpvPlayerController.Listener {
             override fun onBuffering() {
+                watchTracker.setPlaying(false)
                 _playerState.value = _playerState.value.copy(isLoading = true)
             }
 
@@ -1279,6 +1432,7 @@ class PlayerViewModel @Inject constructor(
                     hasStartedPlayback = true,
                     duration = getDuration()
                 )
+                refreshWatchTiming()
                 if (!playbackReporter.hasReportedStart() && isPlayingNow()) {
                     playbackReporter.reportPlaybackStatus()
                 }
@@ -1288,12 +1442,18 @@ class PlayerViewModel @Inject constructor(
             }
 
             override fun onEnded() {
+                stopHoldPlaybackSpeed()
                 _playerState.value = _playerState.value.copy(
                     isPlaying = false,
                     playWhenReady = false,
                     isLoading = false
                 )
                 handlePlaybackCompleted()
+            }
+
+            override fun onStopped() {
+                watchTracker.setPlaying(false)
+                _playerState.value = _playerState.value.copy(isPlaying = false, playWhenReady = false, isLoading = false)
             }
         }
     }
@@ -1403,7 +1563,7 @@ class PlayerViewModel @Inject constructor(
             setPreferredSubtitleStreamIndex(mediaId, subtitleStreamIndex)
         }
 
-        releasePlayer()
+        releasePlayer(keepWatchSession = true)
         initializePlayer(
             context = context,
             mediaId = mediaId,
@@ -1411,7 +1571,8 @@ class PlayerViewModel @Inject constructor(
             preferredAudioStreamIndex = audioStreamIndex,
             preferredSubtitleStreamIndex = subtitleStreamIndex,
             initialSeekPositionMs = resumePositionMs,
-            startPlayback = shouldResumePlaying
+            startPlayback = shouldResumePlaying,
+            continueWatchSession = true
         )
     }
 
@@ -1488,6 +1649,9 @@ class PlayerViewModel @Inject constructor(
     }
 
     private val playerListener = object : Player.Listener {
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            refreshWatchTiming()
+        }
         override fun onAudioSessionIdChanged(audioSessionId: Int) {
             restorePlaybackOptions()
         }
@@ -1537,7 +1701,10 @@ class PlayerViewModel @Inject constructor(
             }
             updateMpvWatchdog()
 
+            refreshWatchTiming()
+
             if (playbackState == Player.STATE_ENDED) {
+                stopHoldPlaybackSpeed()
                 handlePlaybackCompleted()
             }
         }
@@ -1558,6 +1725,7 @@ class PlayerViewModel @Inject constructor(
                 isLoading = shouldShowLoading
             )
             updateMpvWatchdog()
+            refreshWatchTiming()
         }
 
         override fun onRenderedFirstFrame() {
@@ -1568,6 +1736,7 @@ class PlayerViewModel @Inject constructor(
                 hasStartedPlayback = true,
                 duration = getDuration().takeIf { it > 0L } ?: _playerState.value.duration
             )
+            refreshWatchTiming()
             if (
                 exoPlayer?.playWhenReady == true &&
                 exoPlayer?.playbackState == Player.STATE_READY &&
@@ -1578,6 +1747,7 @@ class PlayerViewModel @Inject constructor(
         }
 
         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+            watchTracker.setPlaying(false)
             hasRenderedFirstFrame = false
             if (triggerMpvFallback()) {
                 return

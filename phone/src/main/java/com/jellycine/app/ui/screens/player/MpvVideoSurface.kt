@@ -30,6 +30,8 @@ fun MpvVideoSurface(
     getCurrentBrightnessLevel: () -> Float,
     onZoomChange: (Boolean) -> Unit,
     onTogglePlayPause: () -> Unit,
+    onHoldPlaybackSpeedStart: () -> Boolean,
+    onHoldPlaybackSpeedEnd: () -> Unit,
     modifier: Modifier
 ) {
     AndroidView(
@@ -50,7 +52,9 @@ fun MpvVideoSurface(
                     getCurrentVolumeLevel = getCurrentVolumeLevel,
                     getCurrentBrightnessLevel = getCurrentBrightnessLevel,
                     onZoomChange = onZoomChange,
-                    onTogglePlayPause = onTogglePlayPause
+                    onTogglePlayPause = onTogglePlayPause,
+                    onHoldPlaybackSpeedStart = onHoldPlaybackSpeedStart,
+                    onHoldPlaybackSpeedEnd = onHoldPlaybackSpeedEnd
                 )
                 setOnTouchListener { _, event -> gestureHelper.handleTouchEvent(event) }
                 holder.addCallback(object : SurfaceHolder.Callback {

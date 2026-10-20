@@ -343,6 +343,9 @@ data class BaseItemDto(
     
     @SerialName("LockData")
     val lockData: Boolean? = null,
+
+    @SerialName("CanEditItems")
+    val canEditItems: Boolean? = null,
     
     @SerialName("Width")
     val width: Int? = null,

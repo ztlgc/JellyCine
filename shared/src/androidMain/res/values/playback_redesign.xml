@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="video_detail_resume_at">Resume  %1$s</string>
+    <string name="video_detail_played">Played %1$s</string>
+    <string name="video_detail_remaining">Remaining %1$s</string>
+    <string name="video_detail_overview">Overview</string>
+    <string name="player_quality_original_short">Original</string>
+    <string name="player_sound_title">Sound</string>
+    <string name="player_audio_short">Audio</string>
+    <string name="player_subtitles_short">Subtitles</string>
+    <string name="player_gain_short">Gain %1$s</string>
+    <string name="player_gain_more">More ›</string>
+    <string name="player_audio_default">Default audio</string>
+    <string name="player_aspect_fit_short">Fit</string>
+    <string name="player_aspect_fill_short">Fill</string>
+    <string name="player_aspect_zoom_short">Zoom</string>
+    <string name="player_gain_off_short">Off</string>
+    <string name="video_detail_mono">Mono</string>
+    <string name="video_detail_stereo">Stereo</string>
+</resources>

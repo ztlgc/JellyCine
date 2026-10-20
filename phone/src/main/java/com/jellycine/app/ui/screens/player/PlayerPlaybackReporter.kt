@@ -84,17 +84,18 @@ internal class PlayerPlaybackReporter(
         progressReportingJob?.cancel()
         progressReportingJob = null
 
+        val stoppedPositionTicks = positionProvider() * TICKS_PER_MILLISECOND
         scope.launch {
             try {
                 val result = mediaRepository.reportPlaybackStopped(
                     itemId = mediaId,
-                    positionTicks = positionProvider() * TICKS_PER_MILLISECOND,
+                    positionTicks = stoppedPositionTicks,
                     playSessionId = sessionSnapshot.playSessionId,
                     mediaSourceId = sessionSnapshot.mediaSourceId,
                     failed = failed
                 )
                 if (result.isSuccess) {
-                    UserDataRefreshSignals.notifyUserDataChanged(mediaId)
+                    UserDataRefreshSignals.notifyUserDataChanged(mediaId, playbackPositionTicks = stoppedPositionTicks)
                 } else {
                     Log.e(
                         TAG,

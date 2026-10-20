@@ -2,41 +2,15 @@ package com.jellycine.app.ui.screens.screentime
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,169 +19,108 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.AsyncImage
 import com.jellycine.app.ui.components.common.containerWidthDp
 import com.jellycine.app.ui.components.common.isTabletLayout
-import com.jellycine.data.model.BaseItemDto
+import com.jellycine.data.model.DailyWatchTime
+import com.jellycine.data.model.ScreenTimeStats
+import com.jellycine.data.model.VideoWatchSummary
+import com.jellycine.data.repository.computeScreenTimeStats
 import com.jellycine.shared.R
-import com.jellycine.shared.ui.components.common.ShimmerEffect
-import com.jellycine.shared.ui.components.screentime.DailyBreakdownChart
-import com.jellycine.shared.ui.components.screentime.PeakHoursChart
-import com.jellycine.shared.ui.components.screentime.SectionCard
-import com.jellycine.shared.ui.components.screentime.StatCard
-import com.jellycine.shared.ui.components.screentime.formatDelta
-import com.jellycine.shared.ui.components.screentime.formatMinutes
+import com.jellycine.shared.ui.components.screentime.*
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
-import java.time.temporal.TemporalAdjusters
 import java.time.temporal.WeekFields
 import java.util.Locale
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScreenTimeScreen(
     onBack: () -> Unit,
-    viewModel: ScreenTimeViewModel = viewModel(
-        factory = ScreenTimeViewModelFactory(LocalContext.current.applicationContext)
-    )
+    viewModel: ScreenTimeViewModel = viewModel(factory = ScreenTimeViewModelFactory(LocalContext.current.applicationContext))
 ) {
     val state by viewModel.screenTimeState.collectAsState()
-    var selectedItemType by remember { mutableStateOf("Movie") }
-    var dayFilter by remember { mutableStateOf<Int?>(null) }
-    var hourFilter by remember { mutableStateOf<Int?>(null) }
-
-    val timeFilteredItems = remember(state.items, dayFilter, hourFilter, state.stats?.dailyBreakdown, state.period) {
-        var items = state.items
-        if (dayFilter != null) {
-            val epochDays = getDaysForBucket(dayFilter!!, state.stats?.dailyBreakdown.orEmpty(), state.period)
-            items = items.filter { item ->
-                val date = parseItemDate(item.userData?.lastPlayedDate ?: item.dateCreated)
-                date != null && date.toEpochDay() in epochDays
-            }
-        }
-        if (hourFilter != null) {
-            val range = hourRanges.getOrNull(hourFilter!!)
-            if (range != null) {
-                items = items.filter { item ->
-                    val hour = parseItemHour(item.userData?.lastPlayedDate ?: item.dateCreated)
-                    hour != null && hour in range
-                }
-            }
-        }
-        items
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) viewModel.refresh() }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    val movieCount = remember(timeFilteredItems) { timeFilteredItems.count { it.type == "Movie" } }
-    val episodeCount = remember(timeFilteredItems) { timeFilteredItems.count { it.type == "Episode" } }
-    if (selectedItemType == "Movie" && movieCount == 0 && episodeCount > 0) selectedItemType = "Episode"
-    else if (selectedItemType == "Episode" && episodeCount == 0 && movieCount > 0) selectedItemType = "Movie"
-
+    var dayFilter by remember(state.period, state.startDate, state.endDate) { mutableStateOf<Int?>(null) }
+    var hourFilter by remember(state.period, state.startDate, state.endDate) { mutableStateOf<Int?>(null) }
+    val selectedDays = remember(dayFilter, state.stats) {
+        dayFilter?.let { daysForBucket(it, state.stats?.dailyBreakdown.orEmpty()) }
+    }
+    val dayStats = remember(state.stats, state.history, selectedDays) {
+        if (selectedDays == null) state.stats else computeScreenTimeStats(
+            state.history, state.scopeKey, state.startDate, state.endDate, selectedDays = selectedDays
+        )
+    }
+    val filteredStats = remember(dayStats, state.history, selectedDays, hourFilter) {
+        if (hourFilter == null) dayStats else computeScreenTimeStats(
+            state.history, state.scopeKey, state.startDate, state.endDate,
+            selectedDays = selectedDays, selectedHours = hourRanges[hourFilter!!]
+        )
+    }
     BackHandler { onBack() }
-
     Scaffold(
         containerColor = Color.Black,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(stringResource(R.string.settings_screen_time)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = null
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, stringResource(R.string.screen_time_back)) } },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black)
             )
         }
-    ) { innerPadding ->
-        val screenWidth = containerWidthDp()
-        val isTablet = isTabletLayout(screenWidth)
-        val horizontalPadding = if (isTablet) 32.dp else 16.dp
-
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.TopCenter) {
-        LazyColumn(
-            modifier = Modifier
-                .then(if (isTablet) Modifier.widthIn(max = 720.dp) else Modifier.fillMaxWidth())
-                .padding(horizontal = horizontalPadding),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                DateRangeSubtitle(
-                    period = state.period,
-                    year = state.year,
-                    monthOffset = state.monthOffset,
-                    weekOffset = state.weekOffset,
-                    onPrevious = {
-                        when (state.period) {
-                            ScreenTimePeriod.WEEK -> viewModel.loadScreenTime(state.period, state.year, weekOffset = state.weekOffset - 1)
-                            ScreenTimePeriod.MONTH -> viewModel.loadScreenTime(state.period, state.year, state.monthOffset - 1)
-                            ScreenTimePeriod.YEAR -> viewModel.loadScreenTime(state.period, state.year - 1)
-                        }
-                    },
-                    onNext = {
-                        when (state.period) {
-                            ScreenTimePeriod.WEEK -> viewModel.loadScreenTime(state.period, state.year, weekOffset = state.weekOffset + 1)
-                            ScreenTimePeriod.MONTH -> viewModel.loadScreenTime(state.period, state.year, state.monthOffset + 1)
-                            ScreenTimePeriod.YEAR -> viewModel.loadScreenTime(state.period, state.year + 1)
+    ) { padding ->
+        val tablet = isTabletLayout(containerWidthDp())
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.TopCenter) {
+            LazyColumn(
+                modifier = Modifier.widthIn(max = 720.dp).fillMaxWidth().padding(horizontal = if (tablet) 32.dp else 16.dp),
+                contentPadding = PaddingValues(bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        DateRangeNavigator(state, viewModel)
+                        Text(stringResource(R.string.screen_time_local_caption), style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.5f))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ScreenTimePeriod.entries.forEach { period ->
+                                val label = when (period) {
+                                    ScreenTimePeriod.WEEK -> R.string.screen_time_period_week
+                                    ScreenTimePeriod.MONTH -> R.string.screen_time_period_month
+                                    ScreenTimePeriod.YEAR -> R.string.screen_time_period_year
+                                }
+                                FilterChip(selected = state.period == period, onClick = { viewModel.loadScreenTime(period, state.year) }, label = { Text(stringResource(label)) })
+                            }
                         }
                     }
-                )
-            }
-            item {
-                PeriodSelector(
-                    selected = state.period,
-                    onSelect = { dayFilter = null; hourFilter = null; viewModel.loadScreenTime(it, state.year) }
-                )
-            }
-
-            if (state.isLoading) {
-                item { LoadingShimmer() }
-            } else if (state.stats != null) {
-                val stats = state.stats!!
-
-                val peakHoursData = if (dayFilter != null) {
-                    val dayItems = state.items.filter { item ->
-                        val date = parseItemDate(item.userData?.lastPlayedDate ?: item.dateCreated)
-                        date != null && date.toEpochDay() in getDaysForBucket(dayFilter!!, stats.dailyBreakdown, state.period)
-                    }
-                    computePeakHoursFromItems(dayItems)
-                } else stats.peakHours
-
-                if (isTablet) {
+                }
+                if (state.isLoading) {
+                    item { Box(Modifier.fillMaxWidth().height(160.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Color(0xFF67E8F9)) } }
+                } else if (state.error != null) {
                     item {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            SectionCard(modifier = Modifier.weight(1f)) {
-                                DailyBreakdownChart(
-                                    dailyData = stats.dailyBreakdown,
-                                    selectedIndex = dayFilter,
-                                    onBucketClick = { index -> dayFilter = if (dayFilter == index) null else index },
-                                    onClearSelection = { dayFilter = null }
-                                )
-                            }
-                            SectionCard(modifier = Modifier.weight(1f)) {
-                                PeakHoursChart(
-                                    peakHours = peakHoursData,
-                                    selectedIndex = hourFilter,
-                                    onBucketClick = { index -> hourFilter = if (hourFilter == index) null else index },
-                                    onClearSelection = { hourFilter = null }
-                                )
-                            }
+                        SectionCard {
+                            Text(stringResource(R.string.screen_time_load_failed), color = Color.White)
+                            TextButton(onClick = viewModel::refresh) { Text(stringResource(R.string.screen_time_retry)) }
                         }
                     }
-                } else {
+                } else if (filteredStats != null) {
+                    val stats = filteredStats
+                    item {
+                        OverviewCards(stats, state.previousStats, dayFilter != null || hourFilter != null)
+                    }
                     item {
                         SectionCard {
                             DailyBreakdownChart(
-                                dailyData = stats.dailyBreakdown,
-                                selectedIndex = dayFilter,
-                                onBucketClick = { index -> dayFilter = if (dayFilter == index) null else index },
+                                state.stats!!.dailyBreakdown, dayFilter,
+                                onBucketClick = { dayFilter = if (dayFilter == it) null else it },
                                 onClearSelection = { dayFilter = null }
                             )
                         }
@@ -215,299 +128,120 @@ fun ScreenTimeScreen(
                     item {
                         SectionCard {
                             PeakHoursChart(
-                                peakHours = peakHoursData,
-                                selectedIndex = hourFilter,
-                                onBucketClick = { index -> hourFilter = if (hourFilter == index) null else index },
+                                dayStats!!.peakHours, hourFilter,
+                                onBucketClick = { hourFilter = if (hourFilter == it) null else it },
                                 onClearSelection = { hourFilter = null }
                             )
                         }
                     }
-                }
-
-                val hasFilter = dayFilter != null || hourFilter != null
-                val filteredTotal = if (hasFilter) timeFilteredItems.sumOf { (it.runTimeTicks ?: 0L) / 600_000_000L } else stats.totalMinutes
-                val filteredShows = if (hasFilter) timeFilteredItems.filter { it.type == "Episode" }.sumOf { (it.runTimeTicks ?: 0L) / 600_000_000L } else stats.showMinutes
-                val filteredMovies = if (hasFilter) timeFilteredItems.filter { it.type == "Movie" }.sumOf { (it.runTimeTicks ?: 0L) / 600_000_000L } else stats.movieMinutes
-                val filteredAvg = if (hasFilter) {
-                    val days = timeFilteredItems.mapNotNull { parseItemDate(it.userData?.lastPlayedDate ?: it.dateCreated) }.distinct().size
-                    if (days > 0) filteredTotal / days else filteredTotal
-                } else stats.dailyAverageMinutes
-
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        StatCard(
-                            label = stringResource(R.string.screen_time_total),
-                            value = formatMinutes(filteredTotal),
-                            delta = if (hasFilter) null else formatDelta(stats.totalDelta),
-                            modifier = Modifier.weight(1f)
-                        )
-                        StatCard(
-                            label = stringResource(R.string.screen_time_daily_average),
-                            value = formatMinutes(filteredAvg),
-                            delta = if (hasFilter) null else formatDelta(stats.dailyAverageDelta),
-                            modifier = Modifier.weight(1f)
-                        )
+                    if (stats.videoCount == 0) {
+                        item { SectionCard { Text(stringResource(R.string.screen_time_empty_history), color = Color.White.copy(alpha = 0.6f)) } }
                     }
-                }
-
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        StatCard(
-                            label = stringResource(R.string.screen_time_shows),
-                            value = formatMinutes(filteredShows),
-                            modifier = Modifier.weight(1f)
-                        )
-                        StatCard(
-                            label = stringResource(R.string.screen_time_movies),
-                            value = formatMinutes(filteredMovies),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-
-                if (state.items.isNotEmpty()) {
-                    item {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (movieCount > 0) ScreenTimeChip("Movies ($movieCount)", selectedItemType == "Movie") { selectedItemType = "Movie" }
-                            if (episodeCount > 0) ScreenTimeChip("Episodes ($episodeCount)", selectedItemType == "Episode") { selectedItemType = "Episode" }
-                        }
-                    }
-
-                    val filteredItems = timeFilteredItems.filter { it.type == selectedItemType }
-                    items(filteredItems, key = { it.id ?: it.hashCode().toString() }) { item ->
-                        WatchedItemRow(item, viewModel)
-                    }
-                }
-
-            } else if (state.error != null) {
-                item {
-                    Text(
-                        text = state.error!!,
-                        color = Color.White.copy(alpha = 0.6f),
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    item { RankingCard(stringResource(R.string.screen_time_top_duration), stats.topByWatchTime, false, viewModel) }
+                    item { RankingCard(stringResource(R.string.screen_time_top_opens), stats.topByOpenCount, true, viewModel) }
                 }
             }
-
-            item { Spacer(modifier = Modifier.height(32.dp)) }
-        }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun ScreenTimeChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal) },
-        colors = FilterChipDefaults.filterChipColors(
-            selectedContainerColor = Color(0xFF22D3EE).copy(alpha = 0.2f),
-            selectedLabelColor = Color(0xFF67E8F9),
-            containerColor = Color(0xFF1A1A1A),
-            labelColor = Color.White.copy(alpha = 0.7f)
-        ),
-        border = FilterChipDefaults.filterChipBorder(
-            borderColor = Color.White.copy(alpha = 0.1f),
-            selectedBorderColor = Color(0xFF22D3EE).copy(alpha = 0.5f),
-            enabled = true,
-            selected = selected
-        )
-    )
-}
-
-@Composable
-private fun PeriodSelector(selected: ScreenTimePeriod, onSelect: (ScreenTimePeriod) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        ScreenTimePeriod.entries.forEach { period ->
-            val label = when (period) {
-                ScreenTimePeriod.WEEK -> stringResource(R.string.screen_time_period_week)
-                ScreenTimePeriod.MONTH -> stringResource(R.string.screen_time_period_month)
-                ScreenTimePeriod.YEAR -> stringResource(R.string.screen_time_period_year)
-            }
-            ScreenTimeChip(label, selected == period) { onSelect(period) }
         }
     }
 }
 
 @Composable
-private fun DateRangeSubtitle(
-    period: ScreenTimePeriod,
-    year: Int,
-    monthOffset: Int = 0,
-    weekOffset: Int = 0,
-    onPrevious: () -> Unit = {},
-    onNext: () -> Unit = {}
-) {
-    val today = LocalDate.now()
-    val formatter = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
-
-    val text = when (period) {
-        ScreenTimePeriod.WEEK -> {
-            val firstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek
-            val currentWeekStart = today.with(TemporalAdjusters.previousOrSame(firstDayOfWeek))
-            val start = currentWeekStart.plusWeeks(weekOffset.toLong())
-            val end = start.plusDays(6)
-            "${start.format(formatter)}  –  ${if (weekOffset == 0) "Today" else end.format(formatter)}"
-        }
-        ScreenTimePeriod.MONTH -> {
-            val target = today.plusMonths(monthOffset.toLong())
-            val start = target.withDayOfMonth(1)
-            val end = if (monthOffset == 0) today else target.withDayOfMonth(target.lengthOfMonth())
-            "${start.format(formatter)}  –  ${if (monthOffset == 0) "Today" else end.format(formatter)}"
-        }
-        ScreenTimePeriod.YEAR -> if (year == today.year) "$year – Today" else year.toString()
-    }
-    val canGoNext = when (period) {
-        ScreenTimePeriod.WEEK -> weekOffset < 0
-        ScreenTimePeriod.MONTH -> monthOffset < 0
-        ScreenTimePeriod.YEAR -> year < today.year
-    }
-    val canGoPrevious = when (period) {
-        ScreenTimePeriod.WEEK -> {
-            val firstDayOfWeek = WeekFields.of(Locale.getDefault()).firstDayOfWeek
-            val currentWeekStart = today.with(TemporalAdjusters.previousOrSame(firstDayOfWeek))
-            val monthFirstWeekStart = today.withDayOfMonth(1).with(TemporalAdjusters.previousOrSame(firstDayOfWeek))
-            val minWeekOffset = -ChronoUnit.WEEKS.between(monthFirstWeekStart, currentWeekStart)
-            weekOffset > minWeekOffset
-        }
-        else -> true
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth().height(24.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Rounded.ChevronLeft, contentDescription = null, tint = if (canGoPrevious) Color.White else Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp).clickable(enabled = canGoPrevious) { onPrevious() })
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.White,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(horizontal = 8.dp)
-        )
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = if (canGoNext) Color.White else Color.White.copy(alpha = 0.3f), modifier = Modifier.size(18.dp).clickable(enabled = canGoNext) { onNext() })
-    }
-}
-
-@Composable
-private fun LoadingShimmer() {
-    val shape = RoundedCornerShape(16.dp)
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        listOf(200, 140).forEach { h ->
-            Box(Modifier.fillMaxWidth().height(h.dp).clip(shape)) { ShimmerEffect(Modifier.fillMaxSize()) }
+internal fun OverviewCards(stats: ScreenTimeStats, previous: ScreenTimeStats?, filtered: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            StatCard(stringResource(R.string.screen_time_watched_duration), formatWatchTime(stats.totalWatchTimeMs),
+                if (!filtered && previous != null) formatDelta(stats.totalWatchTimeMs - previous.totalWatchTimeMs) else null, Modifier.weight(1f))
+            StatCard(stringResource(R.string.screen_time_daily_average), formatWatchTime(stats.dailyAverageMs),
+                if (!filtered && previous != null) formatDelta(stats.dailyAverageMs - previous.dailyAverageMs) else null, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            repeat(2) { Box(Modifier.weight(1f).height(100.dp).clip(shape)) { ShimmerEffect(Modifier.fillMaxSize()) } }
+            StatCard(stringResource(R.string.screen_time_video_count), stats.videoCount.toString(), modifier = Modifier.weight(1f))
+            StatCard(stringResource(R.string.screen_time_open_count), stats.openCount.toString(), modifier = Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun WatchedItemRow(item: BaseItemDto, viewModel: ScreenTimeViewModel) {
-    val runtime = item.runTimeTicks?.let { it / 600_000_000L } ?: 0L
-    val watchedDate = remember(item.userData?.lastPlayedDate) {
-        parseWatchedDate(item.userData?.lastPlayedDate)
-    }
+private fun RankingCard(title: String, videos: List<VideoWatchSummary>, byOpens: Boolean, viewModel: ScreenTimeViewModel) {
+    VideoRankingCard(title, videos, byOpens, viewModel::getItemImageUrl)
+}
 
-    var posterUrl by remember(item.id) { mutableStateOf<String?>(null) }
-    LaunchedEffect(item.id) {
-        val itemId = item.id ?: return@LaunchedEffect
-        posterUrl = viewModel.getItemImageUrl(itemId, item.seriesId, item.type)
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF1A1A1A))
-            .padding(10.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        AsyncImage(
-            model = posterUrl,
-            contentDescription = item.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(width = 50.dp, height = 72.dp)
-                .clip(RoundedCornerShape(8.dp))
-        )
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-            val title = if (item.type == "Episode") {
-                val ep = buildString {
-                    item.parentIndexNumber?.let { append("S$it") }
-                    item.indexNumber?.let { append("E$it") }
-                }
-                listOfNotNull(item.seriesName, ep.ifEmpty { null }).joinToString(" · ").ifEmpty { item.name ?: "" }
-            } else item.name ?: ""
-            Text(title, style = MaterialTheme.typography.bodyMedium, color = Color.White, fontWeight = FontWeight.Medium, maxLines = 1)
-            if (item.type == "Episode" && !item.name.isNullOrBlank()) {
-                Text(item.name!!, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.6f), maxLines = 1)
+@Composable
+internal fun VideoRankingCard(
+    title: String,
+    videos: List<VideoWatchSummary>,
+    byOpens: Boolean,
+    getImageUrl: suspend (String) -> String? = { null }
+) {
+    SectionCard {
+        Text(title, style = MaterialTheme.typography.titleMedium, color = Color.White)
+        Spacer(Modifier.height(12.dp))
+        if (videos.isEmpty()) {
+            Text(stringResource(R.string.screen_time_no_ranking), style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.5f))
+        }
+        videos.forEachIndexed { index, video ->
+            key(video.itemId) {
+                var posterUrl by remember(video.itemId) { mutableStateOf<String?>(null) }
+                LaunchedEffect(video.itemId) { posterUrl = getImageUrl(video.itemId) }
+                RankingRow(index + 1, video, byOpens, posterUrl)
+                if (index < videos.lastIndex) Spacer(Modifier.height(14.dp))
             }
-            val meta = listOfNotNull(if (runtime > 0) formatMinutes(runtime) else null, watchedDate).joinToString(" · ")
-            if (meta.isNotEmpty()) Text(meta, style = MaterialTheme.typography.bodySmall, color = Color.White.copy(alpha = 0.4f))
         }
     }
 }
 
+@Composable
+internal fun RankingRow(rank: Int, video: VideoWatchSummary, byOpens: Boolean, posterUrl: String?) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(rank.toString(), color = Color(0xFF67E8F9), fontWeight = FontWeight.Bold, modifier = Modifier.width(16.dp))
+        AsyncImage(posterUrl, contentDescription = null, contentScale = ContentScale.Crop,
+            modifier = Modifier.size(64.dp, 44.dp).clip(RoundedCornerShape(6.dp)).background(Color(0xFF252525)))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(video.name.ifBlank { stringResource(R.string.screen_time_unnamed_video) }, color = Color.White,
+                style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            val opens = stringResource(R.string.screen_time_times, video.openCount)
+            val duration = formatWatchTime(video.watchTimeMs)
+            Text(if (byOpens) "$opens · $duration" else "$duration · $opens",
+                color = Color(0xFF67E8F9), style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun DateRangeNavigator(state: ScreenTimeUiState, viewModel: ScreenTimeViewModel) {
+    val formatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()) }
+    val canGoNext = when (state.period) {
+        ScreenTimePeriod.WEEK -> state.weekOffset < 0
+        ScreenTimePeriod.MONTH -> state.monthOffset < 0
+        ScreenTimePeriod.YEAR -> state.year < LocalDate.now().year
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = {
+            when (state.period) {
+                ScreenTimePeriod.WEEK -> viewModel.loadScreenTime(state.period, state.year, weekOffset = state.weekOffset - 1)
+                ScreenTimePeriod.MONTH -> viewModel.loadScreenTime(state.period, state.year, monthOffset = state.monthOffset - 1)
+                ScreenTimePeriod.YEAR -> viewModel.loadScreenTime(state.period, state.year - 1)
+            }
+        }, modifier = Modifier.size(40.dp)) { Icon(Icons.Rounded.ChevronLeft, stringResource(R.string.screen_time_previous_period), tint = Color.White) }
+        Text("${state.startDate.format(formatter)} – ${state.endDate.format(formatter)}", color = Color.White,
+            style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        IconButton(enabled = canGoNext, onClick = {
+            when (state.period) {
+                ScreenTimePeriod.WEEK -> viewModel.loadScreenTime(state.period, state.year, weekOffset = state.weekOffset + 1)
+                ScreenTimePeriod.MONTH -> viewModel.loadScreenTime(state.period, state.year, monthOffset = state.monthOffset + 1)
+                ScreenTimePeriod.YEAR -> viewModel.loadScreenTime(state.period, state.year + 1)
+            }
+        }, modifier = Modifier.size(40.dp)) { Icon(Icons.Rounded.ChevronRight, stringResource(R.string.screen_time_next_period), tint = if (canGoNext) Color.White else Color.White.copy(alpha = 0.3f)) }
+    }
+}
 
 private val hourRanges = listOf(6..11, 12..17, 18..23, 0..5)
 
-private fun parseZoned(dateStr: String?): java.time.ZonedDateTime? {
-    if (dateStr.isNullOrBlank()) return null
-    val zone = java.time.ZoneId.systemDefault()
-    return try {
-        java.time.Instant.parse(dateStr).atZone(zone)
-    } catch (_: Exception) {
-        try {
-            java.time.ZonedDateTime.parse(dateStr, DateTimeFormatter.ISO_DATE_TIME)
-        } catch (_: Exception) {
-            try {
-                java.time.LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME).atZone(zone)
-            } catch (_: Exception) { null }
-        }
+private fun daysForBucket(index: Int, days: List<DailyWatchTime>): Set<Long> {
+    val buckets = when {
+        days.size <= 7 -> days.map { listOf(it) }
+        days.size <= 31 -> days.groupBy { LocalDate.ofEpochDay(it.dateEpochDay).get(WeekFields.of(Locale.getDefault()).weekOfMonth()) }.toSortedMap().values.toList()
+        else -> days.groupBy { LocalDate.ofEpochDay(it.dateEpochDay).monthValue }.toSortedMap().values.toList()
     }
-}
-
-private fun parseWatchedDate(dateStr: String?): String? {
-    val zdt = parseZoned(dateStr) ?: return null
-    val date = zdt.format(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault()))
-    val time = zdt.format(DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()))
-    return "$date, $time"
-}
-
-private fun parseItemDate(dateStr: String?) = parseZoned(dateStr)?.toLocalDate()
-
-private fun parseItemHour(dateStr: String?) = parseZoned(dateStr)?.hour
-
-private fun getDaysForBucket(
-    bucketIndex: Int,
-    dailyBreakdown: List<com.jellycine.data.model.DailyWatchTime>,
-    period: ScreenTimePeriod
-): Set<Long> {
-    if (dailyBreakdown.isEmpty()) return emptySet()
-    val grouped = when {
-        dailyBreakdown.size <= 7 -> return dailyBreakdown.getOrNull(bucketIndex)?.let { setOf(it.dateEpochDay) } ?: emptySet()
-        dailyBreakdown.size <= 31 -> {
-            val weekField = java.time.temporal.WeekFields.of(Locale.getDefault()).weekOfMonth()
-            dailyBreakdown.groupBy { LocalDate.ofEpochDay(it.dateEpochDay).get(weekField) }.toSortedMap().values.toList()
-        }
-        else -> dailyBreakdown.groupBy { LocalDate.ofEpochDay(it.dateEpochDay).month }.entries.sortedBy { it.key }.map { it.value }
-    }
-    return grouped.getOrNull(bucketIndex)?.map { it.dateEpochDay }?.toSet() ?: emptySet()
-}
-
-private val peakLabels = arrayOf("Morning", "Afternoon", "Evening", "Night")
-
-private fun computePeakHoursFromItems(items: List<BaseItemDto>): List<com.jellycine.data.model.PeakHourBucket> {
-    val hours = items.mapNotNull { parseItemHour(it.userData?.lastPlayedDate ?: it.dateCreated) }
-    return hourRanges.mapIndexed { i, range -> com.jellycine.data.model.PeakHourBucket(peakLabels[i], hours.count { it in range }) }
+    return buckets.getOrNull(index).orEmpty().map { it.dateEpochDay }.toSet()
 }

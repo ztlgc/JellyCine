@@ -45,6 +45,8 @@ fun VideoSurface(
     onToggleControls: () -> Unit,
     onTogglePlayPause: () -> Unit = {},
     onZoomChange: (Boolean) -> Unit = {},
+    onHoldPlaybackSpeedStart: () -> Boolean = { false },
+    onHoldPlaybackSpeedEnd: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -94,6 +96,8 @@ fun VideoSurface(
                 getCurrentBrightnessLevel = getCurrentBrightnessLevel,
                 onZoomChange = onZoomChange,
                 onTogglePlayPause = onTogglePlayPause,
+                onHoldPlaybackSpeedStart = onHoldPlaybackSpeedStart,
+                onHoldPlaybackSpeedEnd = onHoldPlaybackSpeedEnd,
                 modifier = surfaceModifier
             )
         } else if (player != null) {
@@ -110,6 +114,8 @@ fun VideoSurface(
                 getCurrentBrightnessLevel = getCurrentBrightnessLevel,
                 onZoomChange = onZoomChange,
                 onTogglePlayPause = onTogglePlayPause,
+                onHoldPlaybackSpeedStart = onHoldPlaybackSpeedStart,
+                onHoldPlaybackSpeedEnd = onHoldPlaybackSpeedEnd,
                 modifier = surfaceModifier
             )
         }
@@ -132,6 +138,8 @@ private fun ExoPlayerView(
     getCurrentBrightnessLevel: () -> Float,
     onZoomChange: (Boolean) -> Unit,
     onTogglePlayPause: () -> Unit,
+    onHoldPlaybackSpeedStart: () -> Boolean,
+    onHoldPlaybackSpeedEnd: () -> Unit,
     modifier: Modifier
 ) {
     val context = LocalContext.current
@@ -164,6 +172,8 @@ private fun ExoPlayerView(
                     getCurrentBrightnessLevel = getCurrentBrightnessLevel,
                     onZoomChange = onZoomChange,
                     onTogglePlayPause = onTogglePlayPause,
+                    onHoldPlaybackSpeedStart = onHoldPlaybackSpeedStart,
+                    onHoldPlaybackSpeedEnd = onHoldPlaybackSpeedEnd,
                     getPlayer = { this.player }
                 )
                 setOnTouchListener { _, event -> helper.handleTouchEvent(event) }

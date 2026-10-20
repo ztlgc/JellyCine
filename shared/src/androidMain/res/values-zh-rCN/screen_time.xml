@@ -1,0 +1,16 @@
+<resources>
+    <string name="screen_time_local_caption">本机 · 普通视频实际观看时长</string>
+    <string name="screen_time_watched_duration">观看时长</string>
+    <string name="screen_time_video_count">视频数</string>
+    <string name="screen_time_open_count">打开次数</string>
+    <string name="screen_time_top_duration">观看时长前五</string>
+    <string name="screen_time_top_opens">打开次数前五</string>
+    <string name="screen_time_times">%1$d 次打开</string>
+    <string name="screen_time_empty_history">所选时段暂无视频观看记录</string>
+    <string name="screen_time_no_ranking">所选时段暂无记录</string>
+    <string name="screen_time_unnamed_video">未命名视频</string>
+    <string name="screen_time_load_failed">无法读取观看记录</string>
+    <string name="screen_time_retry">重试</string>
+    <string name="screen_time_previous_period">上一时段</string>
+    <string name="screen_time_next_period">下一时段</string>
+</resources>

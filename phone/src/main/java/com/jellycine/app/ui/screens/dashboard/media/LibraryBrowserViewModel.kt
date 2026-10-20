@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.jellycine.data.model.BaseItemDto
 import com.jellycine.data.repository.AuthRepositoryProvider
 import com.jellycine.data.repository.MediaRepositoryProvider
+import com.jellycine.shared.playback.UserDataRefreshEvent
+import com.jellycine.shared.playback.UserDataRefreshSignals
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
@@ -39,6 +41,10 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext context: C
     private var collectionsLoaded = false
     private var requestVersion = 0
     private var collectionsJob: Job? = null
+    private val userDataChanges = mutableListOf<UserDataRefreshEvent>()
+    private var lastAppliedUserDataEvent: UserDataRefreshEvent? = null
+    private var loadedCatalogKey: String? = null
+    private val folderSnapshots = mutableMapOf<String, List<BaseItemDto>>()
     private val collectionsMutable = MutableStateFlow<List<BaseItemDto>>(emptyList())
     val collections = collectionsMutable.asStateFlow()
     private val collectionItemsMutable = MutableStateFlow<Map<String, List<BaseItemDto>>>(emptyMap())
@@ -48,11 +54,17 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext context: C
     private val collectionsErrorMutable = MutableStateFlow<String?>(null)
     val collectionsError = collectionsErrorMutable.asStateFlow()
 
+    init {
+        // Keep the retained screen and any in-flight catalog request current while a detail route is open.
+        viewModelScope.launch { UserDataRefreshSignals.refreshEvent.collect(::applyUserDataChange) }
+    }
+
     fun open(libraryId: String, refresh: Boolean = false) {
         val session = auth.getActiveSessionSnapshot()
         val server = session.savedServers.firstOrNull { it.id == session.activeServerId }
         val next = libraryCatalogKey(session.activeServerId, session.serverUrl, server?.userId ?: session.username, libraryId)
-        if (key == next && !refresh && (mutable.value.loading || mutable.value.items.isNotEmpty())) return
+        // Navigation back to this existing screen must never start another full scan, even after a long video.
+        if (key == next && !refresh && (mutable.value.loading || mutable.value.items.isNotEmpty() || loadedCatalogKey == next)) return
         val changed = key != next
         key = next
         val version = ++requestVersion
@@ -60,7 +72,10 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext context: C
         collectionsMutable.value = emptyList(); collectionItemsMutable.value = emptyMap()
         collectionsLoadingMutable.value = false; collectionsErrorMutable.value = null
         collectionsLoaded = false
+        folderSnapshots.clear()
         if (changed) {
+            userDataChanges.clear()
+            lastAppliedUserDataEvent = null
             val legacyKey = "${session.activeServerId}|$libraryId"
             mutable.value = LibraryBrowserState(
                 tab = enumValue<LibraryTab>(preferences.getString("$key.tab", preferences.getString("$legacyKey.tab", null))) ?: LibraryTab.ALL,
@@ -75,30 +90,64 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext context: C
             loaded = initialItems.size, total = initialItems.size, error = null)
         job = viewModelScope.launch {
             try {
-                if (cached == null && mutable.value.items.isEmpty()) {
-                    catalogCache.load(next)?.let { snapshot ->
-                        if (version == requestVersion) mutable.value = mutable.value.copy(
-                            items = snapshot, loaded = snapshot.size, total = snapshot.size)
+                val items = loadCachedLibraryCatalog(catalogCache, next, refresh, onCached = { snapshot ->
+                    if (version == requestVersion) mutable.value = mutable.value.copy(
+                        items = applyUserDataChanges(snapshot), loaded = snapshot.size, total = snapshot.size)
+                }) {
+                    // Keep a complete cached catalog stable until the entire refresh succeeds.
+                    val hasSnapshot = catalogCache.peek(next) != null
+                    // The server is authoritative for changes that predate this full request.
+                    userDataChanges.clear()
+                    val fetched = fetchAll(libraryId, true) { batch, total ->
+                        withContext(Dispatchers.Main.immediate) {
+                            if (version == requestVersion) mutable.value = mutable.value.copy(
+                                items = if (hasSnapshot) mutable.value.items else applyUserDataChanges(batch),
+                                loaded = batch.size, total = total)
+                        }
                     }
-                }
-                // Keep a complete cached catalog stable until the entire refresh succeeds.
-                val hasSnapshot = catalogCache.peek(next) != null
-                val items = fetchAll(libraryId, true) { batch, total ->
-                    withContext(Dispatchers.Main.immediate) {
-                        if (version == requestVersion) mutable.value = mutable.value.copy(
-                            items = if (hasSnapshot) mutable.value.items else batch,
-                            loaded = batch.size, total = total)
-                    }
+                    applyUserDataChanges(fetched)
                 }
                 if (version != requestVersion) return@launch
-                mutable.value = mutable.value.copy(items = items, loading = false, loaded = items.size, total = items.size)
-                catalogCache.save(next, items)
+                val updated = applyUserDataChanges(items)
+                loadedCatalogKey = next
+                mutable.value = mutable.value.copy(items = updated, loading = false, loaded = updated.size, total = updated.size)
+                val changes = userDataChanges.toList()
+                catalogCache.updateItems(next) { snapshot ->
+                    changes.fold(snapshot) { updatedItems, event -> updatedItems.withLibraryUserData(event) }
+                }
                 if (mutable.value.tab == LibraryTab.COLLECTIONS) loadCollections()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 if (version == requestVersion) mutable.value = mutable.value.copy(loading = false, error = e.message ?: "Error")
             }
         }
+    }
+
+    fun applyUserDataChange(event: UserDataRefreshEvent?) {
+        if (event?.itemId == null || key.isEmpty() || event == lastAppliedUserDataEvent) return
+        val serverId = auth.getActiveSessionSnapshot().activeServerId.orEmpty()
+        if (!key.startsWith("${serverId.length}:$serverId")) return
+        if (event.serverId != null && event.serverId != serverId) return
+        lastAppliedUserDataEvent = event
+        userDataChanges.add(event)
+        val items = mutable.value.items.withLibraryUserData(event)
+        mutable.value = mutable.value.copy(items = items)
+        collectionsMutable.value = collectionsMutable.value.withLibraryUserData(event)
+        collectionItemsMutable.value = collectionItemsMutable.value.mapValues { (_, children) -> children.withLibraryUserData(event) }
+        folderSnapshots.replaceAll { _, children -> children.withLibraryUserData(event) }
+        val catalogKey = key
+        viewModelScope.launch { catalogCache.updateItems(catalogKey) { it.withLibraryUserData(event) } }
+    }
+
+    private fun applyUserDataChanges(items: List<BaseItemDto>): List<BaseItemDto> =
+        userDataChanges.fold(items) { updated, event -> updated.withLibraryUserData(event) }
+
+    suspend fun loadFolder(folderId: String): List<BaseItemDto> {
+        folderSnapshots[folderId]?.let { return it }
+        val version = requestVersion
+        val items = applyUserDataChanges(fetchAll(folderId, false))
+        if (version == requestVersion) folderSnapshots[folderId] = items
+        return items
     }
 
     /** Complete metadata is required for global grouping, file/resolution sorting and stable random pages. */
@@ -150,8 +199,8 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext context: C
                     val children = fetchAll(id, true).filter { it.id in libraryIds }
                     if (children.isNotEmpty()) contents[id] = children
                 }
-                collectionItemsMutable.value = contents
-                collectionsMutable.value = candidates.filter { it.id in contents }
+                collectionItemsMutable.value = contents.mapValues { (_, children) -> applyUserDataChanges(children) }
+                collectionsMutable.value = applyUserDataChanges(candidates.filter { it.id in contents })
                 collectionsLoaded = true
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { collectionsErrorMutable.value = e.message }

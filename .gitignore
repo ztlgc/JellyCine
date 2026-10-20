@@ -2,6 +2,7 @@
 *.apk
 *.aab
 /artifacts/
+.codex-remote-attachments/
 
 # Files for the ART/Dalvik VM
 *.dex

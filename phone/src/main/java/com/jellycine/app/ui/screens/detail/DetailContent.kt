@@ -43,7 +43,6 @@ import com.jellycine.data.model.MediaStream
 import com.jellycine.data.model.MediaUrl
 import com.jellycine.data.model.SeerrRequestState
 import com.jellycine.data.model.UserItemDataDto
-import com.jellycine.data.preferences.VideoRatingStore
 import com.jellycine.data.repository.AuthRepositoryProvider
 import com.jellycine.data.repository.MediaRepositoryProvider
 import com.jellycine.detail.CodecUtils
@@ -112,7 +111,6 @@ fun DetailContent(
     val downloadRepository = remember { DownloadRepositoryProvider.getInstance(context) }
     val playerPreferences = remember { PlayerPreferences(context) }
     val preferences = remember { Preferences(context) }
-    val videoRatingStore = remember(context) { VideoRatingStore(context) }
     val coroutineScope = rememberCoroutineScope()
     val castPlaybackState by CastController.playbackState.collectAsState()
     val userDataRefreshEvent by UserDataRefreshSignals.refreshEvent.collectAsState()
@@ -211,7 +209,7 @@ fun DetailContent(
         runtimeTicks != null && playbackPositionTicks > 0L && playbackPositionTicks < runtimeTicks
     val playButtonText = if (isPartiallyWatched) {
         val remainingTicks = (runtimeTicks - playbackPositionTicks).coerceAtLeast(0L)
-        "${CodecUtils.formatRuntime(remainingTicks)} left"
+        "${CodecUtils.formatRuntime(remainingTicks, includeSeconds = true)} left"
     } else {
         "Play"
     }
@@ -349,7 +347,7 @@ fun DetailContent(
                 )
                 if (result.isSuccess) {
                     isFavorite = targetState
-                    UserDataRefreshSignals.notifyUserDataChanged(currentItemId)
+                    UserDataRefreshSignals.notifyUserDataChanged(currentItemId, favorite = targetState)
                 } else {
                     android.widget.Toast.makeText(context, context.getString(R.string.video_detail_favorite_failed), android.widget.Toast.LENGTH_LONG).show()
                 }
@@ -733,8 +731,6 @@ fun DetailContent(
             streams = effectiveMediaStreams,
             isFavorite = isFavorite,
             isWatched = isWatched,
-            playButtonText = playButtonText,
-            resumeProgress = if (isPartiallyWatched) resumeProgress else 0f,
             onBack = onBackPressed,
             onFavorite = ::toggleFavorite,
             onWatched = ::toggleWatched,
@@ -755,16 +751,7 @@ fun DetailContent(
             },
             onImageError = onBackdropLoadError,
             rating = {
-                VideoRatingSection(sessionId = activeServerId, itemId = item.id, store = videoRatingStore)
-            },
-            tracks = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    VideoTrackChip(displayedSelectedVideo, videoOptions, Icons.Rounded.Videocam, onVideoOptionSelected)
-                    VideoTrackChip(selectedAudio, audioOptions, Icons.Rounded.MusicNote, onAudioOptionSelected, highlighted = true)
-                    if (subtitleOptions.size > 1) {
-                        VideoTrackChip(selectedSubtitle, subtitleOptions, Icons.Rounded.Subtitles, onSubtitleOptionSelected)
-                    }
-                }
+                VideoRatingSection(sessionId = activeServerId, item = item, repository = mediaRepository)
             },
             downloadAction = {
                 Box {
@@ -779,7 +766,8 @@ fun DetailContent(
                         },
                         progress = animatedDownloadProgress,
                         iconOnly = true,
-                        modifier = Modifier.size(52.dp),
+                        modifier = Modifier.size(44.dp),
+                        shape = RoundedCornerShape(8.dp),
                         onClick = {
                             if (canDownloadItem) {
                                 if (hasActiveDownload) downloadActionMenu = true else downloadVideo()
@@ -984,7 +972,7 @@ fun DetailContent(
 
                             item.runTimeTicks?.let { ticks ->
                                 Text(
-                                    text = CodecUtils.formatRuntime(ticks),
+                                    text = CodecUtils.formatRuntime(ticks, includeSeconds = true),
                                     fontSize = 14.sp,
                                     color = Color.White,
                                     fontWeight = FontWeight.Medium,

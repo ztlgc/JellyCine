@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -33,9 +35,9 @@ import com.jellycine.app.R
 import com.jellycine.data.model.BaseItemDto
 import com.jellycine.data.repository.MediaRepositoryProvider
 import com.jellycine.shared.playback.UserDataRefreshSignals
-import com.jellycine.shared.ui.home.LibraryPhotoViewer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 private val LibraryBlue = Color(0xFFA5C9FF)
 
@@ -56,26 +58,23 @@ fun LibraryBrowserScreen(
     val activeSessionId = com.jellycine.data.repository.AuthRepositoryProvider.getInstance(LocalContext.current)
         .getActiveSessionSnapshot().activeServerId
     val deletedIds = deletedItems[activeSessionId].orEmpty()
-    val repository = MediaRepositoryProvider.getInstance(LocalContext.current)
-    var previousRefresh by remember { mutableStateOf(refresh) }
-    LaunchedEffect(libraryId, refresh) {
-        model.open(libraryId, refresh != previousRefresh); previousRefresh = refresh
-    }
+    val context = LocalContext.current
+    LaunchedEffect(libraryId) { model.open(libraryId) }
+    LaunchedEffect(libraryId, refresh) { model.applyUserDataChange(refresh) }
     var folderIds by rememberSaveable(libraryId) { mutableStateOf(listOf(libraryId)) }
     var folderNames by rememberSaveable(libraryId) { mutableStateOf(listOf(title)) }
     var group by rememberSaveable(libraryId, state.tab) { mutableStateOf<String?>(null) }
     var sortSheet by remember { mutableStateOf(false) }
     var filterSheet by remember { mutableStateOf(false) }
-    var photoId by rememberSaveable(libraryId) { mutableStateOf<String?>(null) }
     var folderItems by remember { mutableStateOf<List<BaseItemDto>>(emptyList()) }
     var folderLoading by remember { mutableStateOf(false) }
     var folderError by remember { mutableStateOf<String?>(null) }
     var folderRetry by remember { mutableIntStateOf(0) }
     val folderId = folderIds.last()
-    LaunchedEffect(state.tab, folderId, folderRetry, refresh) {
+    LaunchedEffect(state.tab, folderId, folderRetry) {
         if (state.tab == LibraryTab.FOLDERS) {
             folderLoading = true; folderError = null; folderItems = emptyList()
-            try { folderItems = model.fetchAll(folderId, false) }
+            try { folderItems = model.loadFolder(folderId) }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (e: Exception) { folderError = e.message }
             finally { folderLoading = false }
@@ -83,7 +82,6 @@ fun LibraryBrowserScreen(
     }
     fun back() {
         when {
-            photoId != null -> photoId = null
             state.tab == LibraryTab.FOLDERS && folderIds.size > 1 -> {
                 folderIds = folderIds.dropLast(1); folderNames = folderNames.dropLast(1)
             }
@@ -100,7 +98,10 @@ fun LibraryBrowserScreen(
             LibraryTab.ALL -> media
             LibraryTab.RESUME -> state.items.filter { it.isLibraryPlayable() && (it.userData?.playbackPositionTicks ?: 0) > 0 && it.userData?.played != true }
             LibraryTab.FAVORITES -> media.filter { it.userData?.isFavorite == true }
-            LibraryTab.FOLDERS -> folderItems
+            LibraryTab.FOLDERS -> {
+                val catalog = state.items.associateBy { it.id }
+                folderItems.map { item -> catalog[item.id]?.let { item.copy(userData = it.userData) } ?: item }
+            }
             LibraryTab.COLLECTIONS -> if (group == null) collections else libraryMedia(collectionContents[group].orEmpty(), contentType)
             LibraryTab.GENRES -> media.filter { group == null || group in it.genres.orEmpty() }
             LibraryTab.TAGS -> media.filter { group == null || group in it.tags.orEmpty() }
@@ -146,7 +147,7 @@ fun LibraryBrowserScreen(
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
             LibraryTab.entries.forEach { tab ->
-                Column(Modifier.heightIn(min = 48.dp).clickable { group = null; model.tab(tab) }.padding(horizontal = 12.dp, vertical = 8.dp),
+                Column(Modifier.heightIn(min = 48.dp).clickable { group = null; model.tab(tab) }.padding(horizontal = 8.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(stringResource(tab.label), color = if (state.tab == tab) LibraryBlue else Color(0xFFBABDC4))
                     Spacer(Modifier.height(6.dp))
@@ -154,32 +155,30 @@ fun LibraryBrowserScreen(
                 }
             }
         }
-        FlowRow(Modifier.fillMaxWidth().padding(horizontal = 12.dp), horizontalArrangement = Arrangement.SpaceBetween,
-            verticalArrangement = Arrangement.Center) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text(if (busy && source.isEmpty()) stringResource(R.string.library_loading_count, state.loaded, state.total)
                 else stringResource(R.string.library_count, if (grouped) groups.size else display.size),
-                color = Color(0xFFBABDC4), modifier = Modifier.padding(vertical = 10.dp, horizontal = 4.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { onPlayQueue(playable.shuffled().mapNotNull { it.id }) }, enabled = playable.isNotEmpty()) {
-                    Icon(Icons.Default.Shuffle, stringResource(R.string.library_shuffle), tint = if (playable.isEmpty()) Color.Gray else Color.White)
-                }
-                IconButton(onClick = model::view) { Icon(if (state.listView) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
-                    stringResource(R.string.library_view), tint = Color.White) }
-                IconButton(onClick = { filterSheet = true }) { Icon(Icons.Default.FilterAlt, stringResource(R.string.library_filter),
-                    tint = if (state.genres.isNotEmpty() || state.watched != null) LibraryBlue else Color.White) }
+                color = Color(0xFFBABDC4), style = MaterialTheme.typography.bodySmall,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(0.8f).padding(start = 4.dp))
+            TextButton(onClick = { sortSheet = true }, modifier = Modifier.weight(1.4f),
+                contentPadding = PaddingValues(horizontal = 4.dp)) {
+                Icon(Icons.AutoMirrored.Filled.Sort, null, tint = LibraryBlue, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(stringResource(state.sort.label), color = LibraryBlue, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { sortSheet = true }) {
-                    Icon(Icons.AutoMirrored.Filled.Sort, null, tint = LibraryBlue, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(6.dp)); Text(stringResource(state.sort.label), color = LibraryBlue)
-                }
-                if (state.sort != LibrarySort.RANDOM) IconButton(onClick = model::direction) {
-                    Icon(if (state.descending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                        stringResource(R.string.library_direction), tint = LibraryBlue)
-                }
+            if (state.sort != LibrarySort.RANDOM) IconButton(onClick = model::direction) {
+                Icon(if (state.descending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                    stringResource(R.string.library_direction), tint = LibraryBlue)
             }
+            IconButton(onClick = { onPlayQueue(playable.shuffled().mapNotNull { it.id }) }, enabled = playable.isNotEmpty()) {
+                Icon(Icons.Default.Shuffle, stringResource(R.string.library_shuffle), tint = if (playable.isEmpty()) Color.Gray else Color.White)
+            }
+            IconButton(onClick = model::view) { Icon(if (state.listView) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
+                stringResource(R.string.library_view), tint = Color.White) }
+            IconButton(onClick = { filterSheet = true }) { Icon(Icons.Default.FilterAlt, stringResource(R.string.library_filter),
+                tint = if (state.genres.isNotEmpty() || state.watched != null) LibraryBlue else Color.White) }
         }
-        if (busy && source.isNotEmpty()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = LibraryBlue)
         if (error != null && source.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.library_error), color = Color.Gray, modifier = Modifier.weight(1f))
@@ -209,7 +208,7 @@ fun LibraryBrowserScreen(
             (grouped && groups.isEmpty()) || (!grouped && display.isEmpty()) -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(stringResource(R.string.library_empty), color = Color.Gray)
             }
-            else -> LazyVerticalGrid(columns = if (state.listView || grouped) GridCells.Fixed(1) else GridCells.Adaptive(105.dp),
+            else -> LazyVerticalGrid(columns = GridCells.Fixed(if (state.listView || grouped) 1 else 2),
                 state = gridState, modifier = Modifier.weight(1f), contentPadding = PaddingValues(12.dp, 8.dp, 12.dp, 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 if (grouped) items(groups, key = { it }) { name ->
@@ -224,7 +223,6 @@ fun LibraryBrowserScreen(
                         LibraryBrowserCard(item, state.listView) {
                             when {
                                 collectionRoot -> group = item.id
-                                item.type == "Photo" || item.mediaType == "Photo" -> photoId = item.id
                                 state.tab == LibraryTab.FOLDERS && (item.isFolder == true || item.type == "Folder" || item.type == "PhotoAlbum") -> {
                                     folderIds = folderIds + item.id!!; folderNames = folderNames + item.name.orEmpty()
                                 }
@@ -279,15 +277,13 @@ fun LibraryBrowserScreen(
             }
         }
     }
-    val photos = display.filter { it.type == "Photo" || it.mediaType == "Photo" }
-    photoId?.let { id ->
-        val index = photos.indexOfFirst { it.id == id }
-        if (index >= 0) LibraryPhotoViewer(photos, index, repository, false, photos.size, { photoId = null }, {})
-    }
 }
 
 @Composable
-private fun LibraryBrowserCard(item: BaseItemDto, listView: Boolean, onClick: () -> Unit) {
+private fun LibraryBrowserCard(
+    item: BaseItemDto, listView: Boolean,
+    onClick: () -> Unit
+) {
     val context = LocalContext.current
     val repository = remember(context) { MediaRepositoryProvider.getInstance(context) }
     var image by remember(item.id) { mutableStateOf<String?>(null) }
@@ -296,10 +292,25 @@ private fun LibraryBrowserCard(item: BaseItemDto, listView: Boolean, onClick: ()
             enableImageEnhancers = false, imageTag = item.imageTags?.get("Primary"), autoOrient = true) }
     }
     val folder = item.isFolder == true || item.type in setOf("Folder", "PhotoAlbum", "BoxSet", "Series")
+    val video = !folder && (item.isLibraryPlayable() && item.type != "Audio")
+    val rating = if (video) item.communityRating?.takeIf { it.isFinite() && it in 0f..10f } else null
     @Composable fun Artwork(modifier: Modifier) {
         Box(modifier.clip(RoundedCornerShape(8.dp)).background(Color(0xFF22252A)), contentAlignment = Alignment.Center) {
             if (image != null) AsyncImage(image, item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             else Icon(if (folder) Icons.Default.Folder else Icons.Default.Image, null, tint = Color.Gray)
+            rating?.let { score ->
+                Text(
+                    text = String.format(Locale.getDefault(), "%.1f", score),
+                    color = Color(0xFF102A43),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    modifier = Modifier.align(Alignment.BottomStart)
+                        .clip(CutCornerShape(topEnd = 10.dp))
+                        .background(LibraryBlue)
+                        .padding(start = 6.dp, end = 12.dp, top = 3.dp, bottom = 3.dp)
+                )
+            }
             if (item.userData?.isFavorite == true) Icon(Icons.Default.Favorite, null, tint = LibraryBlue,
                 modifier = Modifier.align(Alignment.TopEnd).padding(5.dp).size(16.dp))
             if (item.userData?.played == true) Icon(Icons.Default.CheckCircle, null, tint = LibraryBlue,
@@ -311,12 +322,11 @@ private fun LibraryBrowserCard(item: BaseItemDto, listView: Boolean, onClick: ()
         Column(Modifier.weight(1f).padding(start = 12.dp)) {
             Text(item.name.orEmpty(), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
             val detail = listOfNotNull(item.productionYear?.toString(), item.officialRating,
-                item.runTimeTicks?.let { stringResource(R.string.library_minutes, it / 600000000L) },
-                item.communityRating?.let { "★ $it" }).joinToString(" · ")
+                item.runTimeTicks?.let { stringResource(R.string.library_minutes, it / 600000000L) }).joinToString(" · ")
             Text(detail, color = Color.Gray, style = MaterialTheme.typography.bodySmall)
         }
     } else Column(Modifier.clickable(onClick = onClick)) {
-        Artwork(Modifier.fillMaxWidth().aspectRatio(if (item.type in setOf("Photo", "Video", "Folder", "PhotoAlbum")) 4f / 3 else 2f / 3))
+        Artwork(Modifier.fillMaxWidth().aspectRatio(if (item.type in setOf("Video", "Folder", "PhotoAlbum")) 4f / 3 else 2f / 3))
         Text(item.name.orEmpty(), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 6.dp))
     }

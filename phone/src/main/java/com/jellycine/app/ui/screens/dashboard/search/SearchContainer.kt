@@ -235,10 +235,11 @@ fun SearchContainer(
             ) {
                 if (uiState.isSearching) {
                     SearchResultsViewSkeleton()
-                } else if (hasSearchResults) {
+                } else if (hasSearchResults || uiState.hasMoreResults || uiState.searchLoadFailed) {
                     SearchResultsView(
                         uiState = uiState,
                         onItemClick = onNavigateToDetail,
+                        onLoadMore = viewModel::loadMoreSearchResults,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
@@ -264,7 +265,7 @@ fun SearchContainer(
                 modifier = Modifier
                     .fillMaxSize(),
                 discoveryTopPadding = searchBarHeight + 8.dp,
-                discoveryTabs = if (uiState.isSeerrConnected) SearchDiscoveryTab.entries.toList() else listOf(SearchDiscoveryTab.SUGGESTIONS),
+                discoveryTabs = if (uiState.isSeerrConnected) SearchDiscoveryTab.entries.filter { it != SearchDiscoveryTab.SUGGESTIONS } else emptyList(),
                 selectedDiscoveryTab = selectedDiscoveryTab,
                 onDiscoveryTabClick = viewModel::selectDiscoveryTab
             )

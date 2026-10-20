@@ -30,6 +30,8 @@ class GestureHelper(
     private val getCurrentBrightnessLevel: () -> Float,
     private val onZoomChange: (Boolean) -> Unit,
     private val onTogglePlayPause: () -> Unit = {},
+    private val onHoldPlaybackSpeedStart: () -> Boolean = { false },
+    private val onHoldPlaybackSpeedEnd: () -> Unit = {},
     private val getPlayer: () -> Player? = { null }
 ) {
     private val playerPreferences = PlayerPreferences(context)
@@ -45,6 +47,18 @@ class GestureHelper(
     private var isZoomEnabled = false
     private var screenWidth = 0
     private var screenHeight = 0
+    private var isHoldingPlaybackSpeed = false
+    private var singlePointerGestureCancelled = false
+
+    init {
+        touchView.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(view: View) = Unit
+
+            override fun onViewDetachedFromWindow(view: View) {
+                cancelGestures()
+            }
+        })
+    }
 
     // Constants
 
@@ -60,6 +74,17 @@ class GestureHelper(
     private val tapGestureDetector = GestureDetector(
         context,
         object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent): Boolean = true
+
+            override fun onLongPress(e: MotionEvent) {
+                if (!playerPreferences.arePlayerGesturesEnabled() ||
+                    singlePointerGestureCancelled || currentNumberOfPointers != 1 ||
+                    swipeGestureProgressOpen || swipeGestureVolumeOpen || swipeGestureBrightnessOpen ||
+                    inExclusionArea(e) || !touchView.isAttachedToWindow || !touchView.hasWindowFocus()
+                ) return
+                isHoldingPlaybackSpeed = onHoldPlaybackSpeedStart()
+            }
+
             override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
                 onShowControls()
                 return true
@@ -230,7 +255,11 @@ class GestureHelper(
     }
 
     private fun releaseAction(event: MotionEvent) {
-        if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+        if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+            if (isHoldingPlaybackSpeed) {
+                isHoldingPlaybackSpeed = false
+                onHoldPlaybackSpeedEnd()
+            }
             if (swipeGestureVolumeOpen) {
                 swipeGestureVolumeOpen = false
                 swipeGestureValueTrackerVolume = -1f
@@ -242,7 +271,7 @@ class GestureHelper(
             }
             
             if (swipeGestureProgressOpen) {
-                if (swipeGestureValueTrackerProgress != 0L) {
+                if (event.actionMasked == MotionEvent.ACTION_UP && swipeGestureValueTrackerProgress != 0L) {
                     onSeek(swipeGestureValueTrackerProgress)
                 }
                 swipeGestureProgressOpen = false
@@ -250,6 +279,31 @@ class GestureHelper(
             }
             
             currentNumberOfPointers = 0
+        }
+    }
+
+    /** Cancels timers as well as the active speed override when the native surface detaches. */
+    fun cancelGestures() {
+        val now = SystemClock.uptimeMillis()
+        val event = MotionEvent.obtain(now, now, MotionEvent.ACTION_CANCEL, 0f, 0f, 0)
+        try {
+            cancelSinglePointerGestures(event)
+            zoomGestureDetector.onTouchEvent(event)
+        } finally {
+            event.recycle()
+        }
+    }
+
+    private fun cancelSinglePointerGestures(event: MotionEvent) {
+        val cancellation = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
+        try {
+            tapGestureDetector.onTouchEvent(cancellation)
+            vbGestureDetector.onTouchEvent(cancellation)
+            seekGestureDetector.onTouchEvent(cancellation)
+            releaseAction(cancellation)
+            singlePointerGestureCancelled = true
+        } finally {
+            cancellation.recycle()
         }
     }
 
@@ -266,11 +320,31 @@ class GestureHelper(
     }
 
     fun handleTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            singlePointerGestureCancelled = false
+        }
         currentNumberOfPointers = event.pointerCount
 
-        if (screenWidth == 0 || screenHeight == 0) {
-            screenWidth = touchView.width
-            screenHeight = touchView.height
+        screenWidth = touchView.width
+        screenHeight = touchView.height
+
+        if (event.actionMasked == MotionEvent.ACTION_POINTER_DOWN) {
+            // A second finger ends temporary speed and cannot leave a long-press timer pending.
+            cancelSinglePointerGestures(event)
+            currentNumberOfPointers = event.pointerCount
+        }
+        if (isHoldingPlaybackSpeed) {
+            if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                cancelSinglePointerGestures(event)
+            }
+            return true
+        }
+        if (singlePointerGestureCancelled) {
+            if (playerPreferences.arePlayerGesturesEnabled() && playerPreferences.isZoomGestureEnabled()) {
+                zoomGestureDetector.onTouchEvent(event)
+            }
+            releaseAction(event)
+            return true
         }
 
         when (event.pointerCount) {

@@ -37,7 +37,7 @@ internal object BackgroundVideoDeletion {
         queue.submit("$serverId:$itemId", operation) { result ->
             if (result.isSuccess) {
                 UserDataRefreshSignals.notifyItemDeleted(serverId, itemId)
-                runCatching { LibraryCatalogCache.getInstance(appContext.cacheDir).invalidateSession(serverId) }
+                runCatching { LibraryCatalogCache.getInstance(appContext.cacheDir).removeItem(serverId, itemId) }
                 Toast.makeText(appContext, appContext.getString(R.string.video_detail_deleted, name), Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(appContext, appContext.getString(R.string.video_detail_delete_failed, name,

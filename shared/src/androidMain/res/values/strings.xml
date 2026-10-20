@@ -578,7 +578,7 @@
 
     <!-- Screen Time -->
     <string name="settings_screen_time">Screen Time</string>
-    <string name="settings_screen_time_subtitle">View your watch activity and stats</string>
+    <string name="settings_screen_time_subtitle">Video watch time, opens and rankings</string>
     <string name="screen_time_back">Back</string>
     <string name="screen_time_total">Total</string>
     <string name="screen_time_daily_average">Daily Average</string>
@@ -658,7 +658,7 @@
     <string name="detail_person_no_related_titles">No related titles available.</string>
     <string name="detail_person_read_more">Read more</string>
     <string name="detail_person_read_less">Read less</string>
-    <string name="home_media_library">Home videos &amp; photos</string>
+    <string name="home_media_library">Home videos</string>
     <string name="home_media_back">Back</string>
     <string name="home_media_refresh">Refresh</string>
     <string name="home_media_load_error">Unable to load this folder</string>
@@ -669,5 +669,7 @@
     <string name="home_media_next">Next photo</string>
     <string name="home_media_unsupported">Unsupported item</string>
     <string name="home_other_videos">Other videos</string>
-    <string name="home_other_videos_empty">No home videos and photos libraries</string>
+    <string name="home_other_videos_empty">No home video libraries</string>
+    <string name="search_load_failed">Unable to load search results</string>
+    <string name="player_hold_speed_active">2× playback</string>
 </resources>

@@ -23,6 +23,7 @@ import com.jellycine.data.security.LEGACY_ACCESS_TOKEN_KEY
 import com.jellycine.data.security.SecureSessionStore
 import com.jellycine.data.network.JellyCineJson
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
@@ -439,18 +440,17 @@ class AuthRepository(private val context: Context) {
     suspend fun testServerConnection(serverUrl: String): Result<ServerInfo> {
         legacyStorageMigrated()
         return try {
-            if (!serverUrl.startsWith("http://") && !serverUrl.startsWith("https://")) {
+            val normalizedUrl = serverUrl.trim()
+            if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
                 return Result.failure(Exception(string(R.string.auth_error_invalid_url_scheme)))
             }
 
             val resolved = NetworkModule.serverEndpoint(
                     context = context,
-                    serverUrl = serverUrl,
+                    serverUrl = normalizedUrl,
                     storageDir = context.filesDir,
                     timeoutConfig = networkPreferences.getTimeoutConfig()
-                ).getOrElse { error ->
-                return Result.failure(Exception(error.message ?: string(R.string.auth_error_unable_to_connect)))
-            }
+                ).getOrThrow()
 
             val normalizedServerInfo = resolved.serverInfo.copy(
                 serverName = serverName(
@@ -460,6 +460,8 @@ class AuthRepository(private val context: Context) {
             )
 
             Result.success(normalizedServerInfo)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: java.net.UnknownHostException) {
             Result.failure(Exception(string(R.string.auth_error_cannot_reach_server)))
         } catch (e: java.net.ConnectException) {
@@ -565,7 +567,8 @@ class AuthRepository(private val context: Context) {
                 baseUrl = endpoint.baseUrl,
                 serverType = endpoint.serverType,
                 storageDir = context.filesDir,
-                timeoutConfig = networkPreferences.getTimeoutConfig()
+                timeoutConfig = networkPreferences.getTimeoutConfig(),
+                context = context
             )
 
             val response = api.authenticateByName(AuthenticationRequest(username, password))
@@ -622,7 +625,8 @@ class AuthRepository(private val context: Context) {
                 baseUrl = endpoint.baseUrl,
                 serverType = endpoint.serverType,
                 storageDir = context.filesDir,
-                timeoutConfig = networkPreferences.getTimeoutConfig()
+                timeoutConfig = networkPreferences.getTimeoutConfig(),
+                context = context
             )
             val response = api.initiateQuickConnect()
             if (response.isSuccessful && response.body() != null) {
@@ -668,7 +672,8 @@ class AuthRepository(private val context: Context) {
                 baseUrl = endpoint.baseUrl,
                 serverType = endpoint.serverType,
                 storageDir = context.filesDir,
-                timeoutConfig = networkPreferences.getTimeoutConfig()
+                timeoutConfig = networkPreferences.getTimeoutConfig(),
+                context = context
             )
 
             val response = api.authenticateWithQuickConnect(QuickConnectDto(secret = secret))

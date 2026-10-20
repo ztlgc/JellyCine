@@ -16,29 +16,36 @@ import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 
 /** Only complete catalogs are cached; partial/failed refreshes never replace a snapshot. */
-internal class LibraryCatalogCache(private val directory: File) {
+internal class LibraryCatalogCache(
+    private val directory: File,
+    private val nowMs: () -> Long = System::currentTimeMillis
+) {
     @Serializable
-    private data class Snapshot(val key: String, val items: List<BaseItemDto>, val schema: Int = 1)
+    private data class Snapshot(
+        val key: String, val items: List<BaseItemDto>, val schema: Int = 1,
+        val refreshedAtMs: Long = 0
+    )
 
-    private val memory = LinkedHashMap<String, List<BaseItemDto>>(4, .75f, true)
+    private val memory = LinkedHashMap<String, Snapshot>(4, .75f, true)
     private val mutex = Mutex()
 
     @Synchronized
-    fun peek(key: String): List<BaseItemDto>? = memory[key]
+    fun peek(key: String): List<BaseItemDto>? = memory[key]?.items
 
     @Synchronized
-    private fun remember(key: String, items: List<BaseItemDto>) {
-        memory[key] = items
+    fun isFresh(key: String): Boolean = memory[key]?.let {
+        it.refreshedAtMs > 0 && nowMs() - it.refreshedAtMs in 0 until FULL_REFRESH_INTERVAL_MS
+    } == true
+
+    @Synchronized
+    private fun remember(snapshot: Snapshot) {
+        memory[snapshot.key] = snapshot
         while (memory.size > 3) memory.remove(memory.keys.first())
     }
 
     suspend fun load(key: String): List<BaseItemDto>? = peek(key) ?: withContext(Dispatchers.IO) {
         mutex.withLock {
-            val file = file(key)
-            val snapshot = runCatching {
-                JellyCineJson.decodeFromString<Snapshot>(file.readText())
-            }.getOrNull()
-            snapshot?.takeIf { it.schema == 1 && it.key == key }?.items?.also { remember(key, it) }
+            readSnapshot(key)?.also { remember(it) }?.items
         }
     }
 
@@ -47,22 +54,75 @@ internal class LibraryCatalogCache(private val directory: File) {
             mutex.withLock {
                 val deletedIds = com.jellycine.shared.playback.UserDataRefreshSignals.deletedItems.value.entries
                     .firstOrNull { (serverId, _) -> key.startsWith("${serverId.length}:$serverId") }?.value.orEmpty()
-                val retainedItems = items.filterNot { it.id in deletedIds }
-                remember(key, retainedItems)
-                // A disk cache failure must not turn a successful network request into a UI error.
+                val retainedItems = withoutLibraryPhotos(items).filterNot { it.id in deletedIds }
+                val snapshot = Snapshot(key, retainedItems, refreshedAtMs = nowMs())
+                remember(snapshot)
+                writeSnapshot(snapshot)
                 runCatching {
-                    directory.mkdirs()
-                    val target = file(key)
-                    val temporary = File(directory, "${target.name}.tmp")
-                    temporary.writeText(JellyCineJson.encodeToString(Snapshot(key, retainedItems)))
-                    try {
-                        Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
-                    } catch (_: AtomicMoveNotSupportedException) {
-                        Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
-                    }
                     directory.listFiles { candidate -> candidate.extension == "json" }
                         ?.sortedByDescending { it.lastModified() }?.drop(6)?.forEach { it.delete() }
                 }
+            }
+        }
+    }
+
+    /** Local user-data changes must not extend the lifetime of the complete catalog. */
+    suspend fun updateItems(key: String, transform: (List<BaseItemDto>) -> List<BaseItemDto>) =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                val snapshot = synchronized(this@LibraryCatalogCache) { memory[key] } ?: readSnapshot(key)
+                    ?: return@withLock
+                updateSnapshot(snapshot, transform)
+            }
+        }
+
+    suspend fun removeItem(serverId: String, itemId: String) =
+        updateSessionItems(serverId) { items -> items.filterNot { it.id == itemId } }
+
+    suspend fun updateRating(serverId: String, itemId: String, rating: Float?) =
+        updateSessionItems(serverId) { items ->
+            items.map { if (it.id == itemId) it.copy(communityRating = rating) else it }
+        }
+
+    private suspend fun updateSessionItems(serverId: String, transform: (List<BaseItemDto>) -> List<BaseItemDto>) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val prefix = "${serverId.length}:$serverId"
+            val snapshots = linkedMapOf<String, Snapshot>()
+            directory.listFiles { it.extension == "json" }?.forEach { file ->
+                runCatching { JellyCineJson.decodeFromString<Snapshot>(file.readText()) }.getOrNull()
+                    ?.takeIf { it.schema == 1 && it.key.startsWith(prefix) }?.let { snapshots[it.key] = it }
+            }
+            synchronized(this@LibraryCatalogCache) {
+                memory.values.filter { it.key.startsWith(prefix) }.forEach { snapshots[it.key] = it }
+            }
+            snapshots.values.forEach { snapshot -> updateSnapshot(snapshot, transform) }
+        }
+    }
+
+    private fun updateSnapshot(snapshot: Snapshot, transform: (List<BaseItemDto>) -> List<BaseItemDto>) {
+        val items = withoutLibraryPhotos(transform(snapshot.items))
+        if (items == snapshot.items) return
+        val updated = snapshot.copy(items = items)
+        remember(updated)
+        writeSnapshot(updated)
+    }
+
+    private fun readSnapshot(key: String): Snapshot? = runCatching {
+        JellyCineJson.decodeFromString<Snapshot>(file(key).readText())
+    }.getOrNull()?.takeIf { it.schema == 1 && it.key == key }
+        ?.let { it.copy(items = withoutLibraryPhotos(it.items)) }
+
+    // A disk cache failure must not turn a successful request or local update into a UI error.
+    private fun writeSnapshot(snapshot: Snapshot) {
+        runCatching {
+            directory.mkdirs()
+            val target = file(snapshot.key)
+            val temporary = File(directory, "${target.name}.tmp")
+            temporary.writeText(JellyCineJson.encodeToString(snapshot))
+            try {
+                Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            } catch (_: AtomicMoveNotSupportedException) {
+                Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
             }
         }
     }
@@ -87,6 +147,7 @@ internal class LibraryCatalogCache(private val directory: File) {
     }
 
     companion object {
+        const val FULL_REFRESH_INTERVAL_MS = 30 * 60 * 1000L
         @Volatile private var instance: LibraryCatalogCache? = null
 
         fun getInstance(cacheDir: File): LibraryCatalogCache = instance ?: synchronized(this) {

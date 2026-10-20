@@ -23,6 +23,8 @@ import com.jellycine.data.model.PlaybackRequest
 import com.jellycine.data.model.PlaybackStreamOptions
 import com.jellycine.data.model.PersistedHomeSnapshot
 import com.jellycine.data.model.QueryResult
+import com.jellycine.data.model.VideoSearchCursor
+import com.jellycine.data.model.VideoSearchPage
 import com.jellycine.data.model.PlaybackInfoRequest
 import com.jellycine.data.model.RecommendationDto
 import com.jellycine.data.model.isVideoSearchResult
@@ -157,6 +159,14 @@ class MediaRepository(private val context: Context) {
 
     private suspend fun getUserId(): String? = getApiSession()?.userId
 
+    /** Local history remains available offline and never contains an access token. */
+    suspend fun getWatchHistoryScopeKey(): String? {
+        val preferences = dataStore.data.first()
+        val serverUrl = preferences[SERVER_URL_KEY]?.takeIf { it.isNotBlank() } ?: return null
+        val userId = preferences[USER_ID_KEY]?.takeIf { it.isNotBlank() } ?: return null
+        return "${trimTrailingSlash(serverUrl)}|$userId"
+    }
+
     private fun normalizeSubtitleStreamIndex(subtitleStreamIndex: Int?): Int? {
         return subtitleStreamIndex?.takeIf { it >= 0 }
     }
@@ -210,6 +220,8 @@ class MediaRepository(private val context: Context) {
             append(config.timeoutConfig.connectionTimeoutMs)
             append("|")
             append(config.timeoutConfig.socketTimeoutMs)
+            append("|")
+            append(NetworkModule.mediaServerRouteKey(context, config.serverUrl))
         }
 
         cachedSession?.let { session ->
@@ -230,7 +242,8 @@ class MediaRepository(private val context: Context) {
                 accessToken = config.accessToken,
                 serverType = config.serverType,
                 storageDir = context.filesDir,
-                timeoutConfig = config.timeoutConfig
+                timeoutConfig = config.timeoutConfig,
+                context = context
             )
 
             val session = ApiSession(
@@ -874,6 +887,33 @@ class MediaRepository(private val context: Context) {
             fields = "SeriesName,SeriesId,EpisodeCount,RecursiveItemCount,ChildCount,IndexNumber,ParentIndexNumber,ProductionYear,RunTimeTicks,Overview,DateCreated,UserData",
             enableUserData = true
         )
+    }
+
+    /** Bind every read/write/readback to the account that opened the rating editor. */
+    suspend fun loadVideoRating(itemId: String, expectedServerId: String): Result<BaseItemDto> =
+        videoRatingOperation(itemId, expectedServerId, null)
+
+    suspend fun saveVideoRating(itemId: String, score: Float, expectedServerId: String): Result<BaseItemDto> =
+        videoRatingOperation(itemId, expectedServerId, score)
+
+    private suspend fun videoRatingOperation(itemId: String, expectedServerId: String, score: Float?): Result<BaseItemDto> {
+        return try {
+            val session = getApiSession() ?: throw VideoRatingSessionException()
+            if (AuthSessionIds.buildServerId(session.baseUrl, session.userId) != expectedServerId) {
+                throw VideoRatingSessionException()
+            }
+            val updater = VideoRatingUpdater(session.api, session.userId)
+            val confirmed = if (score == null) updater.load(itemId) else updater.save(itemId, score)
+            // A cache failure must not misreport a completed server write.
+            runCatching { homeSnapshotStore.updateRating(
+                "${trimTrailingSlash(session.baseUrl)}|${session.userId}", itemId, confirmed.communityRating
+            ) }
+            Result.success(confirmed)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
     }
 
     /** Capture the loaded item's session before leaving the detail route. */
@@ -2199,6 +2239,7 @@ class MediaRepository(private val context: Context) {
         return try {
             val api = getApi() ?: return Result.failure(Exception(string(R.string.data_error_api_not_available)))
             val userId = getUserId() ?: return Result.failure(Exception(string(R.string.data_error_user_id_not_available)))
+            val searchFields = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview,ProviderIds,MediaStreams,MediaSources,RunTimeTicks,Width,Height"
 
             // Try searchTerm parameter first
             var response = api.searchItems(
@@ -2208,7 +2249,7 @@ class MediaRepository(private val context: Context) {
                 mediaTypes = mediaTypes,
                 recursive = true,
                 limit = limit,
-                fields = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview,ProviderIds"
+                fields = searchFields
             )
 
             // If searchTerm doesn't work, try nameStartsWith
@@ -2220,7 +2261,7 @@ class MediaRepository(private val context: Context) {
                     mediaTypes = mediaTypes,
                     recursive = true,
                     limit = limit,
-                    fields = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview,ProviderIds"
+                    fields = searchFields
                 )
             }
 
@@ -2273,6 +2314,46 @@ class MediaRepository(private val context: Context) {
             Result.failure(Exception(string(R.string.media_error_search_items_failed, 0, "Search timed out")))
         } else {
             Result.success(items)
+        }
+    }
+
+    suspend fun searchVideosPage(
+        searchTerm: String,
+        cursor: VideoSearchCursor = VideoSearchCursor(),
+        pageSize: Int = 60
+    ): Result<VideoSearchPage> {
+        return try {
+            val api = getApi() ?: return Result.failure(Exception(string(R.string.data_error_api_not_available)))
+            val userId = getUserId() ?: return Result.failure(Exception(string(R.string.data_error_user_id_not_available)))
+            val fields = "ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,Genres,CommunityRating,ProductionYear,Overview,ProviderIds,MediaStreams,MediaSources,RunTimeTicks,Width,Height"
+            val page = withTimeoutOrNull(30_000L) {
+                fetchVideoSearchPage(cursor, pageSize) { videos, offset, limit, byName ->
+                    val response = if (byName) {
+                        api.searchItemsByName(
+                            userId = userId, nameStartsWith = searchTerm,
+                            includeItemTypes = if (videos) null else "Series",
+                            mediaTypes = if (videos) "Video" else null,
+                            recursive = true, limit = limit, fields = fields, startIndex = offset
+                        )
+                    } else {
+                        api.searchItems(
+                            userId = userId, searchTerm = searchTerm,
+                            includeItemTypes = if (videos) null else "Series",
+                            mediaTypes = if (videos) "Video" else null,
+                            recursive = true, limit = limit, fields = fields, startIndex = offset
+                        )
+                    }
+                    if (!response.isSuccessful) {
+                        error(string(R.string.media_error_search_items_failed, response.code(), response.message()))
+                    }
+                    response.body() ?: error("Empty search response")
+                }
+            } ?: error("Search timed out")
+            Result.success(page.copy(items = page.items.distinctBy { it.mergeVersionKey() }))
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Result.failure(error)
         }
     }
 
