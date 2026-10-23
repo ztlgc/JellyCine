@@ -1,5 +1,6 @@
 package com.jellycine.app.discord
 
+import com.jellycine.shared.R
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
@@ -70,7 +71,7 @@ class DiscordAuthActivity : ComponentActivity() {
             try {
                 startActivity(Intent(Intent.ACTION_VIEW, uri))
             } catch (_: ActivityNotFoundException) {
-                Toast.makeText(this, "No browser available", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.ui_no_browser_available), Toast.LENGTH_SHORT).show()
                 finish()
             }
         }

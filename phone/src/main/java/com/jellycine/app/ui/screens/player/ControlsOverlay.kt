@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.player
 
+import com.jellycine.app.locale.localizedQualityLabel
+import com.jellycine.app.locale.localizedPlaybackLabel
 import android.view.MotionEvent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -126,7 +128,7 @@ fun ControlsOverlay(
     val displayedPosition = scrubPreviewProgress?.let { (duration * it).toLong() } ?: currentPosition
     val speedLabel = String.format(Locale.ROOT, if (playbackSpeed % 1f == 0f) "%.1f×" else "%s×", playbackSpeed)
     val qualityLabel = if (currentStreamingQuality.isBlank() || currentStreamingQuality.equals("Original", true))
-        stringResource(R.string.player_quality_original_short) else currentStreamingQuality
+        stringResource(R.string.player_quality_original_short) else localizedQualityLabel(currentStreamingQuality)
     val gainLabel = if (audioGainPercent == 0) stringResource(R.string.player_gain_off_short) else "+$audioGainPercent%"
     val openSound: (Boolean) -> Unit = { expandAudioTracks = it; soundPanel = true }
     BoxWithConstraints(modifier.fillMaxSize()) {

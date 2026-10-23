@@ -258,7 +258,7 @@ object CodecCapabilityManager {
         if (spatialFormat.isEmpty()) {
             return SpatializationResult(
                 canSpatialize = false,
-                reason = "Content is not multichannel/object-based spatial audio",
+                reason = context.getString(com.jellycine.core.R.string.core_content_is_not_multichannel_object_based_spatial_audio),
                 spatialFormat = "Stereo"
             )
         }
@@ -270,7 +270,7 @@ object CodecCapabilityManager {
         if (audioFormat == null) {
             return SpatializationResult(
                 canSpatialize = false,
-                reason = "Spatializable content detected, but no compatible spatial audio format is available",
+                reason = context.getString(com.jellycine.core.R.string.core_spatializable_content_detected_but_no_compatible_spatial_audio_format_is_available),
                 spatialFormat = spatialFormat
             )
         }
@@ -281,19 +281,19 @@ object CodecCapabilityManager {
         return if (spatializerActive) {
             SpatializationResult(
                 canSpatialize = true,
-                reason = "Spatializable content detected and device spatializer is active for this route",
+                reason = context.getString(com.jellycine.core.R.string.core_spatializable_content_detected_and_device_spatializer_is_active_for_this_route),
                 spatialFormat = spatialFormat
             )
         } else if (routeSupportsSpatialization) {
             SpatializationResult(
                 canSpatialize = false,
-                reason = "Spatializable content detected, but device spatializer is disabled in system settings",
+                reason = context.getString(com.jellycine.core.R.string.core_spatializable_content_detected_but_device_spatializer_is_disabled_in_system_settings),
                 spatialFormat = spatialFormat
             )
         } else {
             SpatializationResult(
                 canSpatialize = false,
-                reason = "Spatializable content detected, but device spatializer is unavailable for current route/format",
+                reason = context.getString(com.jellycine.core.R.string.core_spatializable_content_detected_but_device_spatializer_is_unavailable_for_current_route_format),
                 spatialFormat = spatialFormat
             )
         }

@@ -168,7 +168,7 @@ internal fun SeerrRequestDialog(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            text = "Advanced",
+                            text = stringResource(R.string.ui_advanced),
                             style = MaterialTheme.typography.bodyMedium.copy(
                                 fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold
@@ -404,9 +404,9 @@ private fun RequestDialogHero(
         ) {
             Text(
                 text = if (mediaType == "movie") {
-                    "Request Movie"
+                    stringResource(R.string.ui_request_movie)
                 } else {
-                    "Request Series"
+                    stringResource(R.string.ui_request_series)
                 },
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontSize = 24.sp,

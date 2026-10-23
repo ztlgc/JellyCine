@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.player
 
+import com.jellycine.app.locale.localizedPlaybackLabel
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -79,7 +81,7 @@ internal fun PlayerSoundPanel(
                             }.padding(horizontal = 12.dp).heightIn(min = if (compact) 44.dp else 52.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text(stringResource(R.string.player_audio_short), color = Color.White, fontSize = if (compact) 13.sp else 15.sp)
                                 Spacer(Modifier.width(12.dp))
-                                Text(currentAudioTrack?.label.orEmpty().ifBlank { stringResource(R.string.player_audio_default) },
+                                Text(LocalContext.current.localizedPlaybackLabel(currentAudioTrack?.label.orEmpty()).ifBlank { stringResource(R.string.player_audio_default) },
                                     Modifier.weight(1f), color = Color(0xFFD7DFE9), fontSize = if (compact) 12.sp else 13.sp,
                                     maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End)
                                 Spacer(Modifier.width(8.dp))
@@ -91,7 +93,7 @@ internal fun PlayerSoundPanel(
                                 Row(Modifier.fillMaxWidth().selectable(selected = selected, role = Role.RadioButton,
                                     onClick = { onTrackSelected(track.id) }).padding(horizontal = 12.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically) {
-                                    Text(track.label, Modifier.weight(1f), color = if (selected) PlayerAccent else Color.White,
+                                    Text(LocalContext.current.localizedPlaybackLabel(track.label), Modifier.weight(1f), color = if (selected) PlayerAccent else Color.White,
                                         fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                                     if (selected) Icon(Icons.Outlined.Check, null, tint = PlayerAccent, modifier = Modifier.size(18.dp))
                                 }

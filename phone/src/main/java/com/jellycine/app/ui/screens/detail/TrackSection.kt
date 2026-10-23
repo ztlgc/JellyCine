@@ -1,5 +1,8 @@
 package com.jellycine.app.ui.screens.detail
 
+import com.jellycine.app.locale.localizedPlaybackLabel
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -90,7 +93,7 @@ internal fun TrackSection(
                         } else {
                             Modifier.fillMaxWidth()
                         },
-                        label = "Video",
+                        label = stringResource(R.string.ui_video),
                         selectedOption = displayedSelectedVideo,
                         options = videoOptions,
                         inlineMetaText = videoInlineMetaText,
@@ -107,7 +110,7 @@ internal fun TrackSection(
                         } else {
                             Modifier.fillMaxWidth()
                         },
-                        label = "Audio",
+                        label = stringResource(R.string.ui_audio),
                         selectedOption = selectedAudio,
                         options = audioOptions,
                         singleValueFillWidth = !sharesRow,
@@ -123,7 +126,7 @@ internal fun TrackSection(
                         } else {
                             Modifier.fillMaxWidth()
                         },
-                        label = "Subtitles",
+                        label = stringResource(R.string.ui_subtitles),
                         selectedOption = selectedSubtitle,
                         options = subtitleOptions,
                         singleValueFillWidth = !sharesRow,
@@ -137,7 +140,7 @@ internal fun TrackSection(
     } else {
         if (hasVideoSection) {
             TrackField(
-                label = "Video",
+                label = stringResource(R.string.ui_video),
                 selectedOption = displayedSelectedVideo,
                 options = videoOptions,
                 inlineMetaText = videoInlineMetaText,
@@ -151,7 +154,7 @@ internal fun TrackSection(
 
         if (hasAudioSection) {
             TrackField(
-                label = "Audio",
+                label = stringResource(R.string.ui_audio),
                 selectedOption = selectedAudio,
                 options = audioOptions,
                 onOptionSelected = onAudioOptionSelected
@@ -161,7 +164,7 @@ internal fun TrackSection(
         if (hasSubtitleSection) {
             Spacer(modifier = Modifier.height(4.dp))
             TrackField(
-                label = "Subtitles",
+                label = stringResource(R.string.ui_subtitles),
                 selectedOption = selectedSubtitle,
                 options = subtitleOptions,
                 onOptionSelected = onSubtitleOptionSelected
@@ -188,7 +191,7 @@ internal fun DetailInfoRow(
             fontWeight = FontWeight.SemiBold
         )
         Text(
-            text = value,
+            text = LocalContext.current.localizedPlaybackLabel(value),
             fontSize = 13.sp,
             color = Color.White.copy(alpha = 0.78f),
             maxLines = 1,
@@ -298,7 +301,7 @@ internal fun OptionSelectorRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val displayText = buildString {
-                    append(selectedOption.ifBlank { options.firstOrNull().orEmpty() })
+                    append(LocalContext.current.localizedPlaybackLabel(selectedOption.ifBlank { options.firstOrNull().orEmpty() }))
                     if (!inlineMetaText.isNullOrBlank()) append(" / $inlineMetaText")
                 }
                 Text(
@@ -363,7 +366,7 @@ internal fun OptionSelectorRow(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = option,
+                                    text = LocalContext.current.localizedPlaybackLabel(option),
                                     fontSize = 13.sp,
                                     color = if (isSelected) Color.White else Color.White.copy(alpha = 0.75f),
                                     fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,

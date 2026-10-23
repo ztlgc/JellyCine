@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.components.common
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,7 +23,7 @@ fun DownloadOnlyButton(
     isDownloading: Boolean = false,
     progress: Float = 0f,
     modifier: Modifier = Modifier,
-    text: String = "Download"
+    text: String = stringResource(R.string.ui_download)
 ) {
     OutlinedButton(
         onClick = if (!isDownloading) onClick else { {} },
@@ -59,13 +61,13 @@ fun DownloadOnlyButton(
                 isDownloading && progress >= 1f -> {
                     Icon(
                         imageVector = Icons.Rounded.CheckCircle,
-                        contentDescription = "Downloaded",
+                        contentDescription = stringResource(R.string.ui_downloaded),
                         modifier = Modifier.size(20.dp),
                         tint = Color(0xFF4CAF50)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        "Downloaded",
+                        stringResource(R.string.ui_downloaded),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color(0xFF4CAF50)

@@ -1,5 +1,6 @@
 package com.jellycine.app.ui.screens.player
 
+import com.jellycine.shared.R
 import android.content.Context
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
@@ -64,7 +65,7 @@ internal object PlayerMetadata {
             } else {
                 "$hdrInfo\n$analysisResult"
             }
-        } ?: "HDR info not available - player not initialized"
+        } ?: ""
     }
 
     fun buildMediaMetadataInfo(
@@ -140,11 +141,11 @@ internal object PlayerMetadata {
                                 }
 
                                 analysisResult = if (videoFormatAnalysis.hdrSupport != bestFormat.hdrSupport) {
-                                    "Content: ${originalContentFormat} -> Playing: ${bestFormat.hdrSupport.displayName}"
+                                    ctx.getString(R.string.ui_hdr_format_change, originalContentFormat, bestFormat.hdrSupport.displayName)
                                 } else if (isContentHdr) {
-                                    "Playing in native ${currentFormat} format"
+                                    ctx.getString(R.string.ui_native_format, currentFormat)
                                 } else {
-                                    "Standard Dynamic Range (SDR)"
+                                    ctx.getString(R.string.ui_standard_dynamic_range)
                                 }
 
                                 break

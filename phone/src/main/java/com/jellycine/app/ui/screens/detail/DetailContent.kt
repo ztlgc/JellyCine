@@ -1,5 +1,6 @@
 package com.jellycine.app.ui.screens.detail
 
+import com.jellycine.app.locale.localizedRuntime
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -153,7 +154,7 @@ fun DetailContent(
         item.indexNumber,
         item.name
     ) {
-        episodeHeaderText(item)
+        episodeHeaderText(item, context)
     }
     var heroImageCandidates by remember { mutableStateOf<List<String>>(emptyList()) }
     var heroImageIndex by remember(item.id) { mutableStateOf(0) }
@@ -209,9 +210,9 @@ fun DetailContent(
         runtimeTicks != null && playbackPositionTicks > 0L && playbackPositionTicks < runtimeTicks
     val playButtonText = if (isPartiallyWatched) {
         val remainingTicks = (runtimeTicks - playbackPositionTicks).coerceAtLeast(0L)
-        "${CodecUtils.formatRuntime(remainingTicks, includeSeconds = true)} left"
+        stringResource(R.string.dashboard_video_remaining, context.localizedRuntime(remainingTicks, includeSeconds = true))
     } else {
-        "Play"
+        stringResource(R.string.play)
     }
     val resumeProgress = if (runtimeTicks != null && runtimeTicks > 0) {
         (playbackPositionTicks.toFloat() / runtimeTicks.toFloat()).coerceIn(0f, 1f)
@@ -221,9 +222,9 @@ fun DetailContent(
     val logoFallbackTitle = if (isEpisode) {
         item.seriesName?.takeIf { it.isNotBlank() }
             ?: item.name?.takeIf { it.isNotBlank() }
-            ?: "Unknown"
+            ?: context.getString(R.string.ui_unknown)
     } else {
-        item.name?.takeIf { it.isNotBlank() } ?: "Unknown"
+        item.name?.takeIf { it.isNotBlank() } ?: context.getString(R.string.ui_unknown)
     }
     val reserveLogoSpace = isLoading || (!logoImageUrl.isNullOrBlank() && !logoLoadError) || logoLookup
     val showTitleFallback = !isLoading && !logoLookup && (logoImageUrl.isNullOrBlank() || logoLoadError)
@@ -454,7 +455,7 @@ fun DetailContent(
             previousDownloadStatus != DownloadStatus.FAILED &&
             itemDownloadState.status == DownloadStatus.FAILED
         ) {
-            downloadErrorDialogMessage = downloadFailure(state = itemDownloadState)
+            downloadErrorDialogMessage = downloadFailure(context = context, state = itemDownloadState)
         }
         previousDownloadStatus = itemDownloadState.status
     }
@@ -603,11 +604,11 @@ fun DetailContent(
             }
     }
 
-    val moreFromSeasonTitle = remember(item.seasonName, item.parentIndexNumber) {
-        val seasonLabel = item.parentIndexNumber?.let { "Season $it" }
+    val moreFromSeasonTitle = remember(item.seasonName, item.parentIndexNumber, context) {
+        val seasonLabel = item.parentIndexNumber?.let { context.getString(R.string.downloads_season_number, it) }
             ?: item.seasonName?.takeIf { it.isNotBlank() }
-            ?: "Season"
-        "More from $seasonLabel"
+            ?: context.getString(R.string.downloads_season_fallback)
+        context.getString(R.string.ui_more_from_season, seasonLabel)
     }
 
     val baseVideoOptions = remember(effectiveMediaStreams) { buildVideoOptions(effectiveMediaStreams) }
@@ -718,7 +719,7 @@ fun DetailContent(
                 downloadRepository.enqueueItemDownload(
                     item, TranscodeProfile("Original", null, null), null
                 ).onFailure { throwable ->
-                    downloadErrorDialogMessage = downloadFailure(rawMessage = throwable.message)
+                    downloadErrorDialogMessage = downloadFailure(context = context, rawMessage = throwable.message)
                 }
             }
         }
@@ -946,7 +947,7 @@ fun DetailContent(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.Star,
-                                        contentDescription = "Rating",
+                                        contentDescription = stringResource(R.string.ui_rating),
                                         tint = Color(0xFFFF4D4F),
                                         modifier = Modifier.size(17.dp)
                                     )
@@ -972,7 +973,7 @@ fun DetailContent(
 
                             item.runTimeTicks?.let { ticks ->
                                 Text(
-                                    text = CodecUtils.formatRuntime(ticks, includeSeconds = true),
+                                    text = LocalContext.current.localizedRuntime(ticks, includeSeconds = true),
                                     fontSize = 14.sp,
                                     color = Color.White,
                                     fontWeight = FontWeight.Medium,
@@ -1054,9 +1055,9 @@ fun DetailContent(
                                     )
                                     Text(
                                         text = if (castPlaybackState.isCastingMedia) {
-                                            "Casting to ${castPlaybackState.deviceName?.takeIf { it.isNotBlank() } ?: "device"}"
+                                            stringResource(R.string.ui_casting_to, castPlaybackState.deviceName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.ui_your_device))
                                         } else {
-                                            "Connected to ${castPlaybackState.deviceName?.takeIf { it.isNotBlank() } ?: "device"}"
+                                            stringResource(R.string.ui_connected_to, castPlaybackState.deviceName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.ui_your_device))
                                         },
                                         fontSize = 12.sp,
                                         color = Color(0xFFE6FFF3),
@@ -1108,7 +1109,7 @@ fun DetailContent(
                                 if (codecBadges.hasSpatialAudio) {
                                     item {
                                         CapabilityBadge(
-                                            text = "Spatial Audio",
+                                            text = stringResource(R.string.ui_spatial_audio),
                                             customIcon = R.drawable.ic_spatial_audio,
                                             customIconTint = Color(0xFF8DFFB3)
                                         )
@@ -1343,11 +1344,11 @@ fun DetailContent(
                                                 onSuccess = { estimate ->
                                                     seriesStorageSelectionDialogState =
                                                         SeriesSeasonSelectionDialogState
-                                                            .fromEstimate(estimate)
+                                                            .fromEstimate(estimate, context)
                                                 },
                                                 onFailure = { throwable ->
                                                     downloadErrorDialogMessage =
-                                                        downloadFailure(
+                                                        downloadFailure(context = context,
                                                             rawMessage = throwable.message
                                                         )
                                                 }
@@ -1483,7 +1484,7 @@ fun DetailContent(
         seriesStorageSelectionDialogState = seriesStorageSelectionDialogState,
         downloadErrorDialogMessage = downloadErrorDialogMessage,
         seerrRequestState = seerrRequestState,
-        itemName = item.name?.takeIf { it.isNotBlank() } ?: "Unknown",
+        itemName = item.name?.takeIf { it.isNotBlank() } ?: context.getString(R.string.ui_unknown),
         backdropImageUrl = backdropImageUrl ?: item.backdropImageUrl ?: item.imageUrl,
         onDismissSeriesSelection = {
             seriesStorageSelectionDialogState = null
@@ -1505,7 +1506,7 @@ fun DetailContent(
                                 selectedEpisodes, TranscodeProfile("Original", null, null), null
                             ).onFailure { throwable ->
                                 downloadErrorDialogMessage =
-                                    downloadFailure(rawMessage = throwable.message)
+                                    downloadFailure(context = context, rawMessage = throwable.message)
                             }
                         } finally {
                             seriesQueueInProgress = false
@@ -1552,7 +1553,7 @@ fun DetailContent(
                                 episodes, selection.quality, selection.audioStreamIndex
                             ).onFailure { throwable ->
                                 downloadErrorDialogMessage =
-                                    downloadFailure(rawMessage = throwable.message)
+                                    downloadFailure(context = context, rawMessage = throwable.message)
                             }
                         } finally {
                             seriesQueueInProgress = false
@@ -1562,7 +1563,7 @@ fun DetailContent(
                             item, selection.quality, selection.audioStreamIndex
                         ).onFailure { throwable ->
                             downloadErrorDialogMessage =
-                                downloadFailure(rawMessage = throwable.message)
+                                downloadFailure(context = context, rawMessage = throwable.message)
                         }
                     }
                 }
@@ -1710,12 +1711,12 @@ private fun Dialogs(
 ) {
     seriesStorageSelectionDialogState?.let { dialogState ->
         DownloadDialog(
-            title = "Choose Seasons",
-            subtitle = "Pick seasons to download. Selected total must fit available storage.",
+            title = stringResource(R.string.ui_choose_seasons),
+            subtitle = stringResource(R.string.ui_pick_seasons_to_download_selected_total_must_fit_available_storage),
             availableBytes = dialogState.availableBytes,
             options = dialogState.options,
             initialSelection = dialogState.options.map { it.id }.toSet(),
-            confirmLabel = "Download Seasons",
+            confirmLabel = stringResource(R.string.ui_download_seasons),
             onDismiss = onDismissSeriesSelection,
             onConfirm = onConfirmSeriesSelection
         )

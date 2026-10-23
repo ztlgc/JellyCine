@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.detail
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -49,7 +51,7 @@ internal fun DirectorCreditRow(
             directors.forEachIndexed { index, person ->
                 val personId = person.id
                 val canOpenPerson = !personId.isNullOrBlank()
-                val name = person.name ?: "Unknown"
+                val name = person.name ?: stringResource(R.string.ui_unknown)
                 Text(
                     text = name + if (index < directors.lastIndex) ", " else "",
                     fontSize = 13.sp,

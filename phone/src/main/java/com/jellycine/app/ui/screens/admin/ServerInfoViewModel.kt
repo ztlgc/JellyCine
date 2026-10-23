@@ -1,5 +1,6 @@
 package com.jellycine.app.ui.screens.admin
 
+import com.jellycine.shared.R
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -35,6 +36,7 @@ data class ActivityLogUiState(
 )
 
 class AdminPanelViewModel(context: Context) : ViewModel() {
+    private val context = context.applicationContext
     private val mediaRepository = MediaRepository(context)
 
     private val _serverInfoState = MutableStateFlow(ServerInfoUiState())
@@ -155,22 +157,22 @@ class AdminPanelViewModel(context: Context) : ViewModel() {
         val msg = e.message?.lowercase() ?: ""
         return when {
             e is HttpStatusException -> when (e.statusCode) {
-                401, 403 -> "Access denied. Admin privileges required."
-                404 -> "Server endpoint not found. Check server version."
-                500, 502, 503 -> "Server error. Try again later."
-                else -> "Server returned error ${e.statusCode}"
+                401, 403 -> context.getString(R.string.ui_access_denied_admin_privileges_required)
+                404 -> context.getString(R.string.ui_server_endpoint_not_found_check_server_version)
+                500, 502, 503 -> context.getString(R.string.ui_server_error_try_again_later)
+                else -> context.getString(R.string.ui_server_http_error, e.statusCode)
             }
             msg.contains("unable to resolve host") || msg.contains("no address associated") ->
-                "No internet connection"
+                context.getString(R.string.ui_no_internet_connection)
             msg.contains("timeout") || msg.contains("timed out") ->
-                "Connection timed out. Server may be unreachable."
+                context.getString(R.string.ui_connection_timed_out_server_may_be_unreachable)
             msg.contains("failed to connect") || msg.contains("connection refused") ->
-                "Cannot reach server. Check if it's running."
+                context.getString(R.string.ui_cannot_reach_server_check_if_it_s_running)
             msg.contains("network") || msg.contains("socket") ->
-                "Network error. Check your connection."
+                context.getString(R.string.ui_network_error_check_your_connection)
             msg.contains("ssl") || msg.contains("certificate") ->
-                "Secure connection failed. Check server certificate."
-            else -> "Something went wrong. Please try again."
+                context.getString(R.string.ui_secure_connection_failed_check_server_certificate)
+            else -> context.getString(R.string.ui_something_went_wrong_please_try_again)
         }
     }
 }

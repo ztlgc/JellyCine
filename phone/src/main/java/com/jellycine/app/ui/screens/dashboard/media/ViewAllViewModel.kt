@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.dashboard.media
 
+import com.jellycine.shared.R
+import com.jellycine.app.locale.userFacingError
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -251,7 +253,7 @@ class ViewAllViewModel @Inject constructor(
                             withContext(Dispatchers.Main) {
                                 _uiState.value = _uiState.value.copy(
                                     isLoading = false,
-                                    error = exception.message ?: "Unknown error occurred"
+                                    error = context.userFacingError(exception, R.string.view_all_error_message)
                                 )
                             }
                         }
@@ -260,7 +262,7 @@ class ViewAllViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Unknown error occurred"
+                    error = context.userFacingError(e, R.string.view_all_error_message)
                 )
             }
         }

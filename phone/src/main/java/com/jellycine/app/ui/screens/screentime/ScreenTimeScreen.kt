@@ -209,7 +209,7 @@ internal fun RankingRow(rank: Int, video: VideoWatchSummary, byOpens: Boolean, p
 
 @Composable
 private fun DateRangeNavigator(state: ScreenTimeUiState, viewModel: ScreenTimeViewModel) {
-    val formatter = remember { DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()) }
+    val formatter = remember { DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM).withLocale(Locale.getDefault()) }
     val canGoNext = when (state.period) {
         ScreenTimePeriod.WEEK -> state.weekOffset < 0
         ScreenTimePeriod.MONTH -> state.monthOffset < 0

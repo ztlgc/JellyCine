@@ -1,5 +1,7 @@
 package com.jellycine.shared.ui.components.common
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,16 +39,16 @@ fun SortDropdown(
     var expanded by remember { mutableStateOf(false) }
     
     val sortOptions = listOf(
-        "Name" to "SortName",
-        "Date Added" to "DateCreated", 
-        "Release Date" to "ProductionYear",
-        "Rating" to "CommunityRating",
-        "Runtime" to "Runtime"
+        stringResource(R.string.ui_name) to "SortName",
+        stringResource(R.string.ui_date_added) to "DateCreated",
+        stringResource(R.string.ui_release_date) to "ProductionYear",
+        stringResource(R.string.ui_rating) to "CommunityRating",
+        stringResource(R.string.ui_runtime) to "Runtime"
     )
     
     val orderOptions = listOf(
-        "Ascending" to "Ascending",
-        "Descending" to "Descending"
+        stringResource(R.string.ui_ascending) to "Ascending",
+        stringResource(R.string.ui_descending) to "Descending"
     )
 
     ExposedDropdownMenuBox(
@@ -55,13 +57,13 @@ fun SortDropdown(
         modifier = modifier
     ) {
         OutlinedTextField(
-            value = "${sortOptions.find { it.second == currentSortBy }?.first ?: "Name"} (${if (currentSortOrder == "Ascending") "A-Z" else "Z-A"})",
+            value = "${sortOptions.find { it.second == currentSortBy }?.first ?: stringResource(R.string.ui_name)} (${if (currentSortOrder == "Ascending") "A-Z" else "Z-A"})",
             onValueChange = {},
             readOnly = true,
             trailingIcon = {
                 Icon(
                     imageVector = if (expanded) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown,
-                    contentDescription = "Sort",
+                    contentDescription = stringResource(R.string.ui_sort),
                     tint = Color.White.copy(alpha = 0.7f)
                 )
             },
@@ -260,7 +262,7 @@ fun LoadMoreButton(
                 Spacer(modifier = Modifier.width(8.dp))
             }
             Text(
-                text = if (isLoading) "Loading..." else "Load More",
+                text = if (isLoading) stringResource(R.string.loading) else stringResource(R.string.home_media_more),
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium
@@ -276,7 +278,7 @@ fun ItemCountIndicator(
     modifier: Modifier = Modifier
 ) {
     Text(
-        text = "Showing $currentCount of $totalCount items",
+        text = stringResource(R.string.view_all_count, currentCount, totalCount),
         color = Color.White.copy(alpha = 0.7f),
         fontSize = 14.sp,
         modifier = modifier

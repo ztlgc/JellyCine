@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.components.common
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,7 +34,7 @@ fun BackButton(
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = Icons.Rounded.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.ui_back),
                 tint = Color.White,
                 modifier = Modifier.size(24.dp)
             )

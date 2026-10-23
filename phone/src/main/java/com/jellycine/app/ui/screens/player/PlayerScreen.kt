@@ -553,14 +553,14 @@ fun SpatialAudioInfoDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Spatial Audio Status",
+                    text = stringResource(R.string.ui_spatial_audio_status),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = stringResource(R.string.ui_close),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -585,7 +585,7 @@ fun SpatialAudioInfoDialog(
             TextButton(
                 onClick = onDismiss
             ) {
-                Text("OK")
+                Text(stringResource(R.string.ui_ok))
             }
         },
         containerColor = MaterialTheme.colorScheme.surface,
@@ -607,14 +607,14 @@ fun HdrFormatInfoDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "HDR Format & Fallback Status",
+                    text = stringResource(R.string.ui_hdr_format_fallback_status),
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
+                        contentDescription = stringResource(R.string.ui_close),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -639,7 +639,7 @@ fun HdrFormatInfoDialog(
             TextButton(
                 onClick = onDismiss
             ) {
-                Text("OK")
+                Text(stringResource(R.string.ui_ok))
             }
         },
         containerColor = MaterialTheme.colorScheme.surface,

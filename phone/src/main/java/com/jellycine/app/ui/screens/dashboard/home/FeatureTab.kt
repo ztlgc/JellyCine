@@ -304,7 +304,7 @@ fun FeatureTab(
 
     LaunchedEffect(currentUsername, currentServerUrl, refreshTrigger) {
         val activeUsername = currentUsername ?: persistedHomeSnapshot?.username
-        displayUsername = activeUsername?.takeIf { it.isNotBlank() } ?: "User"
+        displayUsername = activeUsername?.takeIf { it.isNotBlank() } ?: context.getString(R.string.ui_user)
 
         val persistedProfileUrl = persistedHomeSnapshot?.profileImageUrl
         if (!persistedProfileUrl.isNullOrBlank()) {
@@ -618,7 +618,7 @@ fun FeatureTab(
                 )
 
                 else -> FeatureHeroError(
-                    error = "No featured content available",
+                    error = stringResource(R.string.ui_no_featured_content_available),
                     heroHeight = heroHeight,
                     modifier = Modifier.padding(top = heroSizing.carouselTopPadding)
                 )

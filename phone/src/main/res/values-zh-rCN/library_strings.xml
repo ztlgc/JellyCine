@@ -8,7 +8,7 @@
     <string name="library_favorites">收藏</string>
     <string name="library_folders">文件夹</string>
     <string name="library_sort_created">创建日期</string>
-    <string name="library_sort_community">公众评分</string>
+    <string name="library_sort_community">社区评分</string>
     <string name="library_sort_title">标题</string>
     <string name="library_sort_premiere">首映日期</string>
     <string name="library_sort_rating">官方分级</string>

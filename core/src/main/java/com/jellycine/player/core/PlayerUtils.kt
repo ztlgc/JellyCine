@@ -248,7 +248,7 @@ object PlayerUtils {
         val deviceSupport = HdrCapabilityManager.getDeviceHdrSupport(context)
         val bestFormat = HdrCapabilityManager.getBestPlayableFormat(context, videoFormat)
         
-        return HdrCapabilityManager.getPlaybackFormatDescription(deviceSupport, videoFormat, bestFormat)
+        return HdrCapabilityManager.getPlaybackFormatDescription(context, deviceSupport, videoFormat, bestFormat)
     }
     
     /**

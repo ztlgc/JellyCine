@@ -1,5 +1,8 @@
 package com.jellycine.app.ui.screens.detail
 
+import com.jellycine.app.locale.localizedRuntime
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -145,7 +148,7 @@ private fun BoxSetMovieCard(
             verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             Text(
-                text = item.name ?: "Unknown",
+                text = item.name ?: stringResource(R.string.ui_unknown),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White,
@@ -190,7 +193,7 @@ private fun BoxSetMovieCard(
 
                 item.runTimeTicks?.let { ticks ->
                     Text(
-                        text = CodecUtils.formatRuntime(ticks),
+                        text = LocalContext.current.localizedRuntime(ticks),
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 12.sp
                     )
@@ -239,7 +242,7 @@ private fun BoxSetMovieCard(
                         modifier = Modifier.size(14.dp)
                     )
                     Text(
-                        text = "Watched",
+                        text = stringResource(R.string.ui_watched),
                         fontSize = 11.sp,
                         color = Color(0xFF4CAF50),
                         fontWeight = FontWeight.Medium

@@ -1,5 +1,6 @@
 package com.jellycine.app.ui.screens.dashboard.settings
 
+import com.jellycine.app.locale.localizedQualityLabel
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
@@ -125,8 +126,8 @@ fun PlayerSettingsScreen(
                         subtitle = uiState.playerEngine,
                         selectedValue = uiState.playerEngine,
                         options = listOf(
-                            SelectionOption("ExoPlayer", "ExoPlayer", "Android native, battery efficient", isDefault = true),
-                            SelectionOption("MPV", "MPV", "Advanced rendering, custom shaders, better HDR")
+                            SelectionOption("ExoPlayer", "ExoPlayer", stringResource(R.string.ui_android_native_battery_efficient), isDefault = true),
+                            SelectionOption("MPV", "MPV", stringResource(R.string.ui_advanced_rendering_custom_shaders_better_hdr))
                         ),
                         onOptionSelected = viewModel::setPlayerEngine,
                         accentColor = videoColor
@@ -140,9 +141,9 @@ fun PlayerSettingsScreen(
                             subtitle = uiState.mpvHardwareDecoding,
                             selectedValue = uiState.mpvHardwareDecoding,
                             options = listOf(
-                                SelectionOption("mediacodec", "MediaCodec", "Direct hardware decode, best performance", isDefault = true),
-                                SelectionOption("mediacodec-copy", "MediaCodec (copy)", "Hardware decode with CPU copy, wider format support"),
-                                SelectionOption("no", "Software", "CPU decode, highest compatibility")
+                                SelectionOption("mediacodec", "MediaCodec", stringResource(R.string.ui_direct_hardware_decode_best_performance), isDefault = true),
+                                SelectionOption("mediacodec-copy", stringResource(R.string.ui_mediacodec_copy), stringResource(R.string.ui_hardware_decode_with_cpu_copy_wider_format_support)),
+                                SelectionOption("no", stringResource(R.string.ui_software), stringResource(R.string.ui_cpu_decode_highest_compatibility))
                             ),
                             onOptionSelected = viewModel::setMpvHardwareDecoding,
                             accentColor = videoColor
@@ -155,8 +156,8 @@ fun PlayerSettingsScreen(
                             subtitle = uiState.mpvVideoOutput,
                             selectedValue = uiState.mpvVideoOutput,
                             options = listOf(
-                                SelectionOption("gpu-next", "GPU Next", "Modern libplacebo renderer, best quality", isDefault = true),
-                                SelectionOption("gpu", "GPU", "Legacy GPU renderer, wider device support")
+                                SelectionOption("gpu-next", "GPU Next", stringResource(R.string.ui_modern_libplacebo_renderer_best_quality), isDefault = true),
+                                SelectionOption("gpu", "GPU", stringResource(R.string.ui_legacy_gpu_renderer_wider_device_support))
                             ),
                             onOptionSelected = viewModel::setMpvVideoOutput,
                             accentColor = videoColor
@@ -169,9 +170,9 @@ fun PlayerSettingsScreen(
                             subtitle = uiState.mpvAudioOutput,
                             selectedValue = uiState.mpvAudioOutput,
                             options = listOf(
-                                SelectionOption("audiotrack", "AudioTrack", "Standard Android audio, most compatible", isDefault = true),
-                                SelectionOption("aaudio", "AAudio", "Low-latency audio, Android 8.1+"),
-                                SelectionOption("opensles", "OpenSL ES", "Legacy low-latency audio")
+                                SelectionOption("audiotrack", "AudioTrack", stringResource(R.string.ui_standard_android_audio_most_compatible), isDefault = true),
+                                SelectionOption("aaudio", "AAudio", stringResource(R.string.ui_low_latency_audio_android_8_1)),
+                                SelectionOption("opensles", "OpenSL ES", stringResource(R.string.ui_legacy_low_latency_audio))
                             ),
                             onOptionSelected = viewModel::setMpvAudioOutput,
                             accentColor = videoColor
@@ -182,19 +183,19 @@ fun PlayerSettingsScreen(
 
             if (uiState.playerEngine == PlayerPreferences.PLAYER_ENGINE_MPV) {
                 val renderingColor = Color(0xFFF59E0B)
-                item { SectionLabel("RENDERING") }
+                item { SectionLabel(stringResource(R.string.ui_rendering)) }
                 item {
                     SettingsSection {
                         SelectionDialogSettingsItem(
                             icon = Icons.Rounded.Tune,
-                            title = "Upscale Filter",
+                            title = stringResource(R.string.ui_upscale_filter),
                             subtitle = uiState.mpvUpscaleFilter,
                             selectedValue = uiState.mpvUpscaleFilter,
                             options = listOf(
-                                SelectionOption("bilinear", "Bilinear", "Fast, smooth, slightly soft"),
-                                SelectionOption("spline36", "Spline36", "Balanced sharpness and smoothness"),
-                                SelectionOption("lanczos", "Lanczos", "Sharp and detailed", isDefault = true),
-                                SelectionOption("ewa_lanczos", "EWA Lanczos", "Sharpest quality, GPU intensive")
+                                SelectionOption("bilinear", stringResource(R.string.ui_bilinear), stringResource(R.string.ui_fast_smooth_slightly_soft)),
+                                SelectionOption("spline36", "Spline36", stringResource(R.string.ui_balanced_sharpness_and_smoothness)),
+                                SelectionOption("lanczos", "Lanczos", stringResource(R.string.ui_sharp_and_detailed), isDefault = true),
+                                SelectionOption("ewa_lanczos", "EWA Lanczos", stringResource(R.string.ui_sharpest_quality_gpu_intensive))
                             ),
                             onOptionSelected = viewModel::setMpvUpscaleFilter,
                             accentColor = renderingColor
@@ -203,14 +204,14 @@ fun PlayerSettingsScreen(
                         SettingsDivider()
                         SelectionDialogSettingsItem(
                             icon = Icons.Rounded.Tune,
-                            title = "Downscale Filter",
+                            title = stringResource(R.string.ui_downscale_filter),
                             subtitle = uiState.mpvDownscaleFilter,
                             selectedValue = uiState.mpvDownscaleFilter,
                             options = listOf(
-                                SelectionOption("hermite", "Hermite", "Smooth and soft, reduces aliasing", isDefault = true),
-                                SelectionOption("mitchell", "Mitchell", "Balanced, slight sharpness"),
-                                SelectionOption("catmull_rom", "Catmull-Rom", "Sharper, preserves edges"),
-                                SelectionOption("lanczos", "Lanczos", "Sharpest downscale, may ring slightly")
+                                SelectionOption("hermite", "Hermite", stringResource(R.string.ui_smooth_and_soft_reduces_aliasing), isDefault = true),
+                                SelectionOption("mitchell", "Mitchell", stringResource(R.string.ui_balanced_slight_sharpness)),
+                                SelectionOption("catmull_rom", "Catmull-Rom", stringResource(R.string.ui_sharper_preserves_edges)),
+                                SelectionOption("lanczos", "Lanczos", stringResource(R.string.ui_sharpest_downscale_may_ring_slightly))
                             ),
                             onOptionSelected = viewModel::setMpvDownscaleFilter,
                             accentColor = renderingColor
@@ -219,16 +220,16 @@ fun PlayerSettingsScreen(
                         SettingsDivider()
                         SelectionDialogSettingsItem(
                             icon = Icons.Rounded.Contrast,
-                            title = "Tone Mapping",
+                            title = stringResource(R.string.ui_tone_mapping),
                             subtitle = uiState.mpvToneMapping,
                             selectedValue = uiState.mpvToneMapping,
                             options = listOf(
-                                SelectionOption("auto", "Auto", "Dynamically picks best algorithm per scene", isDefault = true),
-                                SelectionOption("bt.2390", "BT.2390", "Broadcast standard, natural highlights"),
-                                SelectionOption("spline", "Spline", "Smooth curve, preserves mid-tones"),
-                                SelectionOption("hable", "Filmic", "Cinematic roll-off, softer highlights"),
-                                SelectionOption("mobius", "Mobius", "Soft roll-off, preserves dark detail"),
-                                SelectionOption("reinhard", "Reinhard", "Simple, slightly desaturated highlights")
+                                SelectionOption("auto", stringResource(R.string.ui_auto), stringResource(R.string.ui_dynamically_picks_best_algorithm_per_scene), isDefault = true),
+                                SelectionOption("bt.2390", "BT.2390", stringResource(R.string.ui_broadcast_standard_natural_highlights)),
+                                SelectionOption("spline", stringResource(R.string.ui_spline), stringResource(R.string.ui_smooth_curve_preserves_mid_tones)),
+                                SelectionOption("hable", stringResource(R.string.ui_filmic), stringResource(R.string.ui_cinematic_roll_off_softer_highlights)),
+                                SelectionOption("mobius", "Mobius", stringResource(R.string.ui_soft_roll_off_preserves_dark_detail)),
+                                SelectionOption("reinhard", "Reinhard", stringResource(R.string.ui_simple_slightly_desaturated_highlights))
                             ),
                             onOptionSelected = viewModel::setMpvToneMapping,
                             enabled = uiState.mpvHdrToSdrTonemapping,
@@ -238,8 +239,8 @@ fun PlayerSettingsScreen(
                         SettingsDivider()
                         SwitchSettingsItem(
                             icon = Icons.Rounded.SlowMotionVideo,
-                            title = "Smooth Motion",
-                            subtitle = "Interpolate frames on high refresh displays",
+                            title = stringResource(R.string.ui_smooth_motion),
+                            subtitle = stringResource(R.string.ui_interpolate_frames_on_high_refresh_displays),
                             checked = uiState.mpvSmoothMotion,
                             onCheckedChange = viewModel::setMpvSmoothMotion,
                             accentColor = renderingColor
@@ -248,8 +249,8 @@ fun PlayerSettingsScreen(
                         SettingsDivider()
                         SwitchSettingsItem(
                             icon = Icons.Rounded.Gradient,
-                            title = "Deband",
-                            subtitle = "Reduce color banding in dark gradients",
+                            title = stringResource(R.string.ui_deband),
+                            subtitle = stringResource(R.string.ui_reduce_color_banding_in_dark_gradients),
                             checked = uiState.mpvDeband,
                             onCheckedChange = viewModel::setMpvDeband,
                             accentColor = renderingColor
@@ -258,8 +259,8 @@ fun PlayerSettingsScreen(
                         SettingsDivider()
                         SwitchSettingsItem(
                             icon = Icons.Rounded.WbSunny,
-                            title = "Dynamic Brightness",
-                            subtitle = "Adapt tone mapping per scene",
+                            title = stringResource(R.string.ui_dynamic_brightness),
+                            subtitle = stringResource(R.string.ui_adapt_tone_mapping_per_scene),
                             checked = uiState.mpvDynamicPeak,
                             onCheckedChange = viewModel::setMpvDynamicPeak,
                             enabled = uiState.mpvHdrToSdrTonemapping,
@@ -268,8 +269,8 @@ fun PlayerSettingsScreen(
                         SettingsDivider()
                         SwitchSettingsItem(
                             icon = Icons.Rounded.HdrOn,
-                            title = "HDR to SDR Tonemapping",
-                            subtitle = "Tone map HDR content to SDR for accurate colors",
+                            title = stringResource(R.string.ui_hdr_to_sdr_tonemapping),
+                            subtitle = stringResource(R.string.ui_tone_map_hdr_content_to_sdr_for_accurate_colors),
                             checked = uiState.mpvHdrToSdrTonemapping,
                             onCheckedChange = viewModel::setMpvHdrToSdrTonemapping,
                             accentColor = renderingColor
@@ -331,7 +332,7 @@ fun PlayerSettingsScreen(
                                 options = PlayerPreferences.STREAMING_QUALITY_OPTIONS.map { quality ->
                                     SelectionOption(
                                         value = quality,
-                                        label = quality,
+                                        label = localizedQualityLabel(quality),
                                         description = "",
                                         isDefault = quality == PlayerPreferences.DEFAULT_STREAMING_QUALITY
                                     )
@@ -352,10 +353,10 @@ fun PlayerSettingsScreen(
                                 subtitle = uiState.audioTranscodeMode,
                                 selectedValue = uiState.audioTranscodeMode,
                                 options = listOf(
-                                    SelectionOption("Auto", "Auto", "Server decides based on client capability", isDefault = true),
-                                    SelectionOption("Stereo", "Stereo", "2-channel audio, most compatible"),
-                                    SelectionOption("5.1 Surround", "5.1 Surround", "6-channel surround sound"),
-                                    SelectionOption("Passthrough", "Passthrough", "Original audio, no transcoding")
+                                    SelectionOption("Auto", stringResource(R.string.ui_auto), stringResource(R.string.ui_server_decides_based_on_client_capability), isDefault = true),
+                                    SelectionOption("Stereo", stringResource(R.string.ui_stereo), stringResource(R.string.ui_2_channel_audio_most_compatible)),
+                                    SelectionOption("5.1 Surround", stringResource(R.string.ui_5_1_surround), stringResource(R.string.ui_6_channel_surround_sound)),
+                                    SelectionOption("Passthrough", stringResource(R.string.ui_passthrough), stringResource(R.string.ui_original_audio_no_transcoding))
                                 ),
                                 onOptionSelected = viewModel::setAudioTranscodeMode,
                                 accentColor = transcodingColor
@@ -374,9 +375,9 @@ fun PlayerSettingsScreen(
                         subtitle = decoderPriorityLabel(uiState.decoderPriority),
                         selectedValue = uiState.decoderPriority,
                         options = listOf(
-                            SelectionOption(PlayerPreferences.DECODER_PRIORITY_AUTO, "Auto", "Let the player decide based on content", isDefault = true),
-                            SelectionOption(PlayerPreferences.DECODER_PRIORITY_HARDWARE, "Hardware First", "Prefer GPU decoding, lower battery usage"),
-                            SelectionOption(PlayerPreferences.DECODER_PRIORITY_SOFTWARE, "Software First", "Prefer CPU decoding, wider codec support")
+                            SelectionOption(PlayerPreferences.DECODER_PRIORITY_AUTO, stringResource(R.string.ui_auto), stringResource(R.string.ui_let_the_player_decide_based_on_content), isDefault = true),
+                            SelectionOption(PlayerPreferences.DECODER_PRIORITY_HARDWARE, stringResource(R.string.ui_hardware_first), stringResource(R.string.ui_prefer_gpu_decoding_lower_battery_usage)),
+                            SelectionOption(PlayerPreferences.DECODER_PRIORITY_SOFTWARE, stringResource(R.string.ui_software_first), stringResource(R.string.ui_prefer_cpu_decoding_wider_codec_support))
                         ),
                         onOptionSelected = viewModel::setDecoderPriority,
                         accentColor = videoColor
@@ -658,10 +659,10 @@ fun SubtitleSettingsScreen(
                         subtitle = textSize,
                         selectedValue = textSize,
                         options = listOf(
-                            SelectionOption("Small", "Small", "Compact text, more screen space"),
-                            SelectionOption("Normal", "Normal", "Standard readable size", isDefault = true),
-                            SelectionOption("Large", "Large", "Bigger text, easier to read"),
-                            SelectionOption("Extra Large", "Extra Large", "Maximum readability")
+                            SelectionOption("Small", stringResource(R.string.ui_small), stringResource(R.string.ui_compact_text_more_screen_space)),
+                            SelectionOption("Normal", stringResource(R.string.ui_normal), stringResource(R.string.ui_standard_readable_size), isDefault = true),
+                            SelectionOption("Large", stringResource(R.string.ui_large), stringResource(R.string.ui_bigger_text_easier_to_read)),
+                            SelectionOption("Extra Large", stringResource(R.string.ui_extra_large), stringResource(R.string.ui_maximum_readability))
                         ),
                         onOptionSelected = { selected ->
                             textSize = selected
@@ -677,10 +678,10 @@ fun SubtitleSettingsScreen(
                         subtitle = textColor,
                         selectedValue = textColor,
                         options = listOf(
-                            SelectionOption("White", "White", "Standard, works on most backgrounds", isDefault = true),
-                            SelectionOption("Yellow", "Yellow", "High contrast on dark scenes"),
-                            SelectionOption("Green", "Green", "Distinct color for visibility"),
-                            SelectionOption("Cyan", "Cyan", "Cool tone, easy on eyes")
+                            SelectionOption("White", stringResource(R.string.ui_white), stringResource(R.string.ui_standard_works_on_most_backgrounds), isDefault = true),
+                            SelectionOption("Yellow", stringResource(R.string.ui_yellow), stringResource(R.string.ui_high_contrast_on_dark_scenes)),
+                            SelectionOption("Green", stringResource(R.string.ui_green), stringResource(R.string.ui_distinct_color_for_visibility)),
+                            SelectionOption("Cyan", stringResource(R.string.ui_cyan), stringResource(R.string.ui_cool_tone_easy_on_eyes))
                         ),
                         onOptionSelected = { selected ->
                             textColor = selected
@@ -696,9 +697,9 @@ fun SubtitleSettingsScreen(
                         subtitle = backgroundColor,
                         selectedValue = backgroundColor,
                         options = listOf(
-                            SelectionOption("Transparent", "Transparent", "No background, clean look", isDefault = true),
-                            SelectionOption("Black", "Black", "Dark box behind text for contrast"),
-                            SelectionOption("White", "White", "Light box behind text")
+                            SelectionOption("Transparent", stringResource(R.string.ui_transparent), stringResource(R.string.ui_no_background_clean_look), isDefault = true),
+                            SelectionOption("Black", stringResource(R.string.ui_black), stringResource(R.string.ui_dark_box_behind_text_for_contrast)),
+                            SelectionOption("White", stringResource(R.string.ui_white), stringResource(R.string.ui_light_box_behind_text))
                         ),
                         onOptionSelected = { selected ->
                             backgroundColor = selected
@@ -714,11 +715,11 @@ fun SubtitleSettingsScreen(
                         subtitle = edgeType,
                         selectedValue = edgeType,
                         options = listOf(
-                            SelectionOption("None", "None", "No edge effect", isDefault = true),
-                            SelectionOption("Outline", "Outline", "Border around text for readability"),
-                            SelectionOption("Drop Shadow", "Drop Shadow", "Shadow below text for depth"),
-                            SelectionOption("Raised", "Raised", "Embossed 3D effect"),
-                            SelectionOption("Depressed", "Depressed", "Engraved 3D effect")
+                            SelectionOption("None", stringResource(R.string.ui_none), stringResource(R.string.ui_no_edge_effect), isDefault = true),
+                            SelectionOption("Outline", stringResource(R.string.ui_outline), stringResource(R.string.ui_border_around_text_for_readability)),
+                            SelectionOption("Drop Shadow", stringResource(R.string.ui_drop_shadow), stringResource(R.string.ui_shadow_below_text_for_depth)),
+                            SelectionOption("Raised", stringResource(R.string.ui_raised), stringResource(R.string.ui_embossed_3d_effect)),
+                            SelectionOption("Depressed", stringResource(R.string.ui_depressed), stringResource(R.string.ui_engraved_3d_effect))
                         ),
                         onOptionSelected = { selected ->
                             edgeType = selected
@@ -1149,7 +1150,7 @@ private fun SelectionDialogSettingsItem(
     BaseSettingsItem(
         icon = icon,
         title = title,
-        subtitle = subtitle,
+        subtitle = if (subtitle == selectedValue) options.firstOrNull { it.value == selectedValue }?.label ?: subtitle else subtitle,
         enabled = enabled,
         accentColor = accentColor,
         onClick = { showDialog = true },

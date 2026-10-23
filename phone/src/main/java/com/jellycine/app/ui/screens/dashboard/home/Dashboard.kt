@@ -116,6 +116,7 @@ import com.jellycine.shared.playback.UserDataRefreshSignals
 import com.jellycine.app.ui.screens.dashboard.media.withLibraryUserData
 import java.util.concurrent.ConcurrentHashMap
 
+import com.jellycine.app.locale.localizedRuntime
 @Stable
 @Immutable
 data class QueryState<T>(
@@ -1111,7 +1112,7 @@ data class StableBaseItem(
     val collectionType: String?
 ) {
     val displayName: String by lazy {
-        name ?: "Unknown Title"
+        name.orEmpty()
     }
 
     val hasProgress: Boolean by lazy {
@@ -1245,7 +1246,7 @@ fun Dashboard(
     }
     val HeaderUserName = currentUsername
         ?.takeIf { it.isNotBlank() }
-        ?: "User"
+        ?: context.getString(R.string.ui_user)
     var noCarouselProfileImageUrl by remember(dashboardSessionKey) {
         mutableStateOf(persistedHomeSnapshot?.profileImageUrl)
     }
@@ -1522,7 +1523,7 @@ fun Dashboard(
                         val libraryId = section.library.id ?: return@mapNotNull null
                         HomeLibrarySectionUi(
                             libraryId = libraryId,
-                            libraryName = section.library.name ?: "Library",
+                            libraryName = section.library.name ?: context.getString(R.string.libraries),
                             collectionType = section.library.collectionType,
                             items = section.items
                         )
@@ -1899,7 +1900,7 @@ fun Dashboard(
                                 onNavigateToViewAll(
                                     contentType,
                                     library.id,
-                                    library.name ?: "Library"
+                                    library.name ?: context.getString(R.string.libraries)
                                 )
                             }
                         )
@@ -1997,7 +1998,7 @@ fun Dashboard(
                 if (SeerrStudios.isNotEmpty()) {
                     item(key = "seerr_studios_section") {
                         SeerrCatalogSection(
-                            title = "Studios",
+                            title = stringResource(R.string.ui_studios),
                             items = SeerrStudios,
                             onItemClick = { studio ->
                                 onNavigateToViewAll(
@@ -2013,7 +2014,7 @@ fun Dashboard(
                 if (SeerrNetworks.isNotEmpty()) {
                     item(key = "seerr_networks_section") {
                         SeerrCatalogSection(
-                            title = "Networks",
+                            title = stringResource(R.string.ui_networks),
                             items = SeerrNetworks,
                             onItemClick = { network ->
                                 onNavigateToViewAll(
@@ -2680,6 +2681,7 @@ private fun ContinueWatchingCard(
             else -> ""
         }
     }
+    val context = LocalContext.current
     val watchedLabel = stringResource(R.string.dashboard_video_watched)
     val remainingFormat = stringResource(R.string.dashboard_video_remaining)
     val remainingText = remember(item.runTimeTicks, item.userData, watchedLabel, remainingFormat) {
@@ -2689,7 +2691,7 @@ private fun ContinueWatchingCard(
             watchedLabel
         } else if (runtimeTicks != null && runtimeTicks > 0L && playbackPositionTicks > 0L && playbackPositionTicks < runtimeTicks) {
             val remainingTicks = (runtimeTicks - playbackPositionTicks).coerceAtLeast(0L)
-            String.format(remainingFormat, CodecUtils.formatRuntime(remainingTicks))
+            String.format(remainingFormat, context.localizedRuntime(remainingTicks))
         } else {
             ""
         }

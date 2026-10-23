@@ -187,11 +187,11 @@ private fun PersonScreen(
             .filter { it.type?.equals("Episode", ignoreCase = true) == true }
             .sortedByDescending { it.productionYear ?: Int.MIN_VALUE }
     }
-    val mediaSections = remember(movies, shows, episodes) {
+    val mediaSections = run {
         listOf(
-            "Movies" to movies,
-            "TV Shows" to shows,
-            "Episodes" to episodes
+            stringResource(R.string.movies) to movies,
+            stringResource(R.string.tv_shows) to shows,
+            stringResource(R.string.ui_episodes) to episodes
         ).filter { (_, items) -> items.isNotEmpty() }
     }
 
@@ -251,7 +251,7 @@ private fun PersonScreen(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = if (expanded) "Read less" else "Read more",
+                        text = if (expanded) stringResource(R.string.ui_read_less) else stringResource(R.string.ui_read_more),
                         color = Color(0xFF89ECFF),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -277,7 +277,7 @@ private fun PersonScreen(
         if (seerrRelatedTitles.isNotEmpty()) {
             item {
                 SeerTitlesRow(
-                    title = "Directed",
+                    title = stringResource(R.string.ui_directed),
                     items = seerrRelatedTitles,
                     onItemClick = onItemClick,
                     topPadding = 24.dp,
@@ -500,7 +500,7 @@ private fun FilmographyCard(
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
-                text = item.name ?: "Unknown",
+                text = item.name ?: stringResource(R.string.ui_unknown),
                 color = Color.White,
                 fontSize = 13.sp,
                 lineHeight = 15.sp,

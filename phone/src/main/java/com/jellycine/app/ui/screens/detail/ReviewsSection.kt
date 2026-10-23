@@ -324,7 +324,7 @@ private fun ReviewDetailSheet(
 }
 
 private val REVIEW_DATE_FORMATTER: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
+    DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM).withLocale(Locale.getDefault())
 
 private fun TmdbReview.formattedDate(): String? {
     val raw = createdAt?.takeIf { it.length >= 10 } ?: return null

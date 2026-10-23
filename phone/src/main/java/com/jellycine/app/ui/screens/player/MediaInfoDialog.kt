@@ -1,5 +1,8 @@
 package com.jellycine.app.ui.screens.player
 
+import com.jellycine.app.locale.localizedLanguageName
+import com.jellycine.app.locale.localizedPlaybackLabel
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -106,77 +109,88 @@ fun MediaInfoDialog(
             clippingEnabled = true
         )
     ) {
-        Card(
-            modifier = modifier
-                .width(panelWidth)
-                .heightIn(max = if (compact) 170.dp else 190.dp),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0x9916191F)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-        ) {
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
-                ) {
-                    Column(modifier = Modifier.padding(end = 36.dp)) {
-                        SectionTitle("Stream")
-                        PrimaryLine(buildStreamLine(mediaInfo))
-                        SecondaryLine("-> ${mediaInfo.playMethod}")
-                    }
+        MediaInfoPanel(mediaInfo, onDismiss, compact, panelWidth, modifier)
+    }
+}
 
-                    Spacer(modifier = Modifier.height(6.dp))
+@Composable
+internal fun MediaInfoPanel(
+    mediaInfo: MediaMetadataInfo,
+    onDismiss: () -> Unit,
+    compact: Boolean,
+    panelWidth: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .width(panelWidth)
+            .heightIn(max = if (compact) 170.dp else 190.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0x9916191F)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 8.dp)
+            ) {
+                Column(modifier = Modifier.padding(end = 36.dp)) {
+                    SectionTitle(stringResource(R.string.ui_stream))
+                    PrimaryLine(buildStreamLine(mediaInfo))
+                    SecondaryLine("→ ${LocalContext.current.localizedPlaybackLabel(mediaInfo.playMethod)}")
+                }
 
-                    SectionTitle("Video")
-                    PrimaryLine(buildVideoTitle(mediaInfo.videoFormat, mediaInfo.hdrFormat))
-                    buildVideoDetails(mediaInfo.videoFormat)?.let { PrimaryLine(it) }
-                    SecondaryLine("-> ${mediaInfo.playMethod}")
-                    mediaInfo.hardwareAcceleration?.let {
-                        MixedLine("Renderer", if (it.isHardwareDecoding) "MediaCodec" else "Software")
-                        buildDisplayMode(mediaInfo.videoFormat)?.let { mode ->
-                            MixedLine("Display Mode", mode)
-                        }
-                    }
+                Spacer(modifier = Modifier.height(6.dp))
 
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    SectionTitle("Audio")
-                    PrimaryLine(buildAudioTitle(mediaInfo.audioFormat))
-                    mediaInfo.audioFormat?.sampleRate?.let { PrimaryLine(it) }
-                    mediaInfo.audioFormat?.bitrate?.let { PrimaryLine(it) }
-                    SecondaryLine("-> ${mediaInfo.playMethod}")
-                    mediaInfo.audioProcessing?.let { info ->
-                        Spacer(modifier = Modifier.height(6.dp))
-                        SectionTitle(stringResource(R.string.player_audio_processing))
-                        val measuredGain = info.measuredGainDb
-                        val peak = info.outputPeakDbfs
-                        if (measuredGain != null && peak != null && peak.isFinite()) {
-                            PrimaryLine(stringResource(R.string.player_audio_measurement, measuredGain, peak))
-                        } else if (peak != null && peak.isFinite()) {
-                            PrimaryLine(stringResource(R.string.player_audio_peak_measurement, peak))
-                        } else {
-                            SecondaryLine(stringResource(R.string.player_audio_measurement_pending))
-                        }
+                SectionTitle(stringResource(R.string.ui_video))
+                PrimaryLine(buildVideoTitle(mediaInfo.videoFormat, mediaInfo.hdrFormat))
+                buildVideoDetails(mediaInfo.videoFormat)?.let { PrimaryLine(it) }
+                SecondaryLine("→ ${LocalContext.current.localizedPlaybackLabel(mediaInfo.playMethod)}")
+                mediaInfo.hardwareAcceleration?.let {
+                    MixedLine(stringResource(R.string.ui_renderer), if (it.isHardwareDecoding) "MediaCodec" else stringResource(R.string.ui_software))
+                    buildDisplayMode(mediaInfo.videoFormat)?.let { mode ->
+                        MixedLine(stringResource(R.string.ui_display_mode), mode)
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .size(40.dp)
-                        .clickable(onClick = onDismiss),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "\u2715",
-                        color = Color(0xFFF2F2F2),
-                        fontSize = 14.sp,
-                        lineHeight = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                SectionTitle(stringResource(R.string.ui_audio))
+                PrimaryLine(buildAudioTitle(mediaInfo.audioFormat))
+                mediaInfo.audioFormat?.sampleRate?.let { PrimaryLine(it) }
+                mediaInfo.audioFormat?.bitrate?.let { PrimaryLine(it) }
+                SecondaryLine("→ ${LocalContext.current.localizedPlaybackLabel(mediaInfo.playMethod)}")
+                mediaInfo.audioProcessing?.let { info ->
+                    Spacer(modifier = Modifier.height(6.dp))
+                    SectionTitle(stringResource(R.string.player_audio_processing))
+                    val measuredGain = info.measuredGainDb
+                    val peak = info.outputPeakDbfs
+                    if (measuredGain != null && peak != null && peak.isFinite()) {
+                        PrimaryLine(stringResource(R.string.player_audio_measurement, measuredGain, peak))
+                    } else if (peak != null && peak.isFinite()) {
+                        PrimaryLine(stringResource(R.string.player_audio_peak_measurement, peak))
+                    } else {
+                        SecondaryLine(stringResource(R.string.player_audio_measurement_pending))
+                    }
                 }
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(40.dp)
+                    .clickable(onClick = onDismiss),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "\u2715",
+                    color = Color(0xFFF2F2F2),
+                    fontSize = 14.sp,
+                    lineHeight = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
@@ -236,10 +250,11 @@ private fun MixedLine(label: String, value: String) {
     }
 }
 
+@Composable
 private fun buildStreamLine(mediaInfo: MediaMetadataInfo): String {
     val container = mediaInfo.streamContainer?.uppercase(Locale.US)
         ?: mediaInfo.videoFormat?.mimeType?.substringAfter("/", "")?.uppercase(Locale.US)
-        ?: "STREAM"
+        ?: stringResource(R.string.ui_stream)
 
     val bitrateKbps = mediaInfo.streamBitrateKbps ?: mediaInfo.videoFormat?.bitrateKbps
     return if (bitrateKbps != null && bitrateKbps > 0) {
@@ -249,14 +264,15 @@ private fun buildStreamLine(mediaInfo: MediaMetadataInfo): String {
     }
 }
 
+@Composable
 private fun buildVideoTitle(videoInfo: VideoFormatInfo?, hdrInfo: HdrFormatInfo?): String {
-    if (videoInfo == null) return "Unknown"
+    if (videoInfo == null) return stringResource(R.string.ui_unknown)
 
     val resolutionTag = when {
         videoInfo.resolution.startsWith("3840x", true) || videoInfo.resolution.startsWith("4096x", true) -> "4K"
         videoInfo.resolution.startsWith("2560x", true) -> "1440p"
         videoInfo.resolution.startsWith("1920x", true) -> "1080p"
-        else -> videoInfo.resolution
+        else -> LocalContext.current.localizedPlaybackLabel(videoInfo.resolution)
     }
 
     val hdrTag = hdrInfo?.currentFormat?.takeIf { !it.isNullOrBlank() }
@@ -294,24 +310,24 @@ private fun buildDisplayMode(videoInfo: VideoFormatInfo?): String? {
     }
 }
 
+@Composable
 private fun buildAudioTitle(audioInfo: AudioFormatInfo?): String {
-    if (audioInfo == null) return "Unknown"
+    if (audioInfo == null) return stringResource(R.string.ui_unknown)
 
-    val lang = audioInfo.language?.takeIf { it.isNotBlank() }?.replaceFirstChar {
-        if (it.isLowerCase()) it.titlecase(Locale.US) else it.toString()
-    }
-    val defaultTag = if (audioInfo.isDefault) " (Default)" else ""
+    val lang = audioInfo.language?.takeIf { it.isNotBlank() }?.let { LocalContext.current.localizedLanguageName(it) }
+    val defaultTag = if (audioInfo.isDefault) " (${stringResource(R.string.ui_default)})" else ""
 
-    return listOfNotNull(lang, audioInfo.codec, audioInfo.channels)
+    return listOfNotNull(lang, LocalContext.current.localizedPlaybackLabel(audioInfo.codec), LocalContext.current.localizedPlaybackLabel(audioInfo.channels))
         .joinToString(" ")
         .trim() + defaultTag
 }
 
+@Composable
 private fun mapCodecForDisplay(codec: String): String {
     return when (codec.uppercase(Locale.US)) {
         "H.265", "H265", "HEVC" -> "HEVC"
         "H.264", "H264", "AVC" -> "AVC"
-        else -> codec.uppercase(Locale.US)
+        else -> if (codec == "Unknown") stringResource(R.string.ui_unknown) else codec.uppercase(Locale.US)
     }
 }
 

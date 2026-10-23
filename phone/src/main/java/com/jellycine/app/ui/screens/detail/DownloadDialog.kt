@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.detail
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -67,7 +69,7 @@ internal fun FailureDialog(
         shape = RoundedCornerShape(16.dp),
         title = {
             Text(
-                text = "Download Failed",
+                text = stringResource(R.string.ui_download_failed),
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 20.sp
             )
@@ -82,7 +84,7 @@ internal fun FailureDialog(
                     contentColor = Color(0xFF22D3EE)
                 )
             ) {
-                Text("OK", fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.ui_ok), fontWeight = FontWeight.SemiBold)
             }
         }
     )
@@ -95,7 +97,7 @@ internal fun DownloadDialog(
     availableBytes: Long,
     options: List<StorageSelectionOption>,
     initialSelection: Set<String>,
-    confirmLabel: String = "Download Selected",
+    confirmLabel: String = stringResource(R.string.ui_download_selected),
     onDismiss: () -> Unit,
     onConfirm: (Set<String>) -> Unit
 ) {
@@ -168,17 +170,17 @@ internal fun DownloadDialog(
                 }
 
                 StorageMetricBar(
-                    label = "Available",
+                    label = stringResource(R.string.ui_available),
                     value = formatStorageBytesUi(availableBytes),
                     accent = Color(0xFF38BDF8)
                 )
                 StorageMetricBar(
-                    label = "Selected",
+                    label = stringResource(R.string.ui_selected),
                     value = formatStorageBytesUi(selectedBytes),
                     accent = Color(0xFF67E8F9)
                 )
                 StorageMetricBar(
-                    label = if (exceedsAvailable) "Over By" else "Will Remain",
+                    label = if (exceedsAvailable) stringResource(R.string.ui_over_by) else stringResource(R.string.ui_will_remain),
                     value = formatStorageBytesUi(if (exceedsAvailable) overflowBytes else remainingBytes),
                     accent = if (exceedsAvailable) Color(0xFFF97316) else Color(0xFF34D399)
                 )
@@ -263,7 +265,7 @@ internal fun DownloadDialog(
                             contentColor = Color.White.copy(alpha = 0.8f)
                         )
                     ) {
-                        Text("Cancel")
+                        Text(stringResource(R.string.ui_cancel))
                     }
                     Spacer(modifier = Modifier.size(6.dp))
                     Button(

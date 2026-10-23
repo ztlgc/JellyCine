@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.detail
 
+import com.jellycine.app.locale.localizedRuntime
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -230,7 +232,7 @@ fun SeasonDetailScreen(
     val fallbackHeaderTitle = seriesTitle
         ?: episodes.firstOrNull()?.seriesName?.takeIf { it.isNotBlank() }
         ?: seasonName
-        ?: "Season"
+        ?: stringResource(R.string.ui_season)
     val seriesOverviewModifier = Modifier.clickable(
         interactionSource = remember { MutableInteractionSource() },
         indication = null
@@ -343,7 +345,7 @@ fun SeasonDetailScreen(
                             }
 
                             Text(
-                                text = seasonName ?: "Season",
+                                text = seasonName ?: stringResource(R.string.ui_season),
                                 fontSize = 15.sp,
                                 lineHeight = 18.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -353,7 +355,7 @@ fun SeasonDetailScreen(
                             )
 
                             Text(
-                                text = "${episodes.size} episodes",
+                                text = stringResource(R.string.ui_episode_count, episodes.size),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color.White.copy(alpha = 0.86f)
@@ -382,12 +384,12 @@ fun SeasonDetailScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.PlayArrow,
-                                        contentDescription = "Play season",
+                                        contentDescription = stringResource(R.string.ui_play_season),
                                         modifier = Modifier.size(22.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = "Play",
+                                        text = stringResource(R.string.ui_play),
                                         fontSize = 17.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -409,11 +411,11 @@ fun SeasonDetailScreen(
                                                             val estimateResult = downloadRepository.buildEpisodeBatchEstimate(episodes)
                                                             estimateResult.fold(
                                                                 onSuccess = { estimate ->
-                                                                    storageSelectionDialogState = SeasonEpisodeSelectionDialogState.fromEstimate(estimate)
+                                                                    storageSelectionDialogState = SeasonEpisodeSelectionDialogState.fromEstimate(estimate, context)
                                                                 },
                                                                 onFailure = { throwable ->
                                                                     downloadErrorDialogMessage = throwable.message
-                                                                        ?: "Failed to prepare season download."
+                                                                        ?: context.getString(R.string.ui_failed_to_prepare_season_download)
                                                                 }
                                                             )
                                                         } finally {
@@ -470,7 +472,7 @@ fun SeasonDetailScreen(
 
                 item {
                     Text(
-                        text = "Episodes",
+                        text = stringResource(R.string.ui_episodes),
                         fontSize = 19.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
@@ -527,12 +529,12 @@ fun SeasonDetailScreen(
 
     storageSelectionDialogState?.let { dialogState ->
         DownloadDialog(
-            title = "Choose Episodes",
-            subtitle = "Pick episodes to download. Selected total must fit available storage.",
+            title = stringResource(R.string.ui_choose_episodes),
+            subtitle = stringResource(R.string.ui_pick_episodes_to_download_selected_total_must_fit_available_storage),
             availableBytes = dialogState.availableBytes,
             options = dialogState.options,
             initialSelection = dialogState.options.map { it.id }.toSet(),
-            confirmLabel = "Download Episodes",
+            confirmLabel = stringResource(R.string.ui_download_episodes),
             onDismiss = { storageSelectionDialogState = null },
             onConfirm = { selectedIds ->
                 val selectedEpisodes = dialogState.options
@@ -544,7 +546,7 @@ fun SeasonDetailScreen(
                     try {
                         downloadRepository.enqueueEpisodeDownloads(selectedEpisodes).onFailure { throwable ->
                             downloadErrorDialogMessage = throwable.message
-                                ?: "Failed to queue selected episodes."
+                                ?: context.getString(R.string.ui_failed_to_queue_selected_episodes)
                         }
                     } finally {
                         seasonQueueInProgress = false
@@ -563,7 +565,7 @@ fun SeasonDetailScreen(
             shape = RoundedCornerShape(16.dp),
             title = {
                 Text(
-                    text = "Download Failed",
+                    text = stringResource(R.string.ui_download_failed),
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 20.sp
                 )
@@ -578,7 +580,7 @@ fun SeasonDetailScreen(
                         contentColor = Color(0xFF22D3EE)
                     )
                 ) {
-                    Text("OK", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.ui_ok), fontWeight = FontWeight.SemiBold)
                 }
             }
         )
@@ -611,7 +613,7 @@ private data class SeasonEpisodeSelectionDialogState(
     val episodesById: Map<String, BaseItemDto>
 ) {
     companion object {
-        fun fromEstimate(estimate: BatchDownloadEstimate): SeasonEpisodeSelectionDialogState {
+        fun fromEstimate(estimate: BatchDownloadEstimate, context: android.content.Context): SeasonEpisodeSelectionDialogState {
             val candidates = estimate.candidates
                 .filter { !it.item.id.isNullOrBlank() }
                 .sortedWith(
@@ -642,7 +644,7 @@ private data class SeasonEpisodeSelectionDialogState(
 
                 StorageSelectionOption(
                     id = episodeId,
-                    title = episode.name?.takeIf { it.isNotBlank() } ?: "Episode",
+                    title = episode.name?.takeIf { it.isNotBlank() } ?: context.getString(R.string.ui_episode),
                     subtitle = episodeSubtitle,
                     requiredBytes = candidate.remainingBytes ?: 0L
                 )
@@ -720,7 +722,7 @@ private fun EpisodeListItem(
                     Text(
                         text = buildString {
                             episode.indexNumber?.let { append("$it. ") }
-                            append(episode.name ?: "Unknown Episode")
+                            append(episode.name ?: stringResource(R.string.ui_unknown_episode))
                         },
                         fontSize = 16.sp,
                         lineHeight = 20.sp,
@@ -732,7 +734,7 @@ private fun EpisodeListItem(
 
                     episode.runTimeTicks?.let { ticks ->
                         Text(
-                            text = CodecUtils.formatRuntime(ticks),
+                            text = LocalContext.current.localizedRuntime(ticks),
                             fontSize = 14.sp,
                             color = Color.White.copy(alpha = 0.82f),
                             fontWeight = FontWeight.Medium

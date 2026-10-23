@@ -1,5 +1,8 @@
 package com.jellycine.app.ui.screens.detail
 
+import com.jellycine.app.locale.localizedRuntime
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -99,7 +102,7 @@ fun EpisodeCard(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.PlayArrow,
-                            contentDescription = "Episode",
+                            contentDescription = stringResource(R.string.ui_episode),
                             tint = Color.White.copy(alpha = 0.5f),
                             modifier = Modifier.size(24.dp)
                         )
@@ -122,7 +125,7 @@ fun EpisodeCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.PlayArrow,
-                                contentDescription = "Play",
+                                contentDescription = stringResource(R.string.ui_play),
                                 tint = Color.White,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -151,7 +154,7 @@ fun EpisodeCard(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Rounded.Check,
-                                        contentDescription = "Watched",
+                                        contentDescription = stringResource(R.string.ui_watched),
                                         tint = Color.White,
                                         modifier = Modifier.size(12.dp)
                                     )
@@ -182,7 +185,7 @@ fun EpisodeCard(
                     }
 
                     Text(
-                        text = episode.name ?: "Unknown Episode",
+                        text = episode.name ?: stringResource(R.string.ui_unknown_episode),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White,
@@ -200,7 +203,7 @@ fun EpisodeCard(
                 ) {
                     episode.runTimeTicks?.let { ticks ->
                         Text(
-                            text = CodecUtils.formatRuntime(ticks),
+                            text = LocalContext.current.localizedRuntime(ticks),
                             fontSize = 12.sp,
                             color = Color.White.copy(alpha = 0.7f)
                         )

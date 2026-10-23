@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="video_detail_media_info">媒体信息</string>
-    <string name="video_detail_added">添加于: %1$s</string>
+    <string name="video_detail_added">添加于：%1$s</string>
     <string name="video_detail_no_info">暂无媒体信息</string>
     <string name="video_detail_options">更多选项</string>
     <string name="video_detail_type">类型</string>
     <string name="video_detail_index">编号</string>
     <string name="video_detail_title">显示标题</string>
     <string name="video_detail_language">语言</string>
-    <string name="video_detail_codec">编码器</string>
+    <string name="video_detail_codec">编解码器</string>
     <string name="video_detail_resolution">分辨率</string>
     <string name="video_detail_frame_rate">帧率</string>
     <string name="video_detail_range">动态范围</string>
-    <string name="video_detail_profile">配置</string>
+    <string name="video_detail_profile">编码规格</string>
     <string name="video_detail_bitrate">比特率</string>
     <string name="video_detail_bit_depth">位深度</string>
-    <string name="video_detail_color_space">色域</string>
+    <string name="video_detail_color_space">色彩空间</string>
     <string name="video_detail_pixel_format">像素格式</string>
     <string name="video_detail_channels">声道</string>
     <string name="video_detail_sample_rate">采样率</string>

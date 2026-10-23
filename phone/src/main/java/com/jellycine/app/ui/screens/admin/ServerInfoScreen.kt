@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.admin
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -99,10 +101,10 @@ fun ServerInfoScreen(onBackPressed: () -> Unit = {}) {
         containerColor = Color.Black,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Admin Panel", fontWeight = FontWeight.SemiBold, color = Color.White) },
+                title = { Text(stringResource(R.string.ui_admin_panel), fontWeight = FontWeight.SemiBold, color = Color.White) },
                 navigationIcon = {
                     IconButton(onClick = onBackPressed) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back", tint = Color.White)
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.ui_back), tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Black)
@@ -120,7 +122,7 @@ fun ServerInfoScreen(onBackPressed: () -> Unit = {}) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                listOf("Server", "Activity").forEachIndexed { index, label ->
+                listOf(stringResource(R.string.ui_server), stringResource(R.string.ui_activity)).forEachIndexed { index, label ->
                     val selected = selectedTab == index
                     Surface(
                         shape = RoundedCornerShape(999.dp),
@@ -181,22 +183,22 @@ private fun ServerTab(viewModel: AdminPanelViewModel) {
             InfoSectionCard {
                 InfoRow(
                     icon = Icons.Rounded.Computer,
-                    label = "Operating System",
-                    value = info?.operatingSystemDisplayName ?: info?.operatingSystem ?: "Unknown",
+                    label = stringResource(R.string.ui_operating_system),
+                    value = info?.operatingSystemDisplayName ?: info?.operatingSystem ?: stringResource(R.string.ui_unknown),
                     accentColor = AccentPurple
                 )
                 HorizontalDivider(color = BorderColor)
                 InfoRow(
                     icon = Icons.Rounded.Info,
-                    label = "Server ID",
-                    value = info?.id ?: "Unknown",
+                    label = stringResource(R.string.ui_server_id),
+                    value = info?.id ?: stringResource(R.string.ui_unknown),
                     accentColor = SecondaryText
                 )
             }
         }
 
         if (nowPlaying.isNotEmpty()) {
-            item { SectionLabel("NOW PLAYING") }
+            item { SectionLabel(stringResource(R.string.ui_now_playing)) }
             items(nowPlaying, key = { it.id ?: it.deviceName ?: "" }) { session ->
                 SessionCard(session, viewModel)
             }
@@ -217,7 +219,7 @@ private fun ActivityLogTab(viewModel: AdminPanelViewModel) {
         return
     }
     if (uiState.entries.isEmpty()) {
-        EmptyState("No activity logs")
+        EmptyState(stringResource(R.string.ui_no_activity_logs))
         return
     }
 
@@ -270,7 +272,7 @@ private fun SessionCard(session: AdminSessionInfo, viewModel: AdminPanelViewMode
                         Text(
                             text = buildString {
                                 nowPlaying.seriesName?.let { append("$it — ") }
-                                append(nowPlaying.name ?: "Unknown")
+                                append(nowPlaying.name ?: stringResource(R.string.ui_unknown))
                             },
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
@@ -325,7 +327,7 @@ private fun SessionCard(session: AdminSessionInfo, viewModel: AdminPanelViewMode
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         buildString {
-                            append(session.client ?: "Unknown")
+                            append(session.client ?: stringResource(R.string.ui_unknown))
                             session.applicationVersion?.let { append(" $it") }
                         },
                         style = MaterialTheme.typography.bodyMedium,
@@ -352,9 +354,9 @@ private fun SessionCard(session: AdminSessionInfo, viewModel: AdminPanelViewMode
 
                 val playMethod = session.playState?.playMethod
                 val method = when {
-                    playMethod.equals("DirectPlay", ignoreCase = true) -> "Direct Play"
-                    playMethod.equals("DirectStream", ignoreCase = true) -> "Direct Stream"
-                    playMethod.equals("Transcode", ignoreCase = true) -> "Transcode"
+                    playMethod.equals("DirectPlay", ignoreCase = true) -> stringResource(R.string.ui_direct_play)
+                    playMethod.equals("DirectStream", ignoreCase = true) -> stringResource(R.string.ui_direct_stream)
+                    playMethod.equals("Transcode", ignoreCase = true) -> stringResource(R.string.ui_transcode)
                     else -> playMethod
                 }
 
@@ -368,22 +370,22 @@ private fun SessionCard(session: AdminSessionInfo, viewModel: AdminPanelViewMode
                     append(nowPlaying.container?.uppercase() ?: "—")
                     if (bitrate != null) append(" (${bitrate / 1_000_000} mbps)")
                 }
-                StreamDetailRow("Stream", streamLabel, method)
+                StreamDetailRow(stringResource(R.string.ui_stream), streamLabel, method)
                 HorizontalDivider(color = BorderColor)
 
                 if (videoStream != null) {
-                    StreamDetailRow("Video", videoStream.displayTitle ?: videoStream.codec?.uppercase() ?: "—", method)
+                    StreamDetailRow(stringResource(R.string.ui_video), videoStream.displayTitle ?: videoStream.codec?.uppercase() ?: "—", method)
                     HorizontalDivider(color = BorderColor)
                 }
                 if (audioStream != null) {
-                    StreamDetailRow("Audio", audioStream.displayTitle ?: audioStream.codec?.uppercase() ?: "—", method)
+                    StreamDetailRow(stringResource(R.string.ui_audio), audioStream.displayTitle ?: audioStream.codec?.uppercase() ?: "—", method)
                     HorizontalDivider(color = BorderColor)
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                session.userName ?: "Unknown",
+                session.userName ?: stringResource(R.string.ui_unknown),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = Color.White,
@@ -431,7 +433,7 @@ private fun ActivityLogCard(entry: ActivityLogEntry) {
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
-                    entry.name ?: "Unknown Event",
+                    entry.name ?: stringResource(R.string.ui_unknown_event),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = Color.White,
@@ -462,7 +464,7 @@ private fun formatTicks(ticks: Long): String {
 private val utcParse = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US).apply {
     timeZone = java.util.TimeZone.getTimeZone("UTC")
 }
-private val localFmt = java.text.SimpleDateFormat("MMM d, yyyy  h:mm a", java.util.Locale.US)
+private val localFmt = java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT, java.util.Locale.getDefault())
 
 private fun formatActivityDate(isoDate: String): String = try {
     val date = utcParse.parse(isoDate.substringBefore(".").substringBefore("Z"))!!
@@ -486,7 +488,7 @@ private fun ServerHeader(info: SystemInfoFull?) {
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text(info?.serverName ?: "Server", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
+        Text(info?.serverName ?: stringResource(R.string.ui_server), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color.White)
         Spacer(modifier = Modifier.height(6.dp))
         Surface(
             color = AccentGreen.copy(alpha = 0.14f),
@@ -508,7 +510,7 @@ private fun ServerHeader(info: SystemInfoFull?) {
                     horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     Icon(Icons.Rounded.Update, null, tint = AccentOrange, modifier = Modifier.size(13.dp))
-                    Text("Update available", style = MaterialTheme.typography.labelSmall, color = AccentOrange)
+                    Text(stringResource(R.string.ui_update_available), style = MaterialTheme.typography.labelSmall, color = AccentOrange)
                 }
             }
         }
@@ -600,7 +602,7 @@ private fun ErrorState(message: String, onRetry: (() -> Unit)? = null) {
                     color = AccentBlue
                 ) {
                     Text(
-                        "Try Again",
+                        stringResource(R.string.ui_try_again),
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
                         color = Color.White,
                         style = MaterialTheme.typography.labelLarge,

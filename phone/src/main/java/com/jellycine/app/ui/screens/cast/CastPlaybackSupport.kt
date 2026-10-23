@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.cast
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -146,12 +148,13 @@ private fun selectedCastTrackIndex(
         ?: options.firstOrNull()?.streamIndex
 }
 
+@Composable
 private fun buildCastTrackOptions(
     streams: List<MediaStream>,
     streamType: String,
     includeOffOption: Boolean = false
 ): List<CastTrackOption> {
-    val labelPrefix = if (streamType.equals("Audio", ignoreCase = true)) "Audio" else "Subtitle"
+    val labelPrefix = stringResource(if (streamType.equals("Audio", ignoreCase = true)) R.string.ui_audio else R.string.ui_subtitles)
     val matchingStreams = streams
         .asSequence()
         .filter { stream -> stream.type == streamType && stream.index != null }
@@ -160,7 +163,7 @@ private fun buildCastTrackOptions(
         .toList()
 
     if (matchingStreams.isEmpty()) {
-        return if (includeOffOption) listOf(CastTrackOption(label = "Off", streamIndex = -1)) else emptyList()
+        return if (includeOffOption) listOf(CastTrackOption(label = stringResource(R.string.ui_off), streamIndex = -1)) else emptyList()
     }
 
     val labels = dedupeLabels(
@@ -180,7 +183,7 @@ private fun buildCastTrackOptions(
     }
 
     return if (includeOffOption) {
-        listOf(CastTrackOption(label = "Off", streamIndex = -1)) + options
+        listOf(CastTrackOption(label = stringResource(R.string.ui_off), streamIndex = -1)) + options
     } else {
         options
     }

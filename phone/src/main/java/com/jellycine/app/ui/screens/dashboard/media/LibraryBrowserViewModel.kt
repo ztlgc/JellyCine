@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.dashboard.media
 
+import com.jellycine.shared.R
+import com.jellycine.app.locale.userFacingError
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -29,7 +31,7 @@ data class LibraryBrowserState(
 )
 
 @HiltViewModel
-class LibraryBrowserViewModel @Inject constructor(@ApplicationContext context: Context) : ViewModel() {
+class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private val context: Context) : ViewModel() {
     private val repository = MediaRepositoryProvider.getInstance(context)
     private val auth = AuthRepositoryProvider.getInstance(context)
     private val preferences = context.getSharedPreferences("library_browser", Context.MODE_PRIVATE)
@@ -118,7 +120,7 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext context: C
                 if (mutable.value.tab == LibraryTab.COLLECTIONS) loadCollections()
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
-                if (version == requestVersion) mutable.value = mutable.value.copy(loading = false, error = e.message ?: "Error")
+                if (version == requestVersion) mutable.value = mutable.value.copy(loading = false, error = context.userFacingError(e, R.string.my_media_load_error))
             }
         }
     }
@@ -203,7 +205,7 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext context: C
                 collectionsMutable.value = applyUserDataChanges(candidates.filter { it.id in contents })
                 collectionsLoaded = true
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { collectionsErrorMutable.value = e.message }
+            catch (e: Exception) { collectionsErrorMutable.value = context.userFacingError(e, R.string.my_media_load_error) }
             finally { if (version == requestVersion) collectionsLoadingMutable.value = false }
         }
     }

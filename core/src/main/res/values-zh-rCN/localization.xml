@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="core_content_is_not_multichannel_object_based_spatial_audio">当前内容不是多声道或基于音频对象的空间音频</string>
+    <string name="core_spatializable_content_detected_but_no_compatible_spatial_audio_format_is_available">内容支持空间音频，但没有兼容的输出格式</string>
+    <string name="core_spatializable_content_detected_and_device_spatializer_is_active_for_this_route">内容支持空间音频，且当前输出设备已启用空间音频</string>
+    <string name="core_spatializable_content_detected_but_device_spatializer_is_disabled_in_system_settings">内容支持空间音频，但系统设置中未启用空间音频</string>
+    <string name="core_spatializable_content_detected_but_device_spatializer_is_unavailable_for_current_route_format">内容支持空间音频，但当前输出设备或格式无法使用空间音频</string>
+    <string name="core_playing_format">正在以 %1$s 格式播放</string>
+    <string name="core_hdr_fallback">内容格式：%1$s → 播放格式：%2$s\n设备支持：%3$s</string>
+    <string name="core_hdr_capability_report">HDR 显示能力报告</string>
+    <string name="core_api_level">Android API 级别：%1$d</string>
+    <string name="core_display_hdr">屏幕支持 HDR：%1$s</string>
+    <string name="core_hdr_types">HDR 类型：%1$s</string>
+    <string name="core_max_luminance">最高亮度：%1$s</string>
+    <string name="core_max_average">最高平均亮度：%1$s</string>
+    <string name="core_min_luminance">最低亮度：%1$s</string>
+    <string name="core_best_format">最佳支持格式：%1$s</string>
+    <string name="core_hdr_read_error">无法读取 HDR 信息</string>
+    <string name="core_hdr_unsupported">当前 Android 版本不支持 HDR</string>
+    <string name="core_yes">是</string>
+    <string name="core_no">否</string>
+</resources>

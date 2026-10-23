@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.components.common
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -112,7 +114,7 @@ fun AmoledSelectionDialog(
                                 )
                                 if (option.isDefault) {
                                     Text(
-                                        text = "Default",
+                                        text = stringResource(R.string.ui_default),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = accentColor,
                                         modifier = Modifier

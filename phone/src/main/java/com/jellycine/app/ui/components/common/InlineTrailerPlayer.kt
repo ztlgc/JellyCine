@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.components.common
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -218,7 +220,7 @@ fun InlineTrailerPlayer(
             ) {
                 Icon(
                     imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                    contentDescription = if (isMuted) "Unmute" else "Mute",
+                    contentDescription = if (isMuted) stringResource(R.string.ui_unmute) else stringResource(R.string.ui_mute),
                     tint = Color.White,
                     modifier = Modifier.size(18.dp)
                 )

@@ -1,5 +1,7 @@
 package com.jellycine.shared.ui.components.common
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -74,7 +76,7 @@ fun OverviewSection(
                         )
                     ) {
                         Text(
-                            text = if (showFullOverview) "Show Less" else "Read More",
+                            text = if (showFullOverview) stringResource(R.string.detail_person_read_less) else stringResource(R.string.detail_person_read_more),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )

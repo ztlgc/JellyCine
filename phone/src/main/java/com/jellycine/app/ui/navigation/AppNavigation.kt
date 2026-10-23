@@ -1,5 +1,6 @@
 package com.jellycine.app.ui.navigation
 
+import com.jellycine.shared.R
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -424,7 +425,7 @@ fun AppNavigation() {
                     },
                     navArgument("title") {
                         type = NavType.StringType
-                        defaultValue = "View All"
+                        defaultValue = ""
                     },
                     navArgument("genreId") {
                         type = NavType.StringType
@@ -440,7 +441,7 @@ fun AppNavigation() {
                 val genreId = backStackEntry.arguments?.getString("genreId")
                 val title = backStackEntry.arguments?.getString("title")?.let {
                     java.net.URLDecoder.decode(it, "UTF-8")
-                } ?: "View All"
+                }?.takeIf { it.isNotBlank() } ?: context.getString(R.string.view_all_title)
 
                 val contentType = when (contentTypeString.uppercase()) {
                     "HOME_MEDIA" -> com.jellycine.app.ui.screens.dashboard.media.ContentType.HOME_MEDIA

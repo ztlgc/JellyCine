@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.detail
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -186,7 +188,7 @@ fun SeasonCard(
                             color = Color.Black.copy(alpha = 0.7f)
                         ) {
                             Text(
-                                text = "$episodeCount episodes",
+                                text = stringResource(R.string.ui_episode_count, episodeCount),
                                 fontSize = 10.sp,
                                 color = Color.White,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -214,7 +216,7 @@ fun SeasonCard(
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
-                        text = season.name ?: "Unknown Season",
+                        text = season.name ?: stringResource(R.string.ui_unknown_season),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White,
@@ -258,14 +260,15 @@ internal fun SeasonsSection(
     val localSeasonNumbers = remember(localSeasons) {
         localSeasons.mapNotNull { season -> season.indexNumber }.toSet()
     }
-    val seasons = remember(localSeasons, seerrSeasons) {
+    val context = LocalContext.current
+    val seasons = remember(localSeasons, seerrSeasons, context) {
         (
             localSeasons +
                 seerrSeasons
                     .filter { season -> season.seasonNumber !in localSeasonNumbers }
                     .map { season ->
                         BaseItemDto(
-                            name = "Season ${season.seasonNumber}",
+                            name = context.getString(R.string.downloads_season_number, season.seasonNumber),
                             type = "Season",
                             indexNumber = season.seasonNumber,
                             childCount = season.episodeCount,
@@ -311,7 +314,7 @@ internal fun SeasonsSection(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Seasons",
+            text = stringResource(R.string.ui_seasons),
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = Color.White

@@ -93,7 +93,7 @@ class DiscordRpcService : Service() {
     private fun ensureNotificationChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
-            "Discord Rich Presence",
+            getString(R.string.ui_discord_rich_presence),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = "Shows when Discord Rich Presence is active"
@@ -106,8 +106,8 @@ class DiscordRpcService : Service() {
     private fun buildNotification(): Notification {
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle("Discord Rich Presence")
-            .setContentText("Sharing activity with Discord")
+            .setContentTitle(getString(R.string.ui_discord_rich_presence))
+            .setContentText(getString(R.string.ui_sharing_activity_with_discord))
             .setOngoing(true)
             .build()
     }

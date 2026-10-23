@@ -919,7 +919,7 @@ private fun SortFAB(
                 }
                 if (expanded) {
                     Text(
-                        text = "Sort",
+                        text = stringResource(R.string.ui_sort),
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = Color.White.copy(alpha = 0.9f)

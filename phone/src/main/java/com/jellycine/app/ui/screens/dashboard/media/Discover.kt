@@ -153,7 +153,7 @@ fun Discover(
     fun refresh() {
         scope.launch {
             loadingFeed = true
-            val result = loadRecommendationFeed(mediaRepository)
+            val result = loadRecommendationFeed(mediaRepository, context)
             sections = result.sections
             error = result.error
             loadingFeed = false
@@ -367,7 +367,7 @@ fun Discover(
     }
 }
 
-private suspend fun loadRecommendationFeed(mediaRepository: MediaRepository): RecommendationFeedState {
+private suspend fun loadRecommendationFeed(mediaRepository: MediaRepository, context: android.content.Context): RecommendationFeedState {
     return try {
         val viewsResult = mediaRepository.getUserViews()
         val movieLibraries = viewsResult.getOrNull()?.items
@@ -441,7 +441,7 @@ private suspend fun loadRecommendationFeed(mediaRepository: MediaRepository): Re
                 RecommendationFeedState(
                     sections = listOf(
                         RecommendationSectionUi(
-                            title = "Suggestions",
+                            title = context.getString(R.string.suggestions),
                             items = fallbackItems
                         )
                     ),
@@ -463,7 +463,7 @@ private suspend fun loadRecommendationFeed(mediaRepository: MediaRepository): Re
             }
         }
     } catch (e: Exception) {
-        RecommendationFeedState(emptyList(), e.message ?: "Unknown error")
+        RecommendationFeedState(emptyList(), context.getString(R.string.my_media_unknown_error))
     }
 }
 

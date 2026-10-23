@@ -1,5 +1,8 @@
 package com.jellycine.app.ui.screens.detail
 
+import com.jellycine.app.locale.localizedRuntime
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -113,7 +116,7 @@ fun EpisodePreviewCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.PlayArrow,
-                                contentDescription = "Episode",
+                                contentDescription = stringResource(R.string.ui_episode),
                                 tint = Color.White.copy(alpha = 0.5f),
                                 modifier = Modifier.size(48.dp)
                             )
@@ -152,7 +155,7 @@ fun EpisodePreviewCard(
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = "Play",
+                                    contentDescription = stringResource(R.string.ui_play),
                                     tint = Color.White,
                                     modifier = Modifier.size(24.dp)
                                 )
@@ -179,7 +182,7 @@ fun EpisodePreviewCard(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.Check,
-                                            contentDescription = "Watched",
+                                            contentDescription = stringResource(R.string.ui_watched),
                                             tint = Color.White,
                                             modifier = Modifier.size(14.dp)
                                         )
@@ -199,7 +202,7 @@ fun EpisodePreviewCard(
                             color = Color.Black.copy(alpha = 0.8f)
                         ) {
                             Text(
-                                text = "E$episodeNumber",
+                                text = stringResource(R.string.ui_episode_number, episodeNumber),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
@@ -216,7 +219,7 @@ fun EpisodePreviewCard(
                 ) {
                     // Episode title
                     Text(
-                        text = episode.name ?: "Unknown Episode",
+                        text = episode.name ?: stringResource(R.string.ui_unknown_episode),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White,
@@ -232,7 +235,7 @@ fun EpisodePreviewCard(
                     ) {
                         episode.runTimeTicks?.let { ticks ->
                             Text(
-                                text = CodecUtils.formatRuntime(ticks),
+                                text = LocalContext.current.localizedRuntime(ticks),
                                 fontSize = 12.sp,
                                 color = Color.White.copy(alpha = 0.7f)
                             )
@@ -298,12 +301,12 @@ fun EpisodePreviewCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Visibility,
-                                contentDescription = "Preview",
+                                contentDescription = stringResource(R.string.ui_preview),
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                "Quick Preview",
+                                stringResource(R.string.ui_quick_preview),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -326,12 +329,12 @@ fun EpisodePreviewCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.PlayArrow,
-                                contentDescription = "Play Full Episode",
+                                contentDescription = stringResource(R.string.ui_play_full_episode),
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                "Play Full Episode",
+                                stringResource(R.string.ui_play_full_episode),
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium
                             )

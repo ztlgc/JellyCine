@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.player
 
+import com.jellycine.shared.R
+import com.jellycine.app.locale.userFacingError
 import android.content.Context
 import android.net.Uri
 import android.os.SystemClock
@@ -286,7 +288,7 @@ class PlayerViewModel @Inject constructor(
                 } else {
                     null
                 }
-                val mediaTitle = itemDetails?.name ?: "Unknown Title"
+                val mediaTitle = itemDetails?.name ?: context.getString(R.string.search_result_unknown_title)
                 val logoSourceId = when {
                     itemDetails?.imageTags?.containsKey("Logo") == true && !itemDetails.id.isNullOrBlank() -> itemDetails.id
                     !itemDetails?.parentLogoItemId.isNullOrBlank() && !itemDetails?.parentLogoImageTag.isNullOrBlank() -> itemDetails?.parentLogoItemId
@@ -579,7 +581,7 @@ class PlayerViewModel @Inject constructor(
                 Log.e(TAG, "Player initialization failed", e)
                 _playerState.value = _playerState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Unknown error occurred"
+                    error = context.userFacingError(e, R.string.ui_playback_failed)
                 )
             }
         }
@@ -594,7 +596,7 @@ class PlayerViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             try {
-                val mediaTitle = title?.takeIf { it.isNotBlank() } ?: "Trailer"
+                val mediaTitle = title?.takeIf { it.isNotBlank() } ?: context.getString(R.string.ui_trailer)
                 releasePlayer()
                 remotePlaybackRequestKey = mediaId
                 _playerState.value = PlayerState(
@@ -663,7 +665,7 @@ class PlayerViewModel @Inject constructor(
                 Log.e(TAG, "Remote trailer initialization failed", e)
                 _playerState.value = _playerState.value.copy(
                     isLoading = false,
-                    error = e.message ?: "Unable to play remote trailer",
+                    error = context.userFacingError(e, R.string.ui_trailer_failed),
                     playWhenReady = false,
                     isPlaying = false
                 )
@@ -1753,7 +1755,7 @@ class PlayerViewModel @Inject constructor(
                 return
             }
             _playerState.value = _playerState.value.copy(
-                error = error.message ?: "Playback error occurred",
+                error = playerContext?.userFacingError(error, R.string.ui_playback_failed),
                 isLoading = false,
                 playWhenReady = false,
                 isPlaying = false

@@ -1,5 +1,7 @@
 package com.jellycine.shared.ui.components.common
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,12 +46,12 @@ fun ActionButtonsSection(
         ) {
             Icon(
                 imageVector = Icons.Rounded.PlayArrow,
-                contentDescription = "Play",
+                contentDescription = stringResource(R.string.ui_play),
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                "Play",
+                stringResource(R.string.ui_play),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -111,13 +113,13 @@ private fun DownloadButton(
                     isDownloading && progress >= 1f -> {
                         Icon(
                             imageVector = Icons.Rounded.CheckCircle,
-                            contentDescription = "Downloaded",
+                            contentDescription = stringResource(R.string.ui_downloaded),
                             modifier = Modifier.size(20.dp),
                             tint = Color(0xFF4CAF50)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "Downloaded",
+                            stringResource(R.string.ui_downloaded),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF4CAF50)
@@ -126,12 +128,12 @@ private fun DownloadButton(
                     else -> {
                         Icon(
                             imageVector = Icons.Rounded.Download,
-                            contentDescription = "Download",
+                            contentDescription = stringResource(R.string.ui_download),
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "Download",
+                            stringResource(R.string.ui_download),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )

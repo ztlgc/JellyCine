@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.cast
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -82,8 +84,8 @@ fun CastingDisplayScreen(
         0f
     }
 
-    val targetDevice = castState.deviceName?.takeIf { it.isNotBlank() } ?: "your device"
-    val mediaTitle = castState.mediaTitle?.takeIf { it.isNotBlank() } ?: "Now Playing"
+    val targetDevice = castState.deviceName?.takeIf { it.isNotBlank() } ?: stringResource(R.string.ui_your_device)
+    val mediaTitle = castState.mediaTitle?.takeIf { it.isNotBlank() } ?: stringResource(R.string.ui_now_playing)
     val mediaSubtitle = castState.mediaSubtitle?.takeIf { it.isNotBlank() }
     val artworkUrl = castState.artworkUrl ?: fallbackArtworkUrl
 
@@ -106,7 +108,7 @@ fun CastingDisplayScreen(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
-                    contentDescription = "Close casting screen",
+                    contentDescription = stringResource(R.string.ui_close_casting_screen),
                     tint = Color.White,
                     modifier = Modifier.size(16.dp)
                 )
@@ -161,7 +163,7 @@ fun CastingDisplayScreen(
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Text(
-                                    text = "Casting",
+                                    text = stringResource(R.string.ui_casting),
                                     color = Color(0xFFE7FFF6),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -265,7 +267,7 @@ fun CastingDisplayScreen(
                         ) {
                             if (audioTrackOptions.size > 1) {
                                 TrackOptionRow(
-                                    label = "Audio",
+                                    label = stringResource(R.string.ui_audio),
                                     options = audioTrackOptions,
                                     selectedTrackIndex = selectedAudioTrackIndex,
                                     onTrackSelected = onAudioTrackSelected,
@@ -274,7 +276,7 @@ fun CastingDisplayScreen(
                             }
                             if (subtitleTrackOptions.size > 1) {
                                 TrackOptionRow(
-                                    label = "Subtitles",
+                                    label = stringResource(R.string.ui_subtitles),
                                     options = subtitleTrackOptions,
                                     selectedTrackIndex = selectedSubtitleTrackIndex,
                                     onTrackSelected = onSubtitleTrackSelected,
@@ -283,7 +285,7 @@ fun CastingDisplayScreen(
                             }
                             if (isTrackSelectionUpdating) {
                                 Text(
-                                    text = "Updating stream selection...",
+                                    text = stringResource(R.string.ui_updating_stream_selection),
                                     fontSize = 12.sp,
                                     color = Color(0xFF9FEBD4)
                                 )
@@ -339,7 +341,7 @@ fun CastingDisplayScreen(
                                 contentDescription = null
                             )
                             Text(
-                                text = if (castState.isPlaying) "Pause" else "Play",
+                                text = if (castState.isPlaying) stringResource(R.string.ui_pause) else stringResource(R.string.ui_play),
                                 modifier = Modifier.padding(start = 6.dp),
                                 fontWeight = FontWeight.Bold
                             )
@@ -358,7 +360,7 @@ fun CastingDisplayScreen(
                         ) {
                             Icon(imageVector = Icons.Rounded.Stop, contentDescription = null)
                             Text(
-                                text = "Stop",
+                                text = stringResource(R.string.ui_stop),
                                 modifier = Modifier.padding(start = 6.dp),
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -374,7 +376,7 @@ fun CastingDisplayScreen(
                             contentColor = Color(0xFFE2EAF5)
                         )
                     ) {
-                        Text(text = "Disconnect Device", fontWeight = FontWeight.Medium)
+                        Text(text = stringResource(R.string.ui_disconnect_device), fontWeight = FontWeight.Medium)
                     }
                 }
             }
@@ -472,7 +474,7 @@ private fun TrackOptionRow(
                     enabled = enabled,
                     label = {
                         Text(
-                            text = option.label,
+                            text = if (option.streamIndex == -1) stringResource(R.string.ui_off) else option.label,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )

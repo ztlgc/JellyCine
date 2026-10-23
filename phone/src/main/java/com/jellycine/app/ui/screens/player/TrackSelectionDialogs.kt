@@ -1,5 +1,9 @@
 package com.jellycine.app.ui.screens.player
 
+import com.jellycine.app.locale.localizedLanguageName
+import com.jellycine.app.locale.localizedPlaybackLabel
+import com.jellycine.app.locale.localizedQualityLabel
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -78,7 +82,7 @@ fun AudioTrackSelectionDialog(
         isTrackSelected = { track, selected -> track.id == selected?.id },
         trackDisplayInfo = { track ->
             TrackDisplayInfo(
-                title = track.label.takeIf { it.isNotBlank() }.orEmpty(),
+                title = LocalContext.current.localizedPlaybackLabel(track.label),
                 subtitle = buildAudioTrackSubtitle(track),
                 description = buildAudioTrackDescription(track)
             )
@@ -110,7 +114,7 @@ fun SubtitleTrackSelectionDialog(
         isTrackSelected = { track, selected -> track.id == selected?.id },
         trackDisplayInfo = { track ->
             TrackDisplayInfo(
-                title = track.label.takeIf { it.isNotBlank() }.orEmpty(),
+                title = LocalContext.current.localizedPlaybackLabel(track.label),
                 subtitle = buildSubtitleTrackSubtitle(track),
                 description = buildSubtitleTrackDescription(track)
             )
@@ -131,7 +135,7 @@ fun StreamingQualitySelectionDialog(
     val options = qualityOptions.map { quality ->
         StreamingQualityOption(
             id = quality,
-            label = quality,
+            label = localizedQualityLabel(quality),
             description = if (quality.equals(PlayerPreferences.STREAMING_QUALITY_ORIGINAL, ignoreCase = true)) {
                 stringResource(R.string.player_dialog_streaming_quality_original_summary)
             } else {
@@ -172,11 +176,12 @@ fun AudioTranscodingModeDialog(
 ) {
     if (!isVisible) return
 
+    val context = LocalContext.current
     val options = AudioTranscodeMode.entries.map { mode ->
         AudioTranscodingModeOption(
             id = mode.preferenceValue,
             mode = mode,
-            label = mode.displayName,
+            label = context.localizedPlaybackLabel(mode.displayName),
             description = when (mode) {
                 AudioTranscodeMode.AUTO -> stringResource(R.string.player_dialog_audio_mode_auto_summary)
                 AudioTranscodeMode.STEREO -> stringResource(R.string.player_dialog_audio_mode_stereo_summary)
@@ -230,7 +235,7 @@ private fun <T> TrackSelectionDialog(
     onDismiss: () -> Unit,
     trackKey: (T) -> String,
     isTrackSelected: (T, T?) -> Boolean,
-    trackDisplayInfo: (T) -> TrackDisplayInfo
+    trackDisplayInfo: @Composable (T) -> TrackDisplayInfo
 ) where T : Any {
     PhoneDialog(onDismiss = onDismiss, maxWidth = 460.dp, scrimColor = Color.Black.copy(alpha = 0.64f)) {
         HideSystemBarsForDialogWindow()
@@ -385,7 +390,7 @@ private fun DialogHeader(
                     text = helperLine,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
@@ -394,7 +399,7 @@ private fun DialogHeader(
         IconButton(onClick = onClose) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Close",
+                contentDescription = stringResource(R.string.ui_close),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -522,7 +527,7 @@ private fun SelectionIndicator(
         if (isSelected) {
             Icon(
                 imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
+                contentDescription = stringResource(R.string.ui_selected),
                 tint = Color.White,
                 modifier = Modifier.size(13.dp)
             )
@@ -570,10 +575,11 @@ private data class AudioTranscodingModeOption(
     val channelSummary: String
 )
 
+@Composable
 private fun buildAudioTrackSubtitle(track: AudioTrackInfo): String {
     return buildList {
         track.language?.takeIf { it.isNotEmpty() && !it.equals("und", ignoreCase = true) }?.let {
-            add(it.uppercase())
+            add(LocalContext.current.localizedLanguageName(it))
         }
 
         track.codec?.takeIf { it.isNotEmpty() }?.let { codec ->
@@ -595,53 +601,56 @@ private fun buildAudioTrackSubtitle(track: AudioTrackInfo): String {
 
         if (track.channelCount > 0) {
             val channelText = when (track.channelCount) {
-                1 -> "Mono"
-                2 -> "Stereo"
+                1 -> stringResource(R.string.ui_mono)
+                2 -> stringResource(R.string.ui_stereo)
                 6 -> "5.1"
                 8 -> "7.1"
-                else -> "${track.channelCount}ch"
+                else -> stringResource(R.string.ui_channels, track.channelCount)
             }
             add(channelText)
         }
     }.joinToString(" | ")
 }
 
+@Composable
 private fun buildAudioTrackDescription(track: AudioTrackInfo): String {
     return buildList {
         track.codec?.lowercase()?.let { codec ->
             when {
-                codec.contains("truehd") -> add("Lossless Audio")
-                codec.contains("flac") -> add("Lossless Audio")
-                codec.contains("dts") -> add("High Quality Audio")
-                codec.contains("eac3") -> add("Enhanced Audio")
-                codec.contains("ac3") -> add("Standard Audio")
-                codec.contains("aac") -> add("Compressed Audio")
-                codec.contains("mp3") -> add("Basic Audio")
+                codec.contains("truehd") -> add(stringResource(R.string.ui_lossless_audio))
+                codec.contains("flac") -> add(stringResource(R.string.ui_lossless_audio))
+                codec.contains("dts") -> add(stringResource(R.string.ui_high_quality_audio))
+                codec.contains("eac3") -> add(stringResource(R.string.ui_enhanced_audio))
+                codec.contains("ac3") -> add(stringResource(R.string.ui_standard_audio))
+                codec.contains("aac") -> add(stringResource(R.string.ui_compressed_audio))
+                codec.contains("mp3") -> add(stringResource(R.string.ui_basic_audio))
             }
         }
 
         if (track.channelCount >= 6) {
-            add("Surround Sound")
+            add(stringResource(R.string.ui_surround_sound))
         }
     }.joinToString(" | ")
 }
 
+@Composable
 private fun buildSubtitleTrackSubtitle(track: SubtitleTrackInfo): String {
     return buildList {
         track.language?.takeIf {
             it.isNotEmpty() &&
                 !it.equals("und", ignoreCase = true)
         }?.let {
-            add(it.uppercase())
+            add(LocalContext.current.localizedLanguageName(it))
         }
-        if (track.isForced) add("FORCED")
-        if (track.isDefault) add("DEFAULT")
+        if (track.isForced) add(stringResource(R.string.ui_forced))
+        if (track.isDefault) add(stringResource(R.string.ui_default))
     }.joinToString(" | ")
 }
 
+@Composable
 private fun buildSubtitleTrackDescription(track: SubtitleTrackInfo): String {
     return buildList {
-        if (track.isForced) add("Forced subtitles")
-        if (track.isDefault) add("Default track")
+        if (track.isForced) add(stringResource(R.string.ui_forced_subtitles))
+        if (track.isDefault) add(stringResource(R.string.ui_default_track))
     }.joinToString(" | ")
 }

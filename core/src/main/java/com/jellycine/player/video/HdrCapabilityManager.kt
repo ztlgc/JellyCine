@@ -216,17 +216,17 @@ object HdrCapabilityManager {
      * Get user-friendly description of current playback format
      */
     fun getPlaybackFormatDescription(
+        context: Context,
         deviceSupport: HdrSupport,
         contentFormat: VideoFormatInfo,
         actualFormat: VideoFormatInfo
     ): String {
         return if (contentFormat.hdrSupport == actualFormat.hdrSupport) {
             // No fallback needed
-            "Playing in ${actualFormat.hdrSupport.displayName}"
+            context.getString(com.jellycine.core.R.string.core_playing_format, actualFormat.hdrSupport.displayName)
         } else {
             // Fallback occurred
-            "Content: ${contentFormat.hdrSupport.displayName} → Playing: ${actualFormat.hdrSupport.displayName}\n" +
-            "Device supports: ${deviceSupport.displayName}"
+            context.getString(com.jellycine.core.R.string.core_hdr_fallback, contentFormat.hdrSupport.displayName, actualFormat.hdrSupport.displayName, deviceSupport.displayName)
         }
     }
     
@@ -243,31 +243,31 @@ object HdrCapabilityManager {
      */
     fun getDetailedHdrInfo(context: Context): String {
         return buildString {
-            appendLine("=== HDR Capability Report ===")
-            appendLine("API Level: ${Build.VERSION.SDK_INT}")
+            appendLine(context.getString(com.jellycine.core.R.string.core_hdr_capability_report))
+            appendLine(context.getString(com.jellycine.core.R.string.core_api_level, Build.VERSION.SDK_INT))
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 try {
                     val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
                     val display = displayManager.getDisplay(Display.DEFAULT_DISPLAY)
                     
-                    appendLine("Display HDR Support: ${display?.isHdr ?: false}")
+                    appendLine(context.getString(com.jellycine.core.R.string.core_display_hdr, context.getString(if (display?.isHdr == true) com.jellycine.core.R.string.core_yes else com.jellycine.core.R.string.core_no)))
                     
                     display?.hdrCapabilities?.let { capabilities ->
-                        appendLine("HDR Types: ${capabilities.supportedHdrTypes.contentToString()}")
-                        appendLine("Max Luminance: ${capabilities.desiredMaxLuminance}")
-                        appendLine("Max Average Luminance: ${capabilities.desiredMaxAverageLuminance}")
-                        appendLine("Min Luminance: ${capabilities.desiredMinLuminance}")
+                        appendLine(context.getString(com.jellycine.core.R.string.core_hdr_types, capabilities.supportedHdrTypes.contentToString()))
+                        appendLine(context.getString(com.jellycine.core.R.string.core_max_luminance, capabilities.desiredMaxLuminance.toString()))
+                        appendLine(context.getString(com.jellycine.core.R.string.core_max_average, capabilities.desiredMaxAverageLuminance.toString()))
+                        appendLine(context.getString(com.jellycine.core.R.string.core_min_luminance, capabilities.desiredMinLuminance.toString()))
                     }
                     
                     val deviceSupport = getDeviceHdrSupport(context)
-                    appendLine("Best Supported Format: ${deviceSupport.displayName}")
+                    appendLine(context.getString(com.jellycine.core.R.string.core_best_format, deviceSupport.displayName))
                     
                 } catch (e: Exception) {
-                    appendLine("Error getting HDR info: ${e.message}")
+                    appendLine(context.getString(com.jellycine.core.R.string.core_hdr_read_error))
                 }
             } else {
-                appendLine("HDR not supported on this API level")
+                appendLine(context.getString(com.jellycine.core.R.string.core_hdr_unsupported))
             }
         }
     }

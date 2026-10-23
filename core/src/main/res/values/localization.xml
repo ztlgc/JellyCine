@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="core_content_is_not_multichannel_object_based_spatial_audio">Content is not multichannel/object-based spatial audio</string>
+    <string name="core_spatializable_content_detected_but_no_compatible_spatial_audio_format_is_available">Spatializable content detected, but no compatible spatial audio format is available</string>
+    <string name="core_spatializable_content_detected_and_device_spatializer_is_active_for_this_route">Spatializable content detected and device spatializer is active for this route</string>
+    <string name="core_spatializable_content_detected_but_device_spatializer_is_disabled_in_system_settings">Spatializable content detected, but device spatializer is disabled in system settings</string>
+    <string name="core_spatializable_content_detected_but_device_spatializer_is_unavailable_for_current_route_format">Spatializable content detected, but device spatializer is unavailable for current route/format</string>
+    <string name="core_playing_format">Playing in %1$s</string>
+    <string name="core_hdr_fallback">Content: %1$s → Playing: %2$s\nDevice supports: %3$s</string>
+    <string name="core_hdr_capability_report">HDR Capability Report</string>
+    <string name="core_api_level">Android API level: %1$d</string>
+    <string name="core_display_hdr">Display HDR support: %1$s</string>
+    <string name="core_hdr_types">HDR types: %1$s</string>
+    <string name="core_max_luminance">Maximum luminance: %1$s</string>
+    <string name="core_max_average">Maximum average luminance: %1$s</string>
+    <string name="core_min_luminance">Minimum luminance: %1$s</string>
+    <string name="core_best_format">Best supported format: %1$s</string>
+    <string name="core_hdr_read_error">Unable to read HDR information</string>
+    <string name="core_hdr_unsupported">HDR is not supported on this Android version</string>
+    <string name="core_yes">Yes</string>
+    <string name="core_no">No</string>
+</resources>

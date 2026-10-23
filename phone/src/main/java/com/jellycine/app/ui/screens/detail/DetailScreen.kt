@@ -73,6 +73,8 @@ import com.jellycine.player.audio.ThemeMusicController
 import com.jellycine.player.core.RemoteTrailerUrl
 import com.jellycine.shared.preferences.Preferences
 
+import androidx.compose.ui.res.stringResource
+import com.jellycine.app.locale.userFacingError
 internal val heroOverlayGradient = arrayOf(
     0.0f to Color.Transparent,
     0.62f to Color.Transparent,
@@ -691,7 +693,7 @@ fun DetailScreenContainer(
             PlayerScreen(
                 mediaId = "remote_trailer_${activeRemoteTrailerUrl.hashCode()}",
                 remoteMediaUrl = activeRemoteTrailerUrl,
-                remoteMediaTitle = remoteTrailerTitle ?: item?.name ?: episodeItem?.name ?: "Trailer",
+                remoteMediaTitle = remoteTrailerTitle ?: item?.name ?: episodeItem?.name ?: stringResource(R.string.ui_trailer),
                 onBackPressed = {
                     remoteTrailerUrl = null
                     remoteTrailerTitle = null
@@ -950,25 +952,26 @@ internal fun detailScreenLayoutSpec(
 }
 
 internal fun downloadFailure(
+    context: android.content.Context,
     state: ItemDownloadState? = null,
     rawMessage: String? = null
 ): String {
     state?.storageShortageInfo?.let { storage ->
-        val fileSize = storage.fileSizeBytes?.let(::formatStorageBytesForDialog) ?: "Unknown"
+        val fileSize = storage.fileSizeBytes?.let(::formatStorageBytesForDialog) ?: context.getString(R.string.ui_unknown)
         val available = formatStorageBytesForDialog(storage.availableBytes)
         val needed = formatStorageBytesForDialog(storage.neededBytes)
         return buildString {
-            appendLine("Not enough storage space on this device.")
+            appendLine(context.getString(R.string.ui_storage_shortage))
             appendLine()
-            appendLine("File size: $fileSize")
-            appendLine("Available: $available")
-            append("Needed: $needed")
+            appendLine(context.getString(R.string.ui_file_size, fileSize))
+            appendLine(context.getString(R.string.ui_available_size, available))
+            append(context.getString(R.string.ui_needed_size, needed))
         }
     }
 
     val resolvedMessage = rawMessage?.trim().takeUnless { it.isNullOrBlank() }
         ?: state?.message?.trim().takeUnless { it.isNullOrBlank() }
-    return resolvedMessage ?: "Download failed. Please try again."
+    return context.userFacingError(resolvedMessage?.let(::Exception), R.string.ui_download_failed)
 }
 
 internal fun formatStorageBytesForDialog(bytes: Long): String {
@@ -1145,14 +1148,14 @@ internal fun BaseItemPerson.isCreditType(expectedType: String): Boolean {
         role.equals(expectedType, ignoreCase = true)
 }
 
-internal fun episodeHeaderText(item: BaseItemDto): String? {
+internal fun episodeHeaderText(item: BaseItemDto, context: android.content.Context): String? {
     if (item.type != "Episode") return null
-    val title = item.name?.takeIf { it.isNotBlank() } ?: "Unknown"
+    val title = item.name?.takeIf { it.isNotBlank() } ?: context.getString(R.string.ui_unknown)
     val season = item.parentIndexNumber
     val episode = item.indexNumber
     return when {
         season != null && episode != null -> "S${season}:E${episode} - $title"
-        episode != null -> "Episode $episode - $title"
+        episode != null -> context.getString(R.string.ui_episode_title, episode, title)
         else -> title
     }
 }
@@ -1164,7 +1167,7 @@ internal data class SeriesSeasonSelectionDialogState(
     val episodesBySeasonId: Map<String, List<BaseItemDto>>
 ) {
     companion object {
-        fun fromEstimate(estimate: BatchDownloadEstimate): SeriesSeasonSelectionDialogState {
+        fun fromEstimate(estimate: BatchDownloadEstimate, context: android.content.Context): SeriesSeasonSelectionDialogState {
             data class SeasonGroupSummary(
                 val id: String,
                 val title: String,
@@ -1190,8 +1193,8 @@ internal data class SeriesSeasonSelectionDialogState(
                 val seasonNumber = firstItem.parentIndexNumber
                 val title = when {
                     !firstItem.seasonName.isNullOrBlank() -> firstItem.seasonName.orEmpty()
-                    seasonNumber != null -> "Season $seasonNumber"
-                    else -> "Season"
+                    seasonNumber != null -> context.getString(R.string.downloads_season_number, seasonNumber)
+                    else -> context.getString(R.string.downloads_season_fallback)
                 }
 
                 val episodeCount = orderedCandidates.size
@@ -1200,7 +1203,7 @@ internal data class SeriesSeasonSelectionDialogState(
                 SeasonGroupSummary(
                     id = seasonId,
                     title = title,
-                    subtitle = episodeCountLabel(episodeCount),
+                    subtitle = context.getString(R.string.ui_episode_count, episodeCount),
                     requiredBytes = requiredBytes,
                     seasonNumber = seasonNumber,
                     episodes = orderedCandidates.map { it.item }
@@ -1232,9 +1235,6 @@ internal fun seasonGroupKey(item: BaseItemDto): String {
         ?: "season_unknown_${item.id.orEmpty()}"
 }
 
-internal fun episodeCountLabel(count: Int): String {
-    return "$count episode" + if (count == 1) "" else "s"
-}
 
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable

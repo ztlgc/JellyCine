@@ -1,5 +1,6 @@
 package com.jellycine.app.ui.splash
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -104,7 +105,7 @@ fun SplashScreen(
                 
                 Image(
                     painter = painterResource(id = R.drawable.jellycine_logo),
-                    contentDescription = "JellyCine Logo",
+                    contentDescription = stringResource(R.string.ui_jellycine_logo),
                     modifier = Modifier
                         .size(200.dp)
                         .alpha(logoAlpha)

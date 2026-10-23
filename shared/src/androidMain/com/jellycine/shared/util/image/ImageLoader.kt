@@ -1,5 +1,7 @@
 package com.jellycine.shared.util.image
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -81,7 +83,7 @@ fun ImageSkeleton(
         if (showPlaceholder && placeholderRes != null) {
             Icon(
                 painter = painterResource(id = placeholderRes),
-                contentDescription = "Placeholder",
+                contentDescription = stringResource(R.string.ui_placeholder),
                 modifier = Modifier.fillMaxSize(0.8f),
                 tint = Color.White.copy(alpha = 0.3f)
             )

@@ -1,5 +1,7 @@
 package com.jellycine.app.ui.screens.dashboard.settings
 
+import com.jellycine.app.locale.localizedRuntime
+import com.jellycine.app.locale.localizedQualityLabel
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -614,12 +616,12 @@ private fun DownloadQualitySetting(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
-                text = "Default Download Quality",
+                text = stringResource(R.string.ui_default_download_quality),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = "Quality picker will still appear for each download. This sets the pre-selected default.",
+                text = stringResource(R.string.ui_quality_picker_will_still_appear_for_each_download_this_sets_the_pre_selected_default),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -641,7 +643,7 @@ private fun DownloadQualitySetting(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = selectedLabel,
+                    text = localizedQualityLabel(selectedLabel),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold
@@ -662,7 +664,7 @@ private fun DownloadQualitySetting(
                     DropdownMenuItem(
                         text = {
                             Text(
-                                text = option,
+                                text = localizedQualityLabel(option),
                                 color = if (selectedLabel == option) {
                                     DownloadAccentColor
                                 } else {
@@ -1209,7 +1211,7 @@ private fun EpisodeRow(
     )
     val imageUrl = primaryImageUrl ?: backdropImageUrl ?: seriesPrimaryImageUrl
     val episodeNumber = item?.indexNumber ?: 0
-    val runtime = item?.runTimeTicks?.let { ticksToMinutes(it) } ?: "-"
+    val runtime = item?.runTimeTicks?.let { LocalContext.current.localizedRuntime(it) } ?: "-"
     val size = formatBytes(entry.displayBytes())
     val canPlay = entry.isOfflineAvailable
     val statusLabel = downloadStatusLabel(entry, resources)
@@ -1510,18 +1512,6 @@ private fun formatBytes(bytes: Long?): String {
         safe >= mb -> String.format(Locale.US, "%.1f MB", safe / mb)
         safe >= kb -> String.format(Locale.US, "%.0f KB", safe / kb)
         else -> "$safe B"
-    }
-}
-
-private fun ticksToMinutes(ticks: Long): String {
-    val minutes = ticks / 10_000_000L / 60L
-    val hours = minutes / 60
-    val remMin = minutes % 60
-    return when {
-        hours > 0L && remMin > 0L -> "${hours}h ${remMin}m"
-        hours > 0L -> "${hours}h"
-        minutes > 0L -> "${minutes}m"
-        else -> "-"
     }
 }
 

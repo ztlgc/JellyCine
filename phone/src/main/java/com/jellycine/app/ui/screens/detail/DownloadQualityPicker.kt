@@ -1,5 +1,9 @@
 package com.jellycine.app.ui.screens.detail
 
+import com.jellycine.shared.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
+import com.jellycine.app.locale.localizedLanguageName
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -117,14 +121,14 @@ internal fun DownloadQualityPicker(
                 ) { currentStep ->
                     when (currentStep) {
                         0 -> StepContent(
-                            title = "Download Quality",
-                            subtitle = "Select resolution",
+                            title = stringResource(R.string.ui_download_quality),
+                            subtitle = stringResource(R.string.ui_select_resolution),
                             onDismiss = onDismiss
                         ) {
                             item(key = "original") {
                                 QualityRow(
-                                    title = "Original",
-                                    subtitle = "Full quality" + (sizeEstimator.originalSizeLabel()?.let { " · $it" } ?: ""),
+                                    title = stringResource(R.string.ui_original),
+                                    subtitle = stringResource(R.string.ui_full_quality) + (sizeEstimator.originalSizeLabel()?.let { " · $it" } ?: ""),
                                     onClick = { onSelected(DownloadQualitySelection(TranscodeProfiles.PRESETS.first())) }
                                 )
                             }
@@ -132,7 +136,7 @@ internal fun DownloadQualityPicker(
                                 val midBitrate = group.profiles[group.profiles.size / 2].maxBitrate
                                 QualityRow(
                                     title = group.label,
-                                    subtitle = "${group.profiles.size} bitrate options",
+                                    subtitle = stringResource(R.string.ui_bitrate_options, group.profiles.size),
                                     trailingText = midBitrate?.let { sizeEstimator.estimate(it) }?.let { "~$it" },
                                     showArrow = group.profiles.size > 1,
                                     onClick = {
@@ -146,7 +150,7 @@ internal fun DownloadQualityPicker(
                             val resolution = selectedResolution ?: return@AnimatedContent
                             StepContent(
                                 title = resolution.label,
-                                subtitle = "Select bitrate",
+                                subtitle = stringResource(R.string.ui_select_bitrate),
                                 onBack = { selectedResolution = null },
                                 onDismiss = onDismiss
                             ) {
@@ -163,8 +167,8 @@ internal fun DownloadQualityPicker(
                         2 -> {
                             val profile = selectedProfile ?: return@AnimatedContent
                             StepContent(
-                                title = "Audio Track",
-                                subtitle = "Select audio to include",
+                                title = stringResource(R.string.ui_audio_track),
+                                subtitle = stringResource(R.string.ui_select_audio_to_include),
                                 onBack = { selectedProfile = null },
                                 onDismiss = onDismiss
                             ) {
@@ -205,7 +209,7 @@ private fun StepContent(
                 IconButton(onClick = onBack, modifier = Modifier.size(36.dp)) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = stringResource(R.string.ui_back),
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
@@ -224,7 +228,7 @@ private fun StepContent(
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color.White.copy(alpha = 0.8f))
+                Text(stringResource(R.string.ui_cancel), color = Color.White.copy(alpha = 0.8f))
             }
         }
     }
@@ -322,13 +326,15 @@ private fun buildResolutionGroups(sourceHeight: Int?, sourceBitrate: Int?): List
         .filter { it.profiles.isNotEmpty() }
 }
 
+@Composable
 private fun buildAudioLabel(stream: MediaStream): String {
-    val lang = stream.language?.let { Locale(it).displayLanguage } ?: "Unknown"
-    return if (stream.isDefault == true) "$lang (Default)" else lang
+    val lang = stream.language?.let { LocalContext.current.localizedLanguageName(it) }?.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.ui_unknown)
+    return if (stream.isDefault == true) "$lang (${stringResource(R.string.ui_default)})" else lang
 }
 
 private fun formatBitrate(bitrate: Int?): String {
-    if (bitrate == null) return "Auto"
+    if (bitrate == null) return "—"
     val mbps = bitrate / 1_000_000.0
     return if (mbps >= 1.0) {
         if (mbps == mbps.toLong().toDouble()) "${mbps.toLong()} Mbps"
