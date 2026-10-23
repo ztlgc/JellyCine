@@ -1,0 +1,24 @@
+<resources>
+    <string name="watch_sync_title">Watch data sync</string>
+    <string name="watch_sync_disabled">Record locally; enable to sync and restore</string>
+    <string name="watch_sync_unconfigured">Not configured</string>
+    <string name="watch_sync_needs_account">Connect a sync account</string>
+    <string name="watch_sync_wait_network">Waiting for a network; local recording continues</string>
+    <string name="watch_sync_running">Syncing…</string>
+    <string name="watch_sync_waiting">Waiting to sync</string>
+    <string name="watch_sync_last_success">Synced · %1$s</string>
+    <string name="watch_sync_now">Sync now</string>
+    <string name="watch_sync_account">Sync account</string>
+    <string name="watch_sync_account_hint">Sign in with the same sync account on another device to restore watch history. Create one below if this is your first time.</string>
+    <string name="watch_sync_create_account">Create a sync account</string>
+    <string name="watch_sync_verification_sent">Check your email to verify your account, then return here to connect and sync.</string>
+    <string name="watch_sync_email">Email</string>
+    <string name="watch_sync_password">Password</string>
+    <string name="watch_sync_bind">Connect and sync</string>
+    <string name="watch_sync_disconnect">Disconnect sync account</string>
+    <string name="watch_sync_error_auth">Check your sync account and sign in again</string>
+    <string name="watch_sync_error_network">Connection failed; will retry automatically</string>
+    <string name="watch_sync_error_server">Sync service unavailable; will retry</string>
+    <string name="watch_sync_error_identity">Unable to identify the media server; will retry</string>
+    <string name="watch_sync_error_credentials">Sign in again to restore your sync session</string>
+</resources>

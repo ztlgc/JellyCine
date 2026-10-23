@@ -4,6 +4,9 @@
         <!-- Exclude auth metadata and encrypted tokens from cloud backup -->
         <exclude domain="file" path="datastore/auth_prefs.preferences_pb" />
         <exclude domain="sharedpref" path="secure_auth_store.xml" />
+        <exclude domain="sharedpref" path="watch_sync_secure.xml" />
+        <exclude domain="sharedpref" path="watch_sync_device.xml" />
+        <exclude domain="sharedpref" path="watch_sync_settings.xml" />
         <exclude domain="database" />
     </cloud-backup>
     <device-transfer>

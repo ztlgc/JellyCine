@@ -1,7 +1,6 @@
 package com.jellycine.app
 
 import android.app.Application
-import android.content.Context
 import coil3.PlatformContext
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -13,16 +12,13 @@ import dagger.hilt.android.HiltAndroidApp
 @HiltAndroidApp
 class JellyCineApplication : Application(), SingletonImageLoader.Factory {
 
-    override fun attachBaseContext(base: Context) {
-        super.attachBaseContext(AppLanguageManager.wrapContext(base))
-    }
-
     override fun onCreate() {
         super.onCreate()
-        AppLanguageManager.applySavedLanguage(this)
+        AppLanguageManager.followSystemLanguage(this)
 
         // Initialize crash handler for better crash log collection
         CrashHandler.initialize(this)
+        com.jellycine.app.sync.WatchSyncController.get(this)
     }
 
     override fun newImageLoader(context: PlatformContext): ImageLoader {

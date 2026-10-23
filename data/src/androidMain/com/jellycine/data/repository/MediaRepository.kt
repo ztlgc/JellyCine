@@ -167,6 +167,22 @@ class MediaRepository(private val context: Context) {
         return "${trimTrailingSlash(serverUrl)}|$userId"
     }
 
+    /** Capture one media session; never combine the URL of one account with another user's ID. */
+    suspend fun getWatchSyncIdentity(): Pair<String, String>? {
+        val session = getApiSession() ?: return null
+        val id = com.jellycine.data.sync.WatchServerIdentityCache.read(context,session.baseUrl) ?: run {
+            val response=session.api.getPublicSystemInfo()
+            val verified=response.body()?.id?.takeIf {response.isSuccessful && it.isNotBlank()} ?: return null
+            com.jellycine.data.sync.WatchServerIdentityCache.remember(context,session.baseUrl,verified)
+            verified
+        }
+        val localScope = "${trimTrailingSlash(session.baseUrl)}|${session.userId}"
+        val stableScope = java.security.MessageDigest.getInstance("SHA-256")
+            .digest("$id|${session.userId}".toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        return localScope to stableScope
+    }
+
     private fun normalizeSubtitleStreamIndex(subtitleStreamIndex: Int?): Int? {
         return subtitleStreamIndex?.takeIf { it >= 0 }
     }

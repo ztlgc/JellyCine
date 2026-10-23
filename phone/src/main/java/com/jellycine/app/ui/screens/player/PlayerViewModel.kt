@@ -1574,6 +1574,7 @@ class PlayerViewModel @Inject constructor(
             preferredSubtitleStreamIndex = subtitleStreamIndex,
             initialSeekPositionMs = resumePositionMs,
             startPlayback = shouldResumePlaying,
+            forcedPlayerEngine = activePlayerEngine,
             continueWatchSession = true
         )
     }

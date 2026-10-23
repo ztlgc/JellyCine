@@ -37,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,6 +103,7 @@ internal fun PlayerScreenEffects(
     lifecycleOwner: LifecycleOwner,
     mediaId: String,
     initialItemDetails: BaseItemDto?,
+    forcedPlayerEngine: String?,
     remoteMediaUrl: String?,
     remoteMediaTitle: String?,
     preferredAudioStreamIndex: Int?,
@@ -212,8 +214,9 @@ internal fun PlayerScreenEffects(
         ?.let { "remote:$it" }
         ?: mediaId
 
-    LaunchedEffect(initializationKey) {
-        if (initializedMediaIdProvider() == initializationKey) return@LaunchedEffect
+    var initializedEngine by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(initializationKey, forcedPlayerEngine) {
+        if (initializedMediaIdProvider() == initializationKey && initializedEngine == forcedPlayerEngine) return@LaunchedEffect
 
         try {
             trimImageMemoryCacheForPlayback(context)
@@ -234,9 +237,11 @@ internal fun PlayerScreenEffects(
                     mediaId = mediaId,
                     initialItemDetails = initialItemDetails,
                     preferredAudioStreamIndex = preferredAudioStreamIndex,
-                    preferredSubtitleStreamIndex = preferredSubtitleStreamIndex
+                    preferredSubtitleStreamIndex = preferredSubtitleStreamIndex,
+                    forcedPlayerEngine = forcedPlayerEngine
                 )
             }
+            initializedEngine = forcedPlayerEngine
             onInitializedMediaIdChange(initializationKey)
         } catch (_: Exception) {
         }

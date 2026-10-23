@@ -2,10 +2,7 @@ package com.jellycine.app.ui.screens.dashboard.settings
 
 import android.os.Build
 import android.content.Context
-import android.content.Intent
 import android.media.MediaCodecList
-import android.net.Uri
-import android.provider.Settings as AndroidSettings
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -103,12 +100,6 @@ fun Settings(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { openAppLanguageSettings(context) }) {
-                        Icon(
-                            imageVector = Icons.Rounded.Translate,
-                            contentDescription = stringResource(R.string.settings_language)
-                        )
-                    }
                     IconButton(onClick = onNavigateToAbout) {
                         Icon(
                             imageVector = Icons.Rounded.Info,
@@ -158,7 +149,9 @@ fun Settings(
                         accentColor = Color(0xFF22D3EE),
                         onClick = onNavigateToScreenTime
                     )
-
+                    HorizontalDivider(thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    WatchSyncSettingsItem()
                 }
             }
 
@@ -651,7 +644,7 @@ private fun ActionTile(
 }
 
 @Composable
-private fun accentSwitchColors(accentColor: Color) = SwitchDefaults.colors(
+internal fun accentSwitchColors(accentColor: Color) = SwitchDefaults.colors(
     checkedThumbColor = Color.White,
     checkedTrackColor = accentColor,
     checkedBorderColor = accentColor,
@@ -668,25 +661,6 @@ private fun SectionLabel(title: String) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 4.dp)
     )
-}
-
-private fun openAppLanguageSettings(context: Context) {
-    val appLanguageIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        Intent(AndroidSettings.ACTION_APP_LOCALE_SETTINGS).apply {
-            data = Uri.fromParts("package", context.packageName, null)
-        }
-    } else {
-        Intent(AndroidSettings.ACTION_LOCALE_SETTINGS)
-    }
-
-    val fallbackIntent = Intent(AndroidSettings.ACTION_LOCALE_SETTINGS)
-    val intentToLaunch = when {
-        appLanguageIntent.resolveActivity(context.packageManager) != null -> appLanguageIntent
-        fallbackIntent.resolveActivity(context.packageManager) != null -> fallbackIntent
-        else -> return
-    }
-
-    context.startActivity(intentToLaunch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
 }
 
 @Composable
@@ -712,7 +686,7 @@ private fun SettingsSection(
 }
 
 @Composable
-private fun SettingsItem(
+internal fun SettingsItem(
     icon: ImageVector,
     title: String,
     subtitle: String,

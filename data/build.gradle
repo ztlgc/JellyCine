@@ -33,6 +33,9 @@ kotlin {
     }
 
     sourceSets {
+        androidHostTest {
+            dependencies { implementation 'io.ktor:ktor-client-mock:3.6.0' }
+        }
         commonTest {
             dependencies {
                 implementation kotlin('test')

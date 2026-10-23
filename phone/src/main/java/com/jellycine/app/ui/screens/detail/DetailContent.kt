@@ -52,7 +52,6 @@ import com.jellycine.shared.ui.components.common.buildInlineText
 import com.jellycine.shared.ui.components.common.buildLocalVersionEntries
 import com.jellycine.shared.ui.components.common.OverviewSection
 import com.jellycine.shared.ui.components.common.SeerrRequestButtonRow
-import com.jellycine.shared.ui.components.common.DetailDownloadActionButton
 import com.jellycine.shared.ui.components.common.DetailDownloadActionState
 import com.jellycine.app.ui.components.common.DownloadActionMenu
 import com.jellycine.shared.ui.components.common.WatchedActionButton
@@ -95,6 +94,7 @@ fun DetailContent(
     trackSelectionSyncVersion: Int = 0,
     onBackPressed: () -> Unit = {},
     onPlayClick: (Int?, Int?) -> Unit = { _, _ -> },
+    onPlayWithEngine: (String, Int?, Int?) -> Unit = { _, _, _ -> },
     onRemoteTrailerClick: (String, String?) -> Unit = { _, _ -> },
     onPreferredStreamIndexesChanged: (Int?, Int?) -> Unit = { _, _ -> },
     onSimilarItemClick: (String) -> Unit = {},
@@ -266,6 +266,7 @@ fun DetailContent(
         mediaRepository.getPersistedHomeSnapshot()?.isSyncTranscodingAllowed ?: true
     }
     var showDownloadQualityPicker by remember(item.id) { mutableStateOf(false) }
+    var videoMoreActionsExpanded by remember(item.id) { mutableStateOf(false) }
     var pendingSeriesEpisodes by remember(item.id) { mutableStateOf<List<BaseItemDto>?>(null) }
     var downloadErrorDialogMessage by remember(item.id) { mutableStateOf<String?>(null) }
     var downloadActionMenu by remember(
@@ -754,10 +755,13 @@ fun DetailContent(
             rating = {
                 VideoRatingSection(sessionId = activeServerId, item = item, repository = mediaRepository)
             },
-            downloadAction = {
+            moreActions = {
                 Box {
-                    DetailDownloadActionButton(
-                        state = when {
+                    VideoDetailMoreActions(
+                        itemId = item.id,
+                        expanded = videoMoreActionsExpanded,
+                        onExpandedChange = { videoMoreActionsExpanded = it },
+                        downloadState = when {
                             !canDownloadItem -> DetailDownloadActionState.Unavailable
                             itemDownloadState.status == DownloadStatus.COMPLETED -> DetailDownloadActionState.Completed
                             itemDownloadState.status == DownloadStatus.DOWNLOADING -> DetailDownloadActionState.Downloading
@@ -765,20 +769,22 @@ fun DetailContent(
                             itemDownloadState.status == DownloadStatus.QUEUED -> DetailDownloadActionState.Queued
                             else -> DetailDownloadActionState.Idle
                         },
-                        progress = animatedDownloadProgress,
-                        iconOnly = true,
-                        modifier = Modifier.size(44.dp),
-                        shape = RoundedCornerShape(8.dp),
-                        onClick = {
+                        downloadProgress = animatedDownloadProgress,
+                        playbackEnabled = !item.id.isNullOrBlank() && item.playAccess != "None",
+                        onPlayWithEngine = { engine ->
+                            val (audio, subtitle) = persistTrackSelection(selectedAudio, selectedSubtitle)
+                            onPlayWithEngine(engine, audio, subtitle)
+                        },
+                        onDownload = {
                             if (canDownloadItem) {
-                                if (hasActiveDownload) downloadActionMenu = true else downloadVideo()
+                                if (hasActiveDownload || isPausedDownload) downloadActionMenu = true else downloadVideo()
                             }
                         }
                     )
                     DownloadActionMenu(
                         expanded = downloadActionMenu,
                         canResume = isPausedDownload,
-                        hasActiveDownloads = hasActiveDownload,
+                        hasActiveDownloads = hasActiveDownload || isPausedDownload,
                         onDismissRequest = { downloadActionMenu = false },
                         onPauseResume = {
                             downloadActionMenu = false

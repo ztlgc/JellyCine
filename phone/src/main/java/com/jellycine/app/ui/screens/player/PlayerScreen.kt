@@ -66,6 +66,7 @@ data class PlayerUiState(
 fun PlayerScreen(
     mediaId: String,
     initialItemDetails: BaseItemDto? = null,
+    forcedPlayerEngine: String? = null,
     remoteMediaUrl: String? = null,
     remoteMediaTitle: String? = null,
     preferredAudioStreamIndex: Int? = null,
@@ -181,6 +182,7 @@ fun PlayerScreen(
         lifecycleOwner = lifecycleOwner,
         mediaId = mediaId,
         initialItemDetails = initialItemDetails,
+        forcedPlayerEngine = forcedPlayerEngine,
         remoteMediaUrl = remoteMediaUrl,
         remoteMediaTitle = remoteMediaTitle,
         preferredAudioStreamIndex = preferredAudioStreamIndex,
@@ -320,7 +322,8 @@ fun PlayerScreen(
             preferredAudioStreamIndex = preferredAudio,
             preferredSubtitleStreamIndex = preferredSubtitle,
             initialSeekPositionMs = resumePositionMs,
-            startPlayback = shouldResumePlaying
+            startPlayback = shouldResumePlaying,
+            forcedPlayerEngine = forcedPlayerEngine
         )
         initializedMediaId = mediaId
     }

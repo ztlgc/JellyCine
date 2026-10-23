@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="video_detail_more_actions">More video actions</string>
+    <string name="video_detail_play_mpv">Play with MPV</string>
+    <string name="video_detail_play_exoplayer">Play with ExoPlayer</string>
     <string name="video_detail_delete">Delete video</string>
     <string name="video_detail_deleted">Deleted: %1$s</string>
     <string name="video_detail_delete_failed">Could not delete %1$s: %2$s</string>

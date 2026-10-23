@@ -239,6 +239,7 @@ object NetworkModule {
                 val response = api.getPublicSystemInfo()
                 if (response.isSuccessful && response.body() != null) {
                     val serverInfo = response.body()!!
+                    com.jellycine.data.sync.WatchServerIdentityCache.remember(context,candidate,serverInfo.id)
                     val detectedType = detectServerType(serverInfo, response.headers())
                     return Result.success(
                         ServerEndpoint(

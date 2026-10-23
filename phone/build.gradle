@@ -74,6 +74,17 @@ def signingValue = { String key, String envKey ->
     return (env != null && !env.trim().isEmpty()) ? env.trim() : null
 }
 
+def watchSyncProperties = new Properties()
+def watchSyncFile = rootProject.file('supabase.local.properties')
+if (watchSyncFile.isFile()) watchSyncFile.withInputStream { watchSyncProperties.load(it) }
+def watchSyncLiteral = { String name ->
+    groovy.json.JsonOutput.toJson(watchSyncProperties.getProperty(name, '').trim())
+}
+def watchSyncKey = watchSyncProperties.getProperty('SUPABASE_PUBLISHABLE_KEY', '').trim()
+if (watchSyncKey && !watchSyncKey.startsWith('sb_publishable_')) {
+    throw new GradleException('SUPABASE_PUBLISHABLE_KEY must be a publishable key. Secret and legacy service_role keys must never enter the APK.')
+}
+
 android {
     namespace = 'com.jellycine.app'
     compileSdk = 37
@@ -84,6 +95,8 @@ android {
         targetSdk = 36
         versionCode = rootProject.ext.appVersionCode as Integer
         versionName = rootProject.ext.appVersionName as String
+        buildConfigField 'String', 'SUPABASE_URL', watchSyncLiteral('SUPABASE_URL')
+        buildConfigField 'String', 'SUPABASE_PUBLISHABLE_KEY', watchSyncLiteral('SUPABASE_PUBLISHABLE_KEY')
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -245,6 +258,7 @@ dependencies {
     // DataStore
     implementation 'androidx.datastore:datastore-preferences:1.2.1'
     implementation 'androidx.profileinstaller:profileinstaller:1.4.1'
+    implementation 'androidx.work:work-runtime-ktx:2.12.0'
 
     // Media3 ExoPlayer for video playback
     implementation 'androidx.media3:media3-exoplayer:1.11.1'

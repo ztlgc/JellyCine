@@ -1,0 +1,4 @@
+# Copy to supabase.local.properties (ignored by Git).
+# Mobile applications use a publishable key, never a secret/service_role key.
+SUPABASE_URL=
+SUPABASE_PUBLISHABLE_KEY=

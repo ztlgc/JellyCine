@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -58,7 +59,7 @@ internal fun VideoDetailContent(
     onPlay: () -> Unit,
     onImageError: (Boolean) -> Unit,
     rating: @Composable () -> Unit,
-    downloadAction: @Composable () -> Unit,
+    moreActions: @Composable () -> Unit,
     backdrop: (@Composable () -> Unit)? = null
 ) {
     val source = item.activeDetailMediaSources().firstOrNull()
@@ -94,17 +95,22 @@ internal fun VideoDetailContent(
                         if (backdrop != null) backdrop() else JellyfinPosterImage(
                             imageUrl = imageUrl, contentDescription = null,
                             context = LocalContext.current, modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
                             onErrorStateChange = onImageError
                         )
                         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = 0.18f),
-                            0.55f to Color.Transparent,
+                            0f to VideoPageBackground,
+                            0.06f to VideoPageBackground,
+                            0.28f to Color.Transparent,
+                            0.66f to Color.Transparent,
+                            0.93f to VideoPageBackground,
                             1f to VideoPageBackground
                         )))
                     }
-                    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(top = heroHeight - 76.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp).padding(top = heroHeight - 32.dp)) {
                         Text(item.name.orEmpty().ifBlank { stringResource(R.string.detail_video_fallback) },
-                            color = Color.White, fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
+                            color = Color.White, fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold,
+                            maxLines = 2, overflow = TextOverflow.Clip)
                         val metadata = listOfNotNull(item.productionYear?.toString(),
                             runtime.takeIf { it > 0 }?.let { videoDetailTime(it) }).joinToString("  ·  ")
                         if (metadata.isNotBlank()) Text(metadata, color = VideoSecondaryText, fontSize = 14.sp,
@@ -126,7 +132,7 @@ internal fun VideoDetailContent(
                                     videoDetailTime(position)) else stringResource(R.string.player_control_play),
                                     fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                             }
-                            downloadAction()
+                            moreActions()
                         }
                         if (canResume) {
                             LinearProgressIndicator(progress = { (if (runtime > 0L) position.toFloat() / runtime else 0f).coerceIn(0f, 1f) },
@@ -160,7 +166,7 @@ internal fun VideoDetailContent(
                         Icon(Icons.AutoMirrored.Outlined.InsertDriveFile, null, tint = Color(0xFFD9E1EC), modifier = Modifier.size(22.dp))
                         Column(Modifier.padding(start = 12.dp).weight(1f)) {
                             if (fileName != null) Text(fileName, color = Color(0xFFE0E6EE), fontSize = 13.sp,
-                                maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                lineHeight = 20.sp)
                             val fileMeta = listOfNotNull((source?.container ?: item.container)?.uppercase(Locale.ROOT),
                                 source?.size?.takeIf { it >= 0 }?.let(::videoFileSize)).joinToString(" · ")
                             if (fileMeta.isNotBlank()) Text(fileMeta, color = VideoSecondaryText, fontSize = 12.sp,
@@ -172,7 +178,7 @@ internal fun VideoDetailContent(
                             if (mediaMeta.isNotEmpty()) Text(mediaMeta.joinToString("   |   "), color = VideoSecondaryText,
                                 fontSize = 11.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 8.dp))
                             if (!path.isNullOrBlank()) Text(path, color = Color(0xFF7F90A5), fontSize = 11.sp,
-                                maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
+                                lineHeight = 17.sp, modifier = Modifier.padding(top = 6.dp))
                             if (path.isNullOrBlank() && fileMeta.isBlank() && mediaMeta.isEmpty())
                                 Text(stringResource(R.string.video_detail_no_info), color = VideoSecondaryText, fontSize = 13.sp)
                         }

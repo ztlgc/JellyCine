@@ -33,7 +33,11 @@ class ScreenTimeViewModel(context: Context) : ViewModel() {
         itemId = itemId, imageType = "Primary", width = 200, quality = 85, enableImageEnhancers = false
     )
 
-    init { loadScreenTime() }
+    init {
+        loadScreenTime()
+        viewModelScope.launch { historyStore.contentRevision.collect { refresh() } }
+        com.jellycine.app.sync.WatchSyncController.get(context).requestSync()
+    }
 
     fun refresh() {
         val state = _screenTimeState.value

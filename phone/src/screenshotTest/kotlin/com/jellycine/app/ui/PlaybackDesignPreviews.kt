@@ -20,7 +20,7 @@ import com.jellycine.data.model.BaseItemDto
 import com.jellycine.data.model.MediaSourceInfo
 import com.jellycine.data.model.MediaStream
 import com.jellycine.data.model.UserItemDataDto
-import com.jellycine.shared.ui.components.common.DetailDownloadActionButton
+import com.jellycine.app.ui.screens.detail.VideoDetailMoreActions
 import com.jellycine.shared.ui.components.common.DetailDownloadActionState
 import com.jellycine.player.core.AudioTrackInfo
 
@@ -35,8 +35,8 @@ private val sample = BaseItemDto(id = "preview", name = "山野之间", type = "
 private val audio = AudioTrackInfo("0", "原声 · AAC 双声道", "zh", 2, "aac")
 
 @Composable
-private fun PreviewPhoto() {
-    Image(painterResource(R.drawable.playback_preview_mountain), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+private fun PreviewPhoto(contentScale: ContentScale = ContentScale.Crop) {
+    Image(painterResource(R.drawable.playback_preview_mountain), null, Modifier.fillMaxSize(), contentScale = contentScale)
 }
 
 @PreviewTest
@@ -48,10 +48,11 @@ fun VideoDetailDesignPreview() {
         VideoDetailContent(item = sample, imageUrl = null, streams = streams, isFavorite = false, isWatched = false,
             onBack = {}, onFavorite = {}, onWatched = {}, onDelete = {},
             canDelete = true, favoriteSaving = false, onPlay = {}, onImageError = {},
-            rating = { VideoRatingButton(8f, onClick = {}) }, backdrop = { PreviewPhoto() },
-            downloadAction = { DetailDownloadActionButton(state = DetailDownloadActionState.Idle,
-                progress = 0f, onClick = {}, modifier = Modifier.size(44.dp), iconOnly = true,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)) })
+            rating = { VideoRatingButton(8f, onClick = {}) }, backdrop = { PreviewPhoto(ContentScale.Fit) },
+            moreActions = { VideoDetailMoreActions(itemId = sample.id,
+                downloadState = DetailDownloadActionState.Idle, downloadProgress = 0f,
+                playbackEnabled = true, onDownload = {}, onPlayWithEngine = {},
+                expanded = false, onExpandedChange = {}) })
     }
 }
 

@@ -522,7 +522,7 @@ fun DashboardContainer(
                     ContentWrapper {
                         Settings(
                             onLogout = onLogout,
-                            onBackPressed = { navController.popBackStack() },
+                            onBackPressed = { navController.returnToDashboardHome() },
                             onNavigateToPlayerSettings = onNavigateToPlayerSettings,
                             onNavigateToInterfaceSettings = onNavigateToInterfaceSettings,
                             onNavigateToDownloads = onNavigateToDownloads,
@@ -540,7 +540,7 @@ fun DashboardContainer(
             BackHandler(
                 enabled = currentRoute != null && currentRoute != DashboardDestination.Home.route
             ) {
-                navigateToDestination(DashboardDestination.Home)
+                navController.returnToDashboardHome()
             }
 
             val searchKeyboardVisible = currentRoute == DashboardDestination.Search.route &&

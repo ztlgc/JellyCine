@@ -135,6 +135,7 @@ fun DetailScreenContainer(
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var showPlayer by remember { mutableStateOf(false) }
+    var playbackEngineOverride by remember { mutableStateOf<String?>(null) }
     var remoteTrailerUrl by remember { mutableStateOf<String?>(null) }
     var remoteTrailerTitle by remember { mutableStateOf<String?>(null) }
     var playbackItemId by remember { mutableStateOf<String?>(null) }
@@ -274,7 +275,8 @@ fun DetailScreenContainer(
         castDisplaySubtitleStreamIndex = playbackData.selectedSubtitleStreamIndex
     }
 
-    fun localPlayer(targetItemId: String) {
+    fun localPlayer(targetItemId: String, forcedPlayerEngine: String? = null) {
+        playbackEngineOverride = forcedPlayerEngine
         playbackItemId = targetItemId
         castingDisplay = false
         remoteTrailerUrl = null
@@ -345,14 +347,15 @@ fun DetailScreenContainer(
         targetItem: BaseItemDto?,
         fallbackItemId: String,
         audioStreamIndex: Int?,
-        subtitleStreamIndex: Int?
+        subtitleStreamIndex: Int?,
+        forcedPlayerEngine: String? = null
     ) {
         val activeItemId = targetItem?.id?.takeIf { it.isNotBlank() } ?: fallbackItemId
         preferredAudioStreamIndex = audioStreamIndex
         preferredSubtitleStreamIndex = subtitleStreamIndex
 
         scope.launch {
-            if (castPlaybackState.isConnected) {
+            if (castPlaybackState.isConnected && forcedPlayerEngine == null) {
                 val startPositionMs = (targetItem?.userData?.playbackPositionTicks ?: 0L) / 10_000L
                 val artworkUrl = activeCastArtworkUrl(
                     mediaRepository = mediaRepository,
@@ -382,10 +385,10 @@ fun DetailScreenContainer(
                     castingDisplay = true
                     castDisplayState(castItemId = activeItemId)
                 } else {
-                    localPlayer(activeItemId)
+                    localPlayer(activeItemId, forcedPlayerEngine)
                 }
             } else {
-                localPlayer(activeItemId)
+                localPlayer(activeItemId, forcedPlayerEngine)
             }
         }
     }
@@ -559,6 +562,15 @@ fun DetailScreenContainer(
                             subtitleStreamIndex = subtitleStreamIndex
                         )
                     },
+                    onPlayWithEngine = { engine, audioStreamIndex, subtitleStreamIndex ->
+                        startPlaybackForItem(
+                            targetItem = activeItem,
+                            fallbackItemId = fallbackItemId,
+                            audioStreamIndex = audioStreamIndex,
+                            subtitleStreamIndex = subtitleStreamIndex,
+                            forcedPlayerEngine = engine
+                        )
+                    },
                     onRemoteTrailerClick = ::playRemoteTrailer,
                     onPreferredStreamIndexesChanged = { audioStreamIndex, subtitleStreamIndex ->
                         preferredAudioStreamIndex = audioStreamIndex
@@ -709,6 +721,7 @@ fun DetailScreenContainer(
             PlayerScreen(
                 mediaId = activePlaybackId,
                 initialItemDetails = initialPlaybackItemDetails,
+                forcedPlayerEngine = playbackEngineOverride,
                 preferredAudioStreamIndex = preferredAudioStreamIndex,
                 preferredSubtitleStreamIndex = preferredSubtitleStreamIndex,
                 onPreferredStreamIndexesChanged = { audioStreamIndex, subtitleStreamIndex ->
@@ -843,6 +856,7 @@ fun DetailScreen(
     trackSelectionSyncVersion: Int = 0,
     onBackPressed: () -> Unit = {},
     onPlayClick: (Int?, Int?) -> Unit = { _, _ -> },
+    onPlayWithEngine: (String, Int?, Int?) -> Unit = { _, _, _ -> },
     onRemoteTrailerClick: (String, String?) -> Unit = { _, _ -> },
     onPreferredStreamIndexesChanged: (Int?, Int?) -> Unit = { _, _ -> },
     onSimilarItemClick: (String) -> Unit = {},
@@ -860,6 +874,7 @@ fun DetailScreen(
         trackSelectionSyncVersion = trackSelectionSyncVersion,
         onBackPressed = onBackPressed,
         onPlayClick = onPlayClick,
+        onPlayWithEngine = onPlayWithEngine,
         onRemoteTrailerClick = onRemoteTrailerClick,
         onPreferredStreamIndexesChanged = onPreferredStreamIndexesChanged,
         onSimilarItemClick = onSimilarItemClick,
@@ -1086,7 +1101,7 @@ internal suspend fun heroImageCandidates(
             mediaRepository.getBackdropImageUrl(
                 itemId = itemId,
                 width = 1200,
-                height = 675,
+                height = if (item.type.equals("Video", ignoreCase = true)) null else 675,
                 quality = 95,
                 imageTag = item.imageTagFor(
                     imageType = "Backdrop",
@@ -1100,7 +1115,7 @@ internal suspend fun heroImageCandidates(
                 itemId = itemId,
                 imageType = "Primary",
                 width = 1200,
-                height = 675,
+                height = if (item.type.equals("Video", ignoreCase = true)) null else 675,
                 quality = 95,
                 imageTag = item.imageTagFor(
                     imageType = "Primary",

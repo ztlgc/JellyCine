@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="video_detail_more_actions">更多视频操作</string>
+    <string name="video_detail_play_mpv">使用 MPV 播放器播放</string>
+    <string name="video_detail_play_exoplayer">使用 ExoPlayer 播放器播放</string>
     <string name="video_detail_delete">删除视频</string>
     <string name="video_detail_deleted">已删除：%1$s</string>
     <string name="video_detail_delete_failed">删除“%1$s”失败：%2$s</string>

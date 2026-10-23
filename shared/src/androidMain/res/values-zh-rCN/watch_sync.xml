@@ -1,0 +1,24 @@
+<resources>
+    <string name="watch_sync_title">观看数据同步</string>
+    <string name="watch_sync_disabled">本地记录，开启后同步并支持恢复</string>
+    <string name="watch_sync_unconfigured">未配置同步服务</string>
+    <string name="watch_sync_needs_account">请绑定同步账号</string>
+    <string name="watch_sync_wait_network">等待网络，本地继续记录</string>
+    <string name="watch_sync_running">正在同步…</string>
+    <string name="watch_sync_waiting">等待同步</string>
+    <string name="watch_sync_last_success">已同步 · %1$s</string>
+    <string name="watch_sync_now">立即同步</string>
+    <string name="watch_sync_account">同步账号</string>
+    <string name="watch_sync_account_hint">换机登录同一同步账号，即可恢复观看历史。首次使用可在下方创建账号。</string>
+    <string name="watch_sync_create_account">创建同步账号</string>
+    <string name="watch_sync_verification_sent">请前往邮箱完成验证，再返回此处绑定并同步。</string>
+    <string name="watch_sync_email">邮箱</string>
+    <string name="watch_sync_password">密码</string>
+    <string name="watch_sync_bind">绑定并同步</string>
+    <string name="watch_sync_disconnect">断开同步账号</string>
+    <string name="watch_sync_error_auth">请检查同步账号并重新登录</string>
+    <string name="watch_sync_error_network">连接失败，将自动重试</string>
+    <string name="watch_sync_error_server">同步服务暂不可用，将自动重试</string>
+    <string name="watch_sync_error_identity">暂时无法识别媒体服务器，将自动重试</string>
+    <string name="watch_sync_error_credentials">请重新登录以恢复同步会话</string>
+</resources>
