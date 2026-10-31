@@ -510,7 +510,11 @@ class PlayerViewModel @Inject constructor(
                 } else {
                     exoPlayer = PlayerUtils.createPlayer(
                         context = context,
-                        audioGainProcessor = createAudioGainProcessor(context)
+                        audioGainProcessor = createAudioGainProcessor(context),
+                        diagnosticContext = "mediaRef=${mediaId.hashCode().toUInt().toString(16)} " +
+                            "method=${playbackSession.playMethod.name} offline=${playbackSession.isOfflinePlayback} " +
+                            "sourceBitrateKbps=${playbackSession.mediaSourceBitrateKbps}",
+                        recoverBufferedStalls = true
                     )
                     exoPlayer?.apply {
                         addListener(playerListener)
@@ -522,6 +526,7 @@ class PlayerViewModel @Inject constructor(
                         prepare()
 
                         if (playerStartPositionMs != null && playerStartPositionMs > 0) {
+                            logSeekRequest(playerStartPositionMs, "resume")
                             seekTo(playerStartPositionMs)
                         }
 
@@ -647,7 +652,8 @@ class PlayerViewModel @Inject constructor(
                         bufferForPlaybackMs = 2_500,
                         bufferForPlaybackAfterRebufferMs = 5_000
                     ),
-                    audioGainProcessor = createAudioGainProcessor(context)
+                    audioGainProcessor = createAudioGainProcessor(context),
+                    diagnosticContext = "source=remote_trailer"
                 )
                 exoPlayer?.apply {
                     addListener(playerListener)
@@ -798,9 +804,22 @@ class PlayerViewModel @Inject constructor(
     }
 
     fun seekTo(position: Long) {
+        performSeek(position, "direct")
+    }
+
+    private fun performSeek(position: Long, source: String) {
+        logSeekRequest(position, source)
         exoPlayer?.seekTo(position)
         mpvPlayer?.seekTo(position)
         _playerState.value = _playerState.value.copy(currentPosition = position)
+    }
+
+    private fun logSeekRequest(position: Long, source: String) {
+        val context = playerContext ?: return
+        com.jellycine.logging.PlaybackLogStore.log(context, "PlayerSeek",
+            "event=seek_request source=$source engine=$activePlayerEngine " +
+                "mediaRef=${playbackSession.mediaId?.hashCode()?.toUInt()?.toString(16)} " +
+                "fromMs=${getCurrentPosition()} toMs=$position")
     }
 
     fun play() {
@@ -826,11 +845,15 @@ class PlayerViewModel @Inject constructor(
     fun seekToProgress(progress: Float) {
         val duration = getDuration()
         if (duration > 0L) {
-            seekTo((duration * progress).toLong())
+            performSeek((duration * progress).toLong(), "timeline")
         }
     }
 
     fun seekBy(deltaMs: Long) {
+        seekBy(deltaMs, "surface_gesture")
+    }
+
+    private fun seekBy(deltaMs: Long, source: String) {
         val currentPosition = getCurrentPosition()
         val duration = getDuration()
         val targetPosition = if (duration > 0L) {
@@ -838,7 +861,7 @@ class PlayerViewModel @Inject constructor(
         } else {
             (currentPosition + deltaMs).coerceAtLeast(0L)
         }
-        seekTo(targetPosition)
+        performSeek(targetPosition, source)
     }
 
     fun getCurrentPosition(): Long = exoPlayer?.currentPosition ?: mpvPlayer?.currentPosition ?: 0L
@@ -1639,7 +1662,7 @@ class PlayerViewModel @Inject constructor(
     fun seekBackward() {
         val seconds = PlayerPreferences(playerContext ?: return)
             .getSeekBackwardIntervalSeconds()
-        seekBy(deltaMs = -(seconds * 1000L))
+        seekBy(deltaMs = -(seconds * 1000L), source = "backward_button")
     }
 
     /**
@@ -1648,7 +1671,7 @@ class PlayerViewModel @Inject constructor(
     fun seekForward() {
         val seconds = PlayerPreferences(playerContext ?: return)
             .getSeekForwardIntervalSeconds()
-        seekBy(deltaMs = seconds * 1000L)
+        seekBy(deltaMs = seconds * 1000L, source = "forward_button")
     }
 
     private val playerListener = object : Player.Listener {

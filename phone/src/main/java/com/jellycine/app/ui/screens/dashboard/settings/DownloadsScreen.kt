@@ -17,6 +17,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -69,6 +70,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -868,7 +870,7 @@ private fun SectionLabel(title: String) {
 }
 
 @Composable
-private fun artwork(
+internal fun artwork(
     title: String,
     imageUrl: String?,
     logoUrl: String?,
@@ -955,64 +957,65 @@ private fun SeriesSummaryRow(
     )
     val imageUrl = backdropImageUrl ?: primaryImageUrl
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        artwork(
-            title = group.title,
-            imageUrl = imageUrl,
-            logoUrl = logoImageUrl,
-            width = 148.dp,
-            height = 84.dp
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = group.title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.SemiBold
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val thumbnailWidth = downloadThumbnailWidth(maxWidth, trailingWidth = 24.dp, preferredWidth = 148.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(onClick = onClick)
+                .padding(vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            artwork(
+                title = group.title,
+                imageUrl = imageUrl,
+                logoUrl = logoImageUrl,
+                width = thumbnailWidth,
+                height = thumbnailWidth * (84f / 148f)
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = stringResource(
-                    R.string.downloads_series_meta,
-                    resources.getQuantityString(
-                        R.plurals.downloads_episodes_count,
-                        group.totalEpisodes,
-                        group.totalEpisodes
-                    ),
-                    formatBytes(group.totalSizeBytes)
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-            val progressLabel = groupProgressLabel(group, resources)
-            if (!progressLabel.isNullOrBlank()) {
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = group.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.SemiBold
+                )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = progressLabel,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                    color = Color.White,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = stringResource(
+                        R.string.downloads_series_meta,
+                        resources.getQuantityString(
+                            R.plurals.downloads_episodes_count,
+                            group.totalEpisodes,
+                            group.totalEpisodes
+                        ),
+                        formatBytes(group.totalSizeBytes)
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
+                val progressLabel = groupProgressLabel(group, resources)
+                if (!progressLabel.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = progressLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
+            Icon(
+                imageVector = Icons.Rounded.ChevronRight,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.75f),
+                modifier = Modifier.size(24.dp)
+            )
         }
-        Icon(
-            imageVector = Icons.Rounded.ChevronRight,
-            contentDescription = null,
-            tint = Color.White.copy(alpha = 0.75f),
-            modifier = Modifier.size(24.dp)
-        )
     }
 }
 
@@ -1070,20 +1073,20 @@ private fun MovieRow(
         onPlay = onPlay,
         onPause = onPauseAction,
         onCancel = onCancelAction,
-        artwork = {
+        artwork = { thumbnailWidth ->
             artwork(
                 title = entry.title,
                 imageUrl = imageUrl,
                 logoUrl = logoImageUrl,
-                width = 148.dp,
-                height = 84.dp
+                width = thumbnailWidth,
+                height = thumbnailWidth * (84f / 148f)
             )
         }
     )
 }
 
 @Composable
-private fun DownloadMediaRow(
+internal fun DownloadMediaRow(
     entry: TrackedDownload,
     title: String,
     metaText: String,
@@ -1096,44 +1099,58 @@ private fun DownloadMediaRow(
     onPlay: () -> Unit,
     onPause: () -> Unit,
     onCancel: () -> Unit,
-    artwork: @Composable () -> Unit
+    preferredArtworkWidth: Dp = 148.dp,
+    artwork: @Composable (Dp) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .clickable(enabled = canPlay, onClick = onPlay)
-            .padding(vertical = verticalPadding),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        artwork()
-        Spacer(modifier = Modifier.width(10.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = titleMaxLines,
-                overflow = TextOverflow.Ellipsis
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = metaText,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-            DownloadStatusText(entry = entry, statusLabel = statusLabel)
-        }
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val thumbnailWidth = downloadThumbnailWidth(maxWidth, trailingWidth = 48.dp, preferredWidth = preferredArtworkWidth)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(enabled = canPlay, onClick = onPlay)
+                .padding(vertical = verticalPadding),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            artwork(thumbnailWidth)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = titleMaxLines,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = metaText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                DownloadStatusText(entry = entry, statusLabel = statusLabel)
+            }
 
-        DownloadRowAction(
-            entry = entry,
-            deleting = deleting,
-            onDelete = onDelete,
-            onPause = onPause,
-            onCancel = onCancel
-        )
+            DownloadRowAction(
+                entry = entry,
+                deleting = deleting,
+                onDelete = onDelete,
+                onPause = onPause,
+                onCancel = onCancel
+            )
+        }
     }
+}
+
+@Composable
+private fun downloadThumbnailWidth(rowWidth: Dp, trailingWidth: Dp, preferredWidth: Dp): Dp {
+    val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+    val textBudget = 128.dp * fontScale
+    val availableWidth = (rowWidth - trailingWidth - 10.dp).coerceAtLeast(0.dp)
+    return (availableWidth - textBudget)
+        .coerceAtLeast(availableWidth * 0.25f)
+        .coerceAtMost(preferredWidth)
 }
 
 @Composable
@@ -1229,11 +1246,12 @@ private fun EpisodeRow(
         onPlay = onPlay,
         onPause = onPauseAction,
         onCancel = onCancelAction,
-        artwork = {
+        preferredArtworkWidth = 136.dp,
+        artwork = { thumbnailWidth ->
             Box(
                 modifier = Modifier
-                    .width(136.dp)
-                    .height(74.dp)
+                    .width(thumbnailWidth)
+                    .height(thumbnailWidth * (74f / 136f))
                     .clip(RoundedCornerShape(10.dp))
                     .background(Color.White.copy(alpha = 0.08f))
             ) {
@@ -1259,15 +1277,13 @@ private fun DownloadStatusText(
     Spacer(modifier = Modifier.height(2.dp))
     Text(
         text = statusLabel,
-        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+        style = MaterialTheme.typography.labelSmall,
         color = if (entry.state.status == DownloadStatus.DOWNLOADING) {
             Color.White
         } else {
             Color.White.copy(alpha = 0.82f)
         },
-        fontWeight = FontWeight.SemiBold,
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis
+        fontWeight = FontWeight.SemiBold
     )
 }
 

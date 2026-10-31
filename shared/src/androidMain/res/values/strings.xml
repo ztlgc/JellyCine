@@ -482,6 +482,7 @@
     <string name="settings_account">Account</string>
     <string name="settings_sign_out_subtitle">Sign out of your account</string>
     <string name="settings_server_label">Server</string>
+    <string name="auth_select_server">Select server</string>
     <string name="settings_switch_server">Switch Server</string>
     <string name="settings_add_user">Add User</string>
     <string name="settings_administrator">Administrator</string>

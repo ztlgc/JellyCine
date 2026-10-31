@@ -9,12 +9,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -80,6 +83,7 @@ internal fun BoxSetItemsSection(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BoxSetMovieCard(
     item: BaseItemDto,
@@ -157,9 +161,10 @@ private fun BoxSetMovieCard(
                 lineHeight = 20.sp
             )
 
-            Row(
+            FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                itemVerticalAlignment = Alignment.CenterVertically
             ) {
                 item.communityRating?.let { rating ->
                     Row(
@@ -256,6 +261,20 @@ private fun BoxSetMovieCard(
 }
 
 @Composable
+internal fun DetailCastName(name: String, modifier: Modifier = Modifier) {
+    Text(
+        text = name,
+        fontSize = 10.sp,
+        color = Color.White.copy(alpha = 0.8f),
+        textAlign = TextAlign.Center,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        lineHeight = 12.sp,
+        modifier = modifier.heightIn(min = 24.dp)
+    )
+}
+
+@Composable
 internal fun BoxSetCastRow(
     people: List<BaseItemPerson>,
     mediaRepository: MediaRepository,
@@ -318,17 +337,9 @@ internal fun BoxSetCastRow(
                         )
                     }
                 }
-                Text(
-                    text = person.name ?: "",
-                    fontSize = 10.sp,
-                    color = Color.White.copy(alpha = 0.8f),
-                    textAlign = TextAlign.Center,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 12.sp,
-                    modifier = Modifier
-                        .padding(top = 4.dp)
-                        .height(24.dp)
+                DetailCastName(
+                    name = person.name.orEmpty(),
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }

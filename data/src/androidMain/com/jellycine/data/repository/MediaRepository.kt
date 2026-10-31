@@ -726,7 +726,8 @@ class MediaRepository(private val context: Context) {
         anyProviderIdEquals: String? = null,
         studioIds: String? = null,
         fields: String? = "ChildCount,RecursiveItemCount,EpisodeCount,Genres,CommunityRating,ProductionYear,OfficialRating,Overview",
-        enableUserData: Boolean? = null
+        enableUserData: Boolean? = null,
+        forceRefresh: Boolean = false
     ): Result<QueryResult<BaseItemDto>> {
         return try {
             val api = getApi() ?: return Result.failure(Exception(string(R.string.data_error_api_not_available)))
@@ -748,7 +749,8 @@ class MediaRepository(private val context: Context) {
                 anyProviderIdEquals = anyProviderIdEquals,
                 studioIds = studioIds,
                 fields = fields,
-                enableUserData = enableUserData
+                enableUserData = enableUserData,
+                forceRefresh = forceRefresh
             )
 
             if (response.isSuccessful && response.body() != null) {

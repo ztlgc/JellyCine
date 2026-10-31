@@ -447,6 +447,7 @@
     <string name="settings_account">账户</string>
     <string name="settings_sign_out_subtitle">退出当前账号</string>
     <string name="settings_server_label">服务器</string>
+    <string name="auth_select_server">选择服务器</string>
     <string name="settings_switch_server">切换服务器</string>
     <string name="settings_add_user">添加用户</string>
     <string name="settings_administrator">管理员</string>

@@ -20,10 +20,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
@@ -430,6 +434,28 @@ internal fun BoxScope.PlayerOverlayHost(
         onWatchNextEpisode()
     }
 
+    val segmentActions: @Composable () -> Unit = {
+        PlayerSegmentActions(
+            activeSkippableSegment = activeSkippableSegment,
+            activeCreditsSegment = activeCreditsSegment,
+            dismissedCreditsPrompt = dismissedCreditsPrompt,
+            canWatchNextEpisode = canWatchNextEpisode,
+            nextEpisodeButtonProgress = nextEpisodeButtonProgress,
+            onSkipSegment = {
+                resetAutoHideTimer()
+                activeSkippableSegment?.seekToMs?.let(viewModel::seekTo)
+            },
+            onWatchCredits = {
+                resetAutoHideTimer()
+                onWatchCredits()
+            },
+            onWatchNextEpisode = {
+                resetAutoHideTimer()
+                onWatchNextEpisode()
+            }
+        )
+    }
+
     if (uiState.controlsVisible) {
         val activity = LocalContext.current as? Activity
         val configuration = LocalConfiguration.current
@@ -541,91 +567,18 @@ internal fun BoxScope.PlayerOverlayHost(
             },
             seekBackwardSeconds = seekBackwardSeconds,
             seekForwardSeconds = seekForwardSeconds,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            segmentActions = segmentActions
         )
-    }
-
-    AnimatedVisibility(
-        visible = activeSkippableSegment != null &&
-            activeSkippableSegment.type != SkippableSegmentType.CREDITS &&
-            uiState.controlsVisible,
-        enter = fadeIn(),
-        exit = fadeOut(),
-        modifier = Modifier
-            .align(Alignment.BottomEnd)
-            .padding(end = 24.dp, bottom = 28.dp)
-    ) {
-        FilledTonalButton(
-            onClick = {
-                resetAutoHideTimer()
-                activeSkippableSegment?.seekToMs?.let(viewModel::seekTo)
-            },
-            shape = RoundedCornerShape(999.dp),
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = Color.Black.copy(alpha = 0.52f),
-                contentColor = Color.White
-            ),
-            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
-            elevation = ButtonDefaults.filledTonalButtonElevation(
-                defaultElevation = 0.dp,
-                pressedElevation = 1.dp
-            ),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+    } else {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .fillMaxWidth()
+                .safeDrawingPadding()
+                .padding(horizontal = 24.dp, vertical = 28.dp)
         ) {
-            Text(
-                text = stringResource(
-                    when (activeSkippableSegment?.type) {
-                        SkippableSegmentType.RECAP -> R.string.player_skip_recap
-                        SkippableSegmentType.PREVIEW -> R.string.player_skip_preview
-                        else -> R.string.player_skip_intro
-                    }
-                ),
-                fontSize = 14.sp
-            )
-        }
-    }
-
-    AnimatedVisibility(
-        visible = activeCreditsSegment != null &&
-            !dismissedCreditsPrompt,
-        enter = fadeIn(),
-        exit = fadeOut(),
-        modifier = Modifier
-            .align(Alignment.BottomEnd)
-            .padding(end = 24.dp, bottom = 28.dp)
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            OutlinedButton(
-                onClick = {
-                    resetAutoHideTimer()
-                    onWatchCredits()
-                },
-                shape = RoundedCornerShape(999.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.Black.copy(alpha = 0.44f),
-                    contentColor = Color.White
-                ),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.player_watch_credits),
-                    fontSize = 14.sp
-                )
-            }
-
-            if (canWatchNextEpisode) {
-                NextEpisodeProgressPill(
-                    label = stringResource(R.string.player_watch_next_episode),
-                    progressFraction = nextEpisodeButtonProgress,
-                    onClick = {
-                        resetAutoHideTimer()
-                        onWatchNextEpisode()
-                    }
-                )
-            }
+            segmentActions()
         }
     }
 
@@ -664,6 +617,92 @@ internal fun BoxScope.PlayerOverlayHost(
                 strokeWidth = 3.dp,
                 modifier = Modifier.size(48.dp)
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun PlayerSegmentActions(
+    activeSkippableSegment: SkippableSegmentAction?,
+    activeCreditsSegment: SkippableSegmentAction?,
+    dismissedCreditsPrompt: Boolean,
+    canWatchNextEpisode: Boolean,
+    nextEpisodeButtonProgress: Float,
+    onSkipSegment: () -> Unit,
+    onWatchCredits: () -> Unit,
+    onWatchNextEpisode: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.End,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        AnimatedVisibility(
+            visible = activeSkippableSegment != null &&
+                activeSkippableSegment.type != SkippableSegmentType.CREDITS,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            FilledTonalButton(
+                onClick = onSkipSegment,
+                shape = RoundedCornerShape(999.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = Color.Black.copy(alpha = 0.52f),
+                    contentColor = Color.White
+                ),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.10f)),
+                elevation = ButtonDefaults.filledTonalButtonElevation(
+                    defaultElevation = 0.dp,
+                    pressedElevation = 1.dp
+                ),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    text = stringResource(
+                        when (activeSkippableSegment?.type) {
+                            SkippableSegmentType.RECAP -> R.string.player_skip_recap
+                            SkippableSegmentType.PREVIEW -> R.string.player_skip_preview
+                            else -> R.string.player_skip_intro
+                        }
+                    ),
+                    fontSize = 14.sp
+                )
+            }
+        }
+        AnimatedVisibility(
+            visible = activeCreditsSegment != null && !dismissedCreditsPrompt,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = onWatchCredits,
+                    shape = RoundedCornerShape(999.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color.Black.copy(alpha = 0.44f),
+                        contentColor = Color.White
+                    ),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.player_watch_credits),
+                        fontSize = 14.sp
+                    )
+                }
+                if (canWatchNextEpisode) {
+                    NextEpisodeProgressPill(
+                        label = stringResource(R.string.player_watch_next_episode),
+                        progressFraction = nextEpisodeButtonProgress,
+                        onClick = onWatchNextEpisode
+                    )
+                }
+            }
         }
     }
 }

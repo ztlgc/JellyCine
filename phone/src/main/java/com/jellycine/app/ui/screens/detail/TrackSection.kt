@@ -9,6 +9,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -72,103 +74,61 @@ internal fun TrackSection(
     val hasSubtitleSection = subtitleOptions.size > 1
     val trackFieldCount = listOf(hasVideoSection, hasAudioSection, hasSubtitleSection)
         .count { it }
-    val tabletTrackFieldMaxWidth = when (trackFieldCount) {
-        3 -> 230.dp
-        2 -> 300.dp
-        else -> 360.dp
-    }
+    if (trackFieldCount == 0) return
 
-    if (isWidescreenLayout) {
-        if (hasVideoSection || hasAudioSection || hasSubtitleSection) {
-            Row(
-                modifier = modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (hasVideoSection) {
-                    val sharesRow = hasSubtitleSection || hasAudioSection
-                    TrackField(
-                        modifier = if (sharesRow) {
-                            Modifier.widthIn(max = tabletTrackFieldMaxWidth)
-                        } else {
-                            Modifier.fillMaxWidth()
-                        },
-                        label = stringResource(R.string.ui_video),
-                        selectedOption = displayedSelectedVideo,
-                        options = videoOptions,
-                        inlineMetaText = videoInlineMetaText,
-                        singleValueFillWidth = !sharesRow,
-                        onOptionSelected = onVideoOptionSelected
-                    )
-                }
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        val fieldSpacing = 14.dp
+        val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+        val minimumFieldWidth = 170.dp * fontScale
+        val useHorizontalTracks = isWidescreenLayout &&
+            maxWidth >= minimumFieldWidth * trackFieldCount + fieldSpacing * (trackFieldCount - 1)
 
-                if (hasAudioSection) {
-                    val sharesRow = hasSubtitleSection || hasVideoSection
-                    TrackField(
-                        modifier = if (sharesRow) {
-                            Modifier.widthIn(max = tabletTrackFieldMaxWidth)
-                        } else {
-                            Modifier.fillMaxWidth()
-                        },
-                        label = stringResource(R.string.ui_audio),
-                        selectedOption = selectedAudio,
-                        options = audioOptions,
-                        singleValueFillWidth = !sharesRow,
-                        onOptionSelected = onAudioOptionSelected
-                    )
-                }
-
-                if (hasSubtitleSection) {
-                    val sharesRow = hasVideoSection || hasAudioSection
-                    TrackField(
-                        modifier = if (sharesRow) {
-                            Modifier.widthIn(max = tabletTrackFieldMaxWidth)
-                        } else {
-                            Modifier.fillMaxWidth()
-                        },
-                        label = stringResource(R.string.ui_subtitles),
-                        selectedOption = selectedSubtitle,
-                        options = subtitleOptions,
-                        singleValueFillWidth = !sharesRow,
-                        onOptionSelected = onSubtitleOptionSelected
-                    )
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
+        val fields: @Composable (Modifier) -> Unit = { fieldModifier ->
+            if (hasVideoSection) {
+                TrackField(
+                    modifier = fieldModifier,
+                    label = stringResource(R.string.ui_video),
+                    selectedOption = displayedSelectedVideo,
+                    options = videoOptions,
+                    inlineMetaText = videoInlineMetaText,
+                    onOptionSelected = onVideoOptionSelected
+                )
+            }
+            if (hasAudioSection) {
+                TrackField(
+                    modifier = fieldModifier,
+                    label = stringResource(R.string.ui_audio),
+                    selectedOption = selectedAudio,
+                    options = audioOptions,
+                    onOptionSelected = onAudioOptionSelected
+                )
+            }
+            if (hasSubtitleSection) {
+                TrackField(
+                    modifier = fieldModifier,
+                    label = stringResource(R.string.ui_subtitles),
+                    selectedOption = selectedSubtitle,
+                    options = subtitleOptions,
+                    onOptionSelected = onSubtitleOptionSelected
+                )
             }
         }
-    } else {
-        if (hasVideoSection) {
-            TrackField(
-                label = stringResource(R.string.ui_video),
-                selectedOption = displayedSelectedVideo,
-                options = videoOptions,
-                inlineMetaText = videoInlineMetaText,
-                onOptionSelected = onVideoOptionSelected
-            )
-        }
 
-        if (hasVideoSection && hasAudioSection) {
-            Spacer(modifier = Modifier.height(4.dp))
-        }
-
-        if (hasAudioSection) {
-            TrackField(
-                label = stringResource(R.string.ui_audio),
-                selectedOption = selectedAudio,
-                options = audioOptions,
-                onOptionSelected = onAudioOptionSelected
-            )
-        }
-
-        if (hasSubtitleSection) {
-            Spacer(modifier = Modifier.height(4.dp))
-            TrackField(
-                label = stringResource(R.string.ui_subtitles),
-                selectedOption = selectedSubtitle,
-                options = subtitleOptions,
-                onOptionSelected = onSubtitleOptionSelected
-            )
+        if (useHorizontalTracks) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(fieldSpacing),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                fields(Modifier.weight(1f))
+            }
+        } else {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                fields(Modifier.fillMaxWidth())
+            }
         }
     }
 }

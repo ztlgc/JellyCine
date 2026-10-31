@@ -15,7 +15,8 @@ class ThemeMusicController(context: Context) {
             maxBufferMs = 10_000,
             bufferForPlaybackMs = 500,
             bufferForPlaybackAfterRebufferMs = 1_500
-        )
+        ),
+        diagnosticContext = "source=theme_music"
     )
 
     fun play(urls: List<String>, endless: Boolean, volume: Float = 1f) {

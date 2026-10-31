@@ -7,6 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -440,7 +442,7 @@ private fun CastSeekBar(
 }
 
 @Composable
-private fun TrackOptionRow(
+internal fun TrackOptionRow(
     label: String,
     options: List<CastTrackOption>,
     selectedTrackIndex: Int?,
@@ -448,6 +450,7 @@ private fun TrackOptionRow(
     enabled: Boolean
 ) {
     Column(
+        modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Text(
@@ -456,39 +459,53 @@ private fun TrackOptionRow(
             fontWeight = FontWeight.SemiBold,
             color = Color.White.copy(alpha = 0.78f)
         )
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(
-                items = options,
-                key = { option -> "${option.streamIndex}_${option.label}" }
-            ) { option ->
-                val isSelected = option.streamIndex == selectedTrackIndex
-                FilterChip(
-                    selected = isSelected,
-                    onClick = {
-                        if (!isSelected) {
-                            onTrackSelected(option.streamIndex)
-                        }
-                    },
-                    enabled = enabled,
-                    label = {
-                        Text(
-                            text = if (option.streamIndex == -1) stringResource(R.string.ui_off) else option.label,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            // LazyRow measures items without a horizontal bound; capture its viewport first.
+            val chipMaxWidth = maxWidth
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(
+                    items = options,
+                    key = { option -> "${option.streamIndex}_${option.label}" }
+                ) { option ->
+                    val isSelected = option.streamIndex == selectedTrackIndex
+                    FilterChip(
+                        modifier = Modifier.widthIn(max = chipMaxWidth),
+                        selected = isSelected,
+                        onClick = {
+                            if (!isSelected) {
+                                onTrackSelected(option.streamIndex)
+                            }
+                        },
+                        enabled = enabled,
+                        label = {
+                            Text(
+                                text = if (option.streamIndex == -1) stringResource(R.string.ui_off) else option.label,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Color(0xFF234A3D),
+                            selectedLabelColor = Color(0xFFE7FFF6),
+                            containerColor = Color(0xFF1A2129),
+                            labelColor = Color.White.copy(alpha = 0.88f),
+                            disabledContainerColor = Color(0xFF131922),
+                            disabledLabelColor = Color.White.copy(alpha = 0.45f)
                         )
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFF234A3D),
-                        selectedLabelColor = Color(0xFFE7FFF6),
-                        containerColor = Color(0xFF1A2129),
-                        labelColor = Color.White.copy(alpha = 0.88f),
-                        disabledContainerColor = Color(0xFF131922),
-                        disabledLabelColor = Color.White.copy(alpha = 0.45f)
                     )
-                )
+                }
             }
+        }
+        options.firstOrNull { it.streamIndex == selectedTrackIndex }?.let { selectedOption ->
+            Text(
+                text = if (selectedOption.streamIndex == -1) stringResource(R.string.ui_off) else selectedOption.label,
+                modifier = Modifier.fillMaxWidth(),
+                fontSize = 12.sp,
+                color = Color(0xFFE7FFF6)
+            )
         }
     }
 }

@@ -2,6 +2,7 @@ package com.jellycine.app.ui.screens.dashboard.media
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -70,11 +71,19 @@ fun LibraryBrowserScreen(
     var folderLoading by remember { mutableStateOf(false) }
     var folderError by remember { mutableStateOf<String?>(null) }
     var folderRetry by remember { mutableIntStateOf(0) }
+    var handledFolderRetry by remember(libraryId) { mutableIntStateOf(0) }
+    var loadedFolderId by remember(libraryId) { mutableStateOf<String?>(null) }
     val folderId = folderIds.last()
     LaunchedEffect(state.tab, folderId, folderRetry) {
         if (state.tab == LibraryTab.FOLDERS) {
-            folderLoading = true; folderError = null; folderItems = emptyList()
-            try { folderItems = model.loadFolder(folderId) }
+            val forceRefresh = folderRetry != handledFolderRetry
+            handledFolderRetry = folderRetry
+            folderLoading = true; folderError = null
+            if (loadedFolderId != folderId) folderItems = emptyList()
+            try {
+                folderItems = model.loadFolder(folderId, forceRefresh)
+                loadedFolderId = folderId
+            }
             catch (e: kotlinx.coroutines.CancellationException) { throw e }
             catch (e: Exception) { folderError = e.message }
             finally { folderLoading = false }
@@ -141,8 +150,9 @@ fun LibraryBrowserScreen(
             IconButton(onClick = { back() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.library_back), tint = Color.White) }
             Text(selectedTitle, color = Color.White, style = MaterialTheme.typography.headlineSmall,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-            IconButton(onClick = { model.open(libraryId, true); folderRetry++ }, enabled = !busy) {
-                Icon(Icons.Default.Refresh, stringResource(R.string.library_refresh), tint = Color.White)
+            IconButton(onClick = { model.open(libraryId, refresh = true); folderRetry++ }, enabled = !busy) {
+                if (busy) CircularProgressIndicator(Modifier.size(20.dp), color = LibraryBlue, strokeWidth = 2.dp)
+                else Icon(Icons.Default.Refresh, stringResource(R.string.library_refresh), tint = Color.White)
             }
         }
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp)) {
@@ -155,37 +165,28 @@ fun LibraryBrowserScreen(
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(if (busy && source.isEmpty()) stringResource(R.string.library_loading_count, state.loaded, state.total)
+        LibraryBrowserToolbar(
+            countText = if (busy && source.isEmpty()) stringResource(R.string.library_loading_count, state.loaded, state.total)
                 else stringResource(R.string.library_count, if (grouped) groups.size else display.size),
-                color = Color(0xFFBABDC4), style = MaterialTheme.typography.bodySmall,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(0.8f).padding(start = 4.dp))
-            TextButton(onClick = { sortSheet = true }, modifier = Modifier.weight(1.4f),
-                contentPadding = PaddingValues(horizontal = 4.dp)) {
-                Icon(Icons.AutoMirrored.Filled.Sort, null, tint = LibraryBlue, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(stringResource(state.sort.label), color = LibraryBlue, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            if (state.sort != LibrarySort.RANDOM) IconButton(onClick = model::direction) {
-                Icon(if (state.descending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
-                    stringResource(R.string.library_direction), tint = LibraryBlue)
-            }
-            IconButton(onClick = { onPlayQueue(playable.shuffled().mapNotNull { it.id }) }, enabled = playable.isNotEmpty()) {
-                Icon(Icons.Default.Shuffle, stringResource(R.string.library_shuffle), tint = if (playable.isEmpty()) Color.Gray else Color.White)
-            }
-            IconButton(onClick = model::view) { Icon(if (state.listView) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
-                stringResource(R.string.library_view), tint = Color.White) }
-            IconButton(onClick = { filterSheet = true }) { Icon(Icons.Default.FilterAlt, stringResource(R.string.library_filter),
-                tint = if (state.genres.isNotEmpty() || state.watched != null) LibraryBlue else Color.White) }
-        }
+            sortLabel = stringResource(state.sort.label),
+            descending = state.descending,
+            randomSort = state.sort == LibrarySort.RANDOM,
+            listView = state.listView,
+            hasFilters = state.genres.isNotEmpty() || state.watched != null,
+            canShuffle = playable.isNotEmpty(),
+            onSort = { sortSheet = true },
+            onDirection = model::direction,
+            onView = model::view,
+            onFilter = { filterSheet = true },
+            onShuffle = { onPlayQueue(playable.shuffled().mapNotNull { it.id }) }
+        )
         if (error != null && source.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.library_error), color = Color.Gray, modifier = Modifier.weight(1f))
                 TextButton(onClick = {
                     if (state.error != null) model.open(libraryId, true) else when (state.tab) {
                         LibraryTab.FOLDERS -> folderRetry++
-                        LibraryTab.COLLECTIONS -> model.loadCollections()
+                        LibraryTab.COLLECTIONS -> model.loadCollections(forceRefresh = true)
                         else -> model.open(libraryId, true)
                     }
                 }) { Text(stringResource(R.string.library_retry)) }
@@ -200,7 +201,7 @@ fun LibraryBrowserScreen(
                 Button(onClick = {
                     if (state.error != null) model.open(libraryId, true) else when (state.tab) {
                         LibraryTab.FOLDERS -> folderRetry++
-                        LibraryTab.COLLECTIONS -> model.loadCollections()
+                        LibraryTab.COLLECTIONS -> model.loadCollections(forceRefresh = true)
                         else -> model.open(libraryId, true)
                     }
                 }) { Text(stringResource(R.string.library_retry)) }
@@ -274,6 +275,76 @@ fun LibraryBrowserScreen(
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 TextButton(onClick = { draftGenres = emptySet(); draftWatched = null }) { Text(stringResource(R.string.library_clear)) }
                 Button(onClick = { model.filters(draftGenres, draftWatched); filterSheet = false }) { Text(stringResource(R.string.library_apply)) }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun LibraryBrowserToolbar(
+    countText: String,
+    sortLabel: String,
+    descending: Boolean,
+    randomSort: Boolean,
+    listView: Boolean,
+    hasFilters: Boolean,
+    canShuffle: Boolean,
+    onSort: () -> Unit,
+    onDirection: () -> Unit,
+    onView: () -> Unit,
+    onFilter: () -> Unit,
+    onShuffle: () -> Unit
+) {
+    var moreExpanded by remember { mutableStateOf(false) }
+    val actionSize = 40.dp
+    @Composable
+    fun Actions() {
+        IconButton(onClick = onView, modifier = Modifier.size(actionSize)) {
+            Icon(if (listView) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
+                stringResource(R.string.library_view), tint = Color.White)
+        }
+        IconButton(onClick = onFilter, modifier = Modifier.size(actionSize)) {
+            Icon(Icons.Default.FilterAlt, stringResource(R.string.library_filter),
+                tint = if (hasFilters) LibraryBlue else Color.White)
+        }
+        Box {
+            IconButton(onClick = { moreExpanded = true }, modifier = Modifier.size(actionSize)) {
+                Icon(Icons.Default.MoreVert, stringResource(R.string.library_more), tint = Color.White)
+            }
+            DropdownMenu(expanded = moreExpanded, onDismissRequest = { moreExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.library_shuffle)) },
+                    leadingIcon = { Icon(Icons.Default.Shuffle, null) },
+                    enabled = canShuffle,
+                    onClick = { moreExpanded = false; onShuffle() }
+                )
+            }
+        }
+    }
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+        val sortLabelWidth = (maxWidth - 296.dp).coerceIn(24.dp, 64.dp)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(countText, color = Color(0xFFBABDC4), style = MaterialTheme.typography.bodySmall,
+                maxLines = 1, softWrap = false,
+                modifier = Modifier.weight(1f).basicMarquee(iterations = Int.MAX_VALUE))
+            Spacer(Modifier.width(8.dp))
+            CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Actions()
+                }
+                Spacer(Modifier.width(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onSort, contentPadding = PaddingValues(horizontal = 4.dp)) {
+                        Icon(Icons.AutoMirrored.Filled.Sort, null, tint = LibraryBlue, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text(sortLabel, color = LibraryBlue, maxLines = 1, softWrap = false,
+                            modifier = Modifier.width(sortLabelWidth).basicMarquee(iterations = Int.MAX_VALUE))
+                    }
+                    if (!randomSort) IconButton(onClick = onDirection, modifier = Modifier.size(actionSize)) {
+                        Icon(if (descending) Icons.Default.ArrowDownward else Icons.Default.ArrowUpward,
+                            stringResource(R.string.library_direction), tint = LibraryBlue)
+                    }
+                }
             }
         }
     }

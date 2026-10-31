@@ -2,7 +2,11 @@ package com.jellycine.shared.ui.components.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +32,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.jellycine.shared.R
@@ -61,37 +69,50 @@ fun ThemeMusicSettingsItem(
             }
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Row(
+        val textMeasurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val optionStyle = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+        val widestLabel = options.maxOf { (_, label) ->
+            textMeasurer.measure(label, style = optionStyle, softWrap = false).size.width
+        }
+        val requiredOptionWidth = with(density) { widestLabel.toDp() } + 24.dp
+        val dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(40.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f), RoundedCornerShape(12.dp))
+                .selectableGroup()
         ) {
-            options.forEachIndexed { index, (mode, label) ->
-                val selected = mode == selectedMode
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .background(if (selected) accentColor else Color.Transparent)
-                        .clickable { onModeSelected(mode) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        label,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (selected) Color.White else Color.White.copy(alpha = 0.78f)
-                    )
+            if (requiredOptionWidth * options.size > maxWidth - (options.size - 1).dp) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    options.forEachIndexed { index, (mode, label) ->
+                        ThemeMusicModeOption(
+                            label = label,
+                            selected = mode == selectedMode,
+                            accentColor = accentColor,
+                            onClick = { onModeSelected(mode) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        if (index < options.lastIndex) {
+                            Spacer(modifier = Modifier.fillMaxWidth().height(1.dp).background(dividerColor))
+                        }
+                    }
                 }
-                if (index < options.lastIndex) {
-                    Spacer(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .fillMaxHeight()
-                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-                    )
+            } else {
+                Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+                    options.forEachIndexed { index, (mode, label) ->
+                        ThemeMusicModeOption(
+                            label = label,
+                            selected = mode == selectedMode,
+                            accentColor = accentColor,
+                            onClick = { onModeSelected(mode) },
+                            modifier = Modifier.weight(1f).fillMaxHeight()
+                        )
+                        if (index < options.lastIndex) {
+                            Spacer(modifier = Modifier.width(1.dp).fillMaxHeight().background(dividerColor))
+                        }
+                    }
                 }
             }
         }
@@ -137,5 +158,31 @@ fun ThemeMusicSettingsItem(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ThemeMusicModeOption(
+    label: String,
+    selected: Boolean,
+    accentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .heightIn(min = 40.dp)
+            .background(if (selected) accentColor else Color.Transparent)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = if (selected) Color.White else Color.White.copy(alpha = 0.78f),
+            textAlign = TextAlign.Center
+        )
     }
 }

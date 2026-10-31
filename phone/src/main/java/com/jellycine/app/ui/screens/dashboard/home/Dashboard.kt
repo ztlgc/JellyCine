@@ -2105,7 +2105,7 @@ private fun TopHeader(
 }
 
 @Composable
-private fun BrandHeader(
+internal fun BrandHeader(
     serverName: String?,
     modifier: Modifier = Modifier,
     showUserIcon: Boolean = false,
@@ -2126,6 +2126,8 @@ private fun BrandHeader(
     ) {
         Row(
             modifier = Modifier
+                .weight(1f, fill = false)
+                .padding(end = if (showUserIcon) 12.dp else 0.dp)
                 .clip(headerChipShape)
                 .background(Color.White.copy(alpha = 0.14f))
                 .border(
@@ -2161,7 +2163,10 @@ private fun BrandHeader(
                 text = displayServerName,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color.White
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
             )
         }
 
@@ -2989,17 +2994,12 @@ internal fun LibraryItemCard(
     val landscapeLayout = useLandscapeLayout || useWatchedEpisodeImage
     val cardWidth = if (landscapeLayout) 200.dp else 112.dp
     val imageHeight = if (landscapeLayout) 120.dp else 166.dp
-    val titleTopPadding = 4.dp
-    val titleFontSize = 13.sp
-    val titleLineHeight = 15.sp
     val titleMaxLines = if (useWatchedEpisodeImage) 1 else if (landscapeLayout) 2 else 1
-    val metadataFontSize = 12.sp
-    val metadataLineHeight = 13.sp
 
     Column(
         modifier = modifier
             .width(cardWidth)
-            .then(if (landscapeLayout) Modifier else Modifier.height(214.dp))
+            .then(if (landscapeLayout) Modifier else Modifier.heightIn(min = 214.dp))
     ) {
         Card(
             modifier = Modifier
@@ -3078,43 +3078,37 @@ internal fun LibraryItemCard(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(if (landscapeLayout) Modifier else Modifier.height(46.dp))
-                .padding(top = titleTopPadding, start = 4.dp, end = 4.dp),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = displayName,
-                    color = Color.White,
-                    fontSize = titleFontSize,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = titleMaxLines,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = titleLineHeight,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+        LibraryItemCaption(
+            title = displayName,
+            metadata = if (useWatchedEpisodeImage) item.episodeDisplaySubtitle() else buildMetadataText(item),
+            landscapeLayout = landscapeLayout,
+            titleMaxLines = titleMaxLines
+        )
+    }
+}
 
-                val metadataText = if (useWatchedEpisodeImage) item.episodeDisplaySubtitle() else buildMetadataText(item)
-                if (metadataText.isNotEmpty()) {
-                    Text(
-                        text = metadataText,
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = metadataFontSize,
-                        lineHeight = metadataLineHeight,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
+@Composable
+internal fun LibraryItemCaption(
+    title: String,
+    metadata: String,
+    landscapeLayout: Boolean,
+    titleMaxLines: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth()
+            .then(if (landscapeLayout) Modifier else Modifier.heightIn(min = 46.dp))
+            .padding(top = 4.dp, start = 4.dp, end = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(title, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            maxLines = titleMaxLines, overflow = TextOverflow.Ellipsis, lineHeight = 15.sp,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+        if (metadata.isNotEmpty()) {
+            Text(metadata, color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp,
+                lineHeight = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
         }
     }
 }

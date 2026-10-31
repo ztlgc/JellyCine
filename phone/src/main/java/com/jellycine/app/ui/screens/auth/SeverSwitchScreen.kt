@@ -208,11 +208,12 @@ internal fun ServerSwitchDialogsHost(
             onDismiss = dismissUsers,
             onAddUser = {
                 val targetServerUrl = state.userSwitchServerUrl ?: currentServerUrl
+                val targetServerName = state.userSwitchServerName ?: currentServerName
                 targetServerUrl
                     ?.takeIf { it.isNotBlank() }
                     ?.let { serverUrl ->
                         state.dismissUsers()
-                        onAddUser(serverUrl, state.userSwitchServerName ?: currentServerName)
+                        onAddUser(serverUrl, targetServerName)
                     }
             },
             onRequestRemoveUser = onRequestRemoveUser,

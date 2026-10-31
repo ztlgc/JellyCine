@@ -19,16 +19,13 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.util.UnstableApi
 import com.jellycine.app.locale.AppLanguageManager
 import com.jellycine.shared.ui.theme.JellyCineTheme
 import com.jellycine.app.ui.navigation.AppNavigation
 import com.jellycine.app.ui.splash.SplashScreen
 import com.jellycine.app.ui.splash.SplashViewModel
-import com.jellycine.auth.AuthStateManager
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 @UnstableApi
@@ -46,21 +43,18 @@ class JellyCineActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
 
-        super.onCreate(savedInstanceState)
+        // Keep navigation across configuration changes, but start with no selected
+        // server when Android restores a task in a new app process.
+        val stateForCurrentProcess = savedInstanceState?.takeIf {
+            it.getString(KEY_PROCESS_SESSION) == PROCESS_SESSION
+        }
+        super.onCreate(stateForCurrentProcess)
         AppLanguageManager.followSystemLanguage(this)
         requestNotificationPermission()
 
-        val authStateManager = AuthStateManager.getInstance(this)
-        val authCheckCompleted = AtomicBoolean(false)
         val firstComposeCommitted = AtomicBoolean(false)
         splashScreen.setKeepOnScreenCondition {
-            !authCheckCompleted.get() ||
-                !firstComposeCommitted.get()
-        }
-
-        lifecycleScope.launch {
-            authStateManager.checkAuthenticationState()
-            authCheckCompleted.set(true)
+            !firstComposeCommitted.get()
         }
 
         // Use modern edge-to-edge approach
@@ -103,6 +97,11 @@ class JellyCineActivity : ComponentActivity() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString(KEY_PROCESS_SESSION, PROCESS_SESSION)
+        super.onSaveInstanceState(outState)
+    }
+
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
 
@@ -122,5 +121,7 @@ class JellyCineActivity : ComponentActivity() {
     companion object {
         private const val PREFS_NAME = "jellycine_app_prefs"
         private const val KEY_NOTIFICATION_PERMISSION_PROMPTED = "notification_permission_prompted"
+        private const val KEY_PROCESS_SESSION = "process_session"
+        private val PROCESS_SESSION = java.util.UUID.randomUUID().toString()
     }
 }

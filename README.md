@@ -33,10 +33,10 @@
 面向 Emby / Jellyfin 普通视频媒体库，保留文件夹导航，提供实际观看时长、打开次数与排行、服务器公共评分，以及手机播放和声音控制。
 
 - [下载正式 APK](https://github.com/ztlgc/JellyCine/releases/latest)
-- [2026-10-20 更新说明与校验信息](docs/releases/2026-10-20.md)
+- [2026-10-31 更新说明与校验信息](docs/releases/2026-10-31.md)
 - [观看统计口径](docs/SCREEN_TIME.md) · [Android 构建说明](docs/ANDROID_BUILD.md)
 
-观看统计从新版本开始在本机累计，按服务器和账号隔离；当前不与服务器或其他设备同步。
+观看统计先在本机累计，按服务器和账号隔离；可选开启 Supabase 同步，默认关闭。
 
 ## Features
 

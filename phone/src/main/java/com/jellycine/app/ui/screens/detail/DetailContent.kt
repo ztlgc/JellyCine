@@ -31,6 +31,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jellycine.shared.R
@@ -86,6 +88,7 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DetailContent(
     item: BaseItemDto,
@@ -880,7 +883,10 @@ fun DetailContent(
                         if (reserveLogoSpace || showTitleFallback) {
                             Box(
                                 modifier = Modifier
-                                    .height(layout.logoContainerHeight)
+                                    .then(
+                                        if (showTitleFallback) Modifier.heightIn(min = layout.logoContainerHeight)
+                                        else Modifier.height(layout.logoContainerHeight)
+                                    )
                                     .fillMaxWidth()
                                     .then(overviewModifier)
                             ) {
@@ -901,17 +907,10 @@ fun DetailContent(
                                         }
                                     )
                                 } else if (showTitleFallback) {
-                                    Text(
+                                    DetailFallbackTitle(
                                         text = logoFallbackTitle,
-                                        fontSize = 26.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White,
-                                        lineHeight = 30.sp,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier
-                                            .align(Alignment.BottomStart)
-                                            .offset(y = (-2).dp)
+                                        minHeight = layout.logoContainerHeight,
+                                        modifier = Modifier.offset(y = (-2).dp)
                                     )
                                 }
                             }
@@ -933,19 +932,7 @@ fun DetailContent(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .then(
-                                    if (isWidescreenLayout) {
-                                        Modifier.horizontalScroll(metadataScrollState)
-                                    } else {
-                                        Modifier
-                                    }
-                                )
-                        ) {
+                        val metadataContent: @Composable () -> Unit = {
                             item.communityRating?.let { rating ->
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1027,6 +1014,25 @@ fun DetailContent(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
+                            }
+                        }
+
+                        if (isWidescreenLayout) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(metadataScrollState),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                metadataContent()
+                            }
+                        } else {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                                itemVerticalAlignment = Alignment.CenterVertically
+                            ) {
+                                metadataContent()
                             }
                         }
 
@@ -1163,7 +1169,9 @@ fun DetailContent(
                                     .fillMaxWidth(
                                         detailActionWidth(
                                             screenWidthDp,
-                                            useTabletLayout = useTabletBackdropLayout
+                                            useTabletLayout = useTabletBackdropLayout,
+                                            availableWidth = layout.contentMaxWidth
+                                                ?: (screenWidthDp - layout.horizontalPadding * 2)
                                         )
                                     )
                                     .padding(top = if (hasDescriptionContent) 12.dp else 14.dp)
@@ -1265,7 +1273,9 @@ fun DetailContent(
                                     .fillMaxWidth(
                                         detailActionWidth(
                                             screenWidthDp,
-                                            useTabletLayout = useTabletBackdropLayout
+                                            useTabletLayout = useTabletBackdropLayout,
+                                            availableWidth = layout.contentMaxWidth
+                                                ?: (screenWidthDp - layout.horizontalPadding * 2)
                                         )
                                     )
                                     .padding(top = if (hasDescriptionContent) 14.dp else 18.dp)
@@ -1577,6 +1587,31 @@ fun DetailContent(
         )
     }
 
+}
+
+@Composable
+internal fun DetailFallbackTitle(
+    text: String,
+    minHeight: Dp,
+    modifier: Modifier = Modifier,
+    fontSize: TextUnit = 26.sp,
+    lineHeight: TextUnit = 30.sp,
+    contentAlignment: Alignment = Alignment.BottomStart
+) {
+    Box(
+        modifier = modifier.fillMaxWidth().heightIn(min = minHeight),
+        contentAlignment = contentAlignment
+    ) {
+        Text(
+            text = text,
+            fontSize = fontSize,
+            lineHeight = lineHeight,
+            fontWeight = FontWeight.Bold,
+            color = Color.White,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
 }
 
 @Composable

@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.sp
 import com.jellycine.shared.R
 import com.jellycine.app.download.DownloadRepositoryProvider
 import com.jellycine.app.ui.components.common.BackButton
-import com.jellycine.app.ui.components.common.BackButton
 import com.jellycine.app.ui.components.common.DownloadActionMenu
 import com.jellycine.app.ui.components.common.DownloadContent
 import com.jellycine.app.ui.components.common.CompactTopLogo
@@ -305,7 +304,10 @@ fun SeasonDetailScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth(0.86f)
-                                    .height(58.dp)
+                                    .then(
+                                        if (reserveLogoSpace) Modifier.height(58.dp)
+                                        else Modifier.heightIn(min = 58.dp)
+                                    )
                                     .then(seriesOverviewModifier),
                                 contentAlignment = Alignment.CenterStart
                             ) {
@@ -332,14 +334,12 @@ fun SeasonDetailScreen(
                                         }
                                     )
                                 } else if (!reserveLogoSpace) {
-                                    Text(
+                                    DetailFallbackTitle(
                                         text = fallbackHeaderTitle,
+                                        minHeight = 58.dp,
                                         fontSize = 17.sp,
                                         lineHeight = 20.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color.White,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis
+                                        contentAlignment = Alignment.CenterStart
                                     )
                                 }
                             }

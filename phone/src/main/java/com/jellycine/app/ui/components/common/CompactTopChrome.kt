@@ -2,6 +2,15 @@ package com.jellycine.app.ui.components.common
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -295,6 +304,88 @@ fun CompactTopText(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(horizontal = if (isTablet) 16.dp else 12.dp)
         )
+    }
+}
+
+@Composable
+internal fun CompactCatalogHeader(
+    title: String,
+    countText: String?,
+    imageUrl: String?,
+    progress: Float,
+    isTablet: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val visibleProgress = compactChromeProgress(progress)
+    if (visibleProgress <= 0f) return
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .padding(start = 64.dp, end = 16.dp, top = 10.dp)
+    ) {
+        val availableWidth = maxWidth
+        val countMaxWidth = availableWidth * 0.45f
+        val countStyle = androidx.compose.ui.text.TextStyle(fontSize = if (isTablet) 13.sp else 11.sp)
+        val textMeasurer = androidx.compose.ui.text.rememberTextMeasurer()
+        val countWidth = countText?.let {
+            with(LocalDensity.current) {
+                textMeasurer.measure(it, style = countStyle, softWrap = false).size.width.toDp()
+            } + 20.dp
+        } ?: 0.dp
+        val stackCount = countWidth > countMaxWidth
+        val titleContent: @Composable (Modifier) -> Unit = { titleModifier ->
+            Surface(
+                modifier = titleModifier.clickable(onClick = onClick),
+                color = Color.Black.copy(alpha = 0.62f),
+                shape = RoundedCornerShape(999.dp)
+            ) {
+                Box(
+                    modifier = Modifier.heightIn(min = if (isTablet) 48.dp else 36.dp)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (imageUrl != null) {
+                        JellyfinPosterImage(
+                            imageUrl = imageUrl,
+                            contentDescription = title,
+                            modifier = Modifier.fillMaxWidth().height(if (isTablet) 34.dp else 24.dp),
+                            context = LocalContext.current,
+                            contentScale = ContentScale.Fit
+                        )
+                    } else {
+                        Text(title, color = Color.White, fontSize = if (isTablet) 14.sp else 12.sp,
+                            fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+            }
+        }
+        val countContent: @Composable (Modifier) -> Unit = { countModifier ->
+            if (countText != null) {
+                Surface(
+                    modifier = countModifier,
+                    color = Color.Black.copy(alpha = 0.62f),
+                    shape = RoundedCornerShape(999.dp)
+                ) {
+                    Text(countText, color = Color.White.copy(alpha = 0.86f), style = countStyle,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))
+                }
+            }
+        }
+        if (stackCount) {
+            Column(Modifier.fillMaxWidth().compactChromeMotion(visibleProgress),
+                verticalArrangement = Arrangement.spacedBy(4.dp), horizontalAlignment = Alignment.End) {
+                titleContent(Modifier.fillMaxWidth())
+                countContent(Modifier.widthIn(max = availableWidth))
+            }
+        } else {
+            Row(Modifier.fillMaxWidth().compactChromeMotion(visibleProgress),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                titleContent(Modifier.weight(1f))
+                countContent(Modifier.widthIn(max = countMaxWidth))
+            }
+        }
     }
 }
 

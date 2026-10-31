@@ -237,7 +237,8 @@ private fun createInlineExoPlayer(context: Context): ExoPlayer {
             maxBufferMs = 60_000,
             bufferForPlaybackMs = 1_500,
             bufferForPlaybackAfterRebufferMs = 3_000
-        )
+        ),
+        diagnosticContext = "source=inline_trailer"
     ).apply {
         repeatMode = Player.REPEAT_MODE_OFF
         setHandleAudioBecomingNoisy(false)

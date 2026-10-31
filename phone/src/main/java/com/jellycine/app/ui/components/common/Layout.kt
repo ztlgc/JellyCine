@@ -53,5 +53,11 @@ fun detailContentMaxWidth(
 
 fun detailActionWidth(
     screenWidthDp: Dp,
-    useTabletLayout: Boolean = isTabletLayout(screenWidthDp)
-): Float = if (useTabletLayout) 0.40f else 1f
+    useTabletLayout: Boolean = isTabletLayout(screenWidthDp),
+    availableWidth: Dp = screenWidthDp
+): Float = if (useTabletLayout) {
+    // Keep primary actions readable inside the capped detail column, including phone landscape.
+    (600.dp / availableWidth.coerceAtLeast(1.dp)).coerceIn(0.40f, 1f)
+} else {
+    1f
+}

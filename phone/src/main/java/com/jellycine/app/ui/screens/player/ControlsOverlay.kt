@@ -109,7 +109,8 @@ fun ControlsOverlay(
     audioTracks: List<AudioTrackInfo> = emptyList(),
     currentAudioTrack: AudioTrackInfo? = null,
     onSelectAudioTrack: ((String) -> Unit)? = null,
-    initialSoundPanelVisible: Boolean = false
+    initialSoundPanelVisible: Boolean = false,
+    segmentActions: @Composable () -> Unit = {}
 ) {
     var scrubPreviewProgress by remember { mutableStateOf<Float?>(null) }
     var optionsMenu by remember { mutableStateOf(false) }
@@ -206,8 +207,12 @@ fun ControlsOverlay(
                 if (canPlayNextEpisode && !portrait) PlayerRoundButton(Icons.Filled.SkipNext,
                     stringResource(R.string.player_next_episode), onPlayNextEpisode)
             }
-            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().safeDrawingPadding()
-                .padding(horizontal = edge, vertical = 6.dp)) {
+        }
+        // Segment actions keep their own row even when locking or the sound panel hides playback controls.
+        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().safeDrawingPadding()
+            .padding(horizontal = edge, vertical = 6.dp)) {
+            segmentActions()
+            if (!isLocked && !soundPanel) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(formatTime(displayedPosition), color = Color.White, fontSize = 12.sp)
                     SeekBar(progress = if (duration > 0) (currentPosition.toFloat() / duration).coerceIn(0f, 1f) else 0f,

@@ -32,7 +32,7 @@ import com.jellycine.app.ui.screens.dashboard.settings.InterfaceSettingsScreen
 import com.jellycine.app.ui.screens.player.PlayerScreen
 import com.jellycine.app.ui.screens.screentime.ScreenTimeScreen
 import com.jellycine.app.player.mpv.MpvWarmPool
-import com.jellycine.auth.AuthStateManager
+import com.jellycine.app.ui.screens.auth.ServerLandingScreen
 import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.delay
 
@@ -50,20 +50,13 @@ private fun textExitTransition(duration: Int = 300): ExitTransition {
 fun AppNavigation() {
     val navController = rememberNavController()
     val context = LocalContext.current
-    val authStateManager = remember { AuthStateManager.getInstance(context) }
-
-    var startDestination by remember { mutableStateOf<String?>(null) }
-    
-    LaunchedEffect(Unit) {
-        val isAuthenticated = authStateManager.checkAuthenticationState()
-        startDestination = if (isAuthenticated) "dashboard" else "auth"
-    }
-
-    if (startDestination == null) return
+    // Every new app navigation session starts without a selected server.
+    // The saved credentials are reused only after an explicit selection.
+    val startDestination = "auth"
 
     NavHost(
         navController = navController,
-        startDestination = startDestination!!,
+        startDestination = startDestination,
         modifier = Modifier.fillMaxSize()
     ) {
             composable(
@@ -110,15 +103,22 @@ fun AppNavigation() {
                     }
                 }
             ) {
-                AuthScreen(
-                    preferSavedServers = true,
+                ServerLandingScreen(
                     onAddServer = {
                         navController.navigate("server_connection") {
-                            popUpTo("auth") { inclusive = true }
                             launchSingleTop = true
                         }
                     },
-                    onAuthSuccess = {
+                    onAddUser = { serverUrl, serverName ->
+                        val encodedServerUrl = java.net.URLEncoder.encode(serverUrl, "UTF-8")
+                        val encodedServerName = java.net.URLEncoder.encode(serverName.orEmpty(), "UTF-8")
+                        navController.navigate(
+                            "add_user?serverUrl=$encodedServerUrl&serverName=$encodedServerName"
+                        ) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onServerEntered = {
                         navController.navigate("dashboard") {
                             popUpTo("auth") { inclusive = true }
                         }
@@ -142,8 +142,12 @@ fun AppNavigation() {
             ) {
                 AuthScreen(
                     onAuthSuccess = {
+                        val returnToLanding = navController.previousBackStackEntry?.destination?.route == "auth"
                         navController.navigate("dashboard") {
-                            popUpTo("server_connection") { inclusive = true }
+                            popUpTo(if (returnToLanding) "auth" else "server_connection") {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
                         }
                     }
                 )
@@ -180,10 +184,17 @@ fun AppNavigation() {
                     serverName = serverName,
                     startAtLogin = serverUrl.isNotBlank(),
                     onAuthSuccess = {
-                        val popped = navController.popBackStack()
-                        if (!popped) {
+                        if (navController.previousBackStackEntry?.destination?.route == "auth") {
                             navController.navigate("dashboard") {
+                                popUpTo("auth") { inclusive = true }
                                 launchSingleTop = true
+                            }
+                        } else {
+                            val popped = navController.popBackStack()
+                            if (!popped) {
+                                navController.navigate("dashboard") {
+                                    launchSingleTop = true
+                                }
                             }
                         }
                     }

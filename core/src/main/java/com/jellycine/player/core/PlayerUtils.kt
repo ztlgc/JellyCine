@@ -19,6 +19,8 @@ import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy
 import com.jellycine.player.video.HardwareAcceleration
 import com.jellycine.player.video.HdrCapabilityManager
 import com.jellycine.player.preferences.PlayerPreferences
+import com.jellycine.logging.PlaybackLogStore
+import java.util.UUID
 
 /**
  * Player utility functions with device spatializer support.
@@ -62,9 +64,12 @@ object PlayerUtils {
     fun createPlayer(
         context: Context,
         bufferOverride: PlaybackBufferOverride? = null,
-        audioGainProcessor: com.jellycine.player.audio.AudioGainProcessor? = null
+        audioGainProcessor: com.jellycine.player.audio.AudioGainProcessor? = null,
+        diagnosticContext: String = "source=unspecified",
+        recoverBufferedStalls: Boolean = false
     ): ExoPlayer {
         val playerPreferences = PlayerPreferences(context)
+        val diagnosticSessionId = UUID.randomUUID().toString().take(8)
 
         try {
             val trackSelector = DefaultTrackSelector(context)
@@ -84,7 +89,7 @@ object PlayerUtils {
             val playerBuilder = ExoPlayer.Builder(context)
                 .setRenderersFactory(renderersFactory) // Use custom factory with fallback support
                 .setTrackSelector(trackSelector)
-                .setLoadControl(createLoadControl(context, playerPreferences, bufferOverride))
+                .setLoadControl(createLoadControl(context, playerPreferences, bufferOverride, diagnosticSessionId))
                 .setAudioAttributes(audioAttributes, true)
                 .setHandleAudioBecomingNoisy(true)
                 .setWakeMode(C.WAKE_MODE_LOCAL)
@@ -96,7 +101,12 @@ object PlayerUtils {
                 Log.d("PlayerUtils", "Applying battery optimization settings")
                 applyBatteryOptimization(playerBuilder)
             }
-            return playerBuilder.build()
+            return playerBuilder.build().also { player ->
+                ExoPlaybackDiagnostics(context, player, diagnosticSessionId,
+                    "$diagnosticContext pcmGainPath=${audioGainProcessor != null} " +
+                        "diagnosticSchema=2 stallRecovery=$recoverBufferedStalls")
+                if (recoverBufferedStalls) ExoBufferedStallRecovery(context, player, diagnosticSessionId)
+            }
         } catch (e: Exception) {
             Log.e("PlayerUtils", "Player creation failed", e)
             throw e // Re-throw to let caller handle it
@@ -163,7 +173,8 @@ object PlayerUtils {
     private fun createLoadControl(
         context: Context,
         playerPreferences: PlayerPreferences,
-        bufferOverride: PlaybackBufferOverride? = null
+        bufferOverride: PlaybackBufferOverride? = null,
+        diagnosticSessionId: String
     ): DefaultLoadControl {
         val requestedCacheTimeMs = playerPreferences.getPlayerCacheTimeSeconds() * 1000
         val batteryOptimizationEnabled = playerPreferences.isBatteryOptimizationEnabled()
@@ -210,6 +221,11 @@ object PlayerUtils {
                 "max=${maxBufferMs}ms start=${playbackBufferMs}ms " +
                 "rebuffer=${rebufferPlaybackMs}ms targetBytes=$targetBufferBytes"
         )
+        PlaybackLogStore.log(context, "ExoPlayback", "session=$diagnosticSessionId event=load_control " +
+            "requestedMs=$requestedCacheTimeMs async=$asyncMediaCodecEnabled lowRam=$lowRamDevice " +
+            "battery=$batteryOptimizationEnabled minMs=$minBufferMs maxMs=$maxBufferMs " +
+            "startMs=$playbackBufferMs rebufferMs=$rebufferPlaybackMs targetBytes=$targetBufferBytes " +
+            "prioritizeTime=true httpConnectTimeoutMs=30000 httpReadTimeoutMs=120000 minRetryCount=$MIN_LOADABLE_RETRY_COUNT")
 
         return DefaultLoadControl.Builder()
             .setBufferDurationsMs(

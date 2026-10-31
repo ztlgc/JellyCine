@@ -76,10 +76,6 @@ internal fun VideoRatingDialogContent(
                 }
             }
             Spacer(Modifier.height(14.dp))
-            if (loading) {
-                LinearProgressIndicator(Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                    color = RatingAccent, trackColor = RatingBorder)
-            }
             Text(stringResource(R.string.video_rating_high_scores), color = RatingSecondaryText, fontSize = 13.sp)
             RatingScoreSlider(VideoRatingScale.highScores, selectedScoreTenths, enabled,
                 stringResource(R.string.video_rating_high_scores), onScoreSelected)

@@ -3,10 +3,13 @@ package com.jellycine.app.ui.screens.detail
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -31,6 +35,32 @@ import com.jellycine.shared.ui.components.common.DetailDownloadActionState
 import com.jellycine.shared.ui.components.common.DetailPlayActionButton
 import com.jellycine.shared.ui.components.common.DetailTrailerButton
 import com.jellycine.shared.ui.components.common.FavoriteActionButton
+
+@Composable
+private fun DetailActionRow(
+    screenWidthDp: Dp,
+    useTabletLayout: Boolean,
+    topPadding: Dp,
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit
+) {
+    BoxWithConstraints(modifier = modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(
+                    detailActionWidth(
+                        screenWidthDp,
+                        useTabletLayout = useTabletLayout,
+                        availableWidth = maxWidth
+                    )
+                )
+                .padding(top = topPadding),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            content = content
+        )
+    }
+}
 
 @Composable
 internal fun ActionSection(
@@ -58,22 +88,19 @@ internal fun ActionSection(
     modifier: Modifier = Modifier
 ) {
     val iconOnlyDownload = !useTabletLayout
+    // Shared progress buttons fill their height, so reserve scaled text space explicitly.
+    val textButtonHeight = buttonHeight * LocalDensity.current.fontScale.coerceAtLeast(1f)
 
-    Row(
+    DetailActionRow(
+        screenWidthDp = screenWidthDp,
+        useTabletLayout = useTabletLayout,
+        topPadding = 12.dp,
         modifier = modifier
-            .fillMaxWidth(
-                detailActionWidth(
-                    screenWidthDp,
-                    useTabletLayout = useTabletLayout
-                )
-            )
-            .padding(top = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(buttonHeight)
+                .height(textButtonHeight)
                 .clip(RoundedCornerShape(24.dp))
         ) {
             DetailPlayActionButton(
@@ -93,7 +120,7 @@ internal fun ActionSection(
                     } else {
                         Modifier
                             .weight(1f)
-                            .height(buttonHeight)
+                            .height(textButtonHeight)
                     }
                 )
         ) {
@@ -169,22 +196,16 @@ internal fun SeriesActionSection(
     onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    DetailActionRow(
+        screenWidthDp = screenWidthDp,
+        useTabletLayout = useTabletLayout,
+        topPadding = 14.dp,
         modifier = modifier
-            .fillMaxWidth(
-                detailActionWidth(
-                    screenWidthDp,
-                    useTabletLayout = useTabletLayout
-                )
-            )
-            .padding(top = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(buttonHeight)
+                .heightIn(min = buttonHeight)
         ) {
             OutlinedButton(
                 onClick = {
@@ -194,7 +215,7 @@ internal fun SeriesActionSection(
                         onSeriesDownloadClick()
                     }
                 },
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxWidth().heightIn(min = buttonHeight),
                 shape = RoundedCornerShape(24.dp),
                 border = BorderStroke(
                     1.dp,

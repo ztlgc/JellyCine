@@ -45,9 +45,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jellycine.shared.R
 import com.jellycine.app.ui.components.common.BackButton
+import com.jellycine.app.ui.components.common.CompactCatalogHeader
 import com.jellycine.app.ui.components.common.CompactPageHeader
-import com.jellycine.app.ui.components.common.CompactTopLogo
-import com.jellycine.app.ui.components.common.CompactTopText
 import com.jellycine.app.ui.components.common.compactHeaderLogo
 import com.jellycine.app.ui.components.common.containerWidthDp
 import com.jellycine.app.ui.components.common.isTabletLayout
@@ -535,49 +534,18 @@ fun ViewAllScreen(
             modifier = Modifier.align(Alignment.TopStart)
         )
 
-        if (isSeerrCatalog && seerrLogoUrl != null) {
-            CompactTopLogo(
-                imageUrl = seerrLogoUrl,
-                contentDescription = resolvedTitle,
+        if (usesCompactHeader) {
+            val numberFormat = java.text.NumberFormat.getIntegerInstance()
+            CompactCatalogHeader(
+                title = resolvedTitle,
+                countText = if (headerTotalCount > 0) {
+                    "${numberFormat.format(displayItems.size)} / ${numberFormat.format(headerTotalCount)}"
+                } else null,
+                imageUrl = if (isSeerrCatalog) seerrLogoUrl else null,
                 progress = compactHeader,
                 isTablet = isTablet,
-                onClick = {
-                    coroutineScope.launch {
-                        gridState.animateScrollToItem(0)
-                    }
-                },
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 48.dp)
-            )
-        }
-
-        if (isLibraryCatalog || isGenreCatalog) {
-            CompactTopText(
-                text = resolvedTitle,
-                progress = compactHeader,
-                isTablet = isTablet,
-                onClick = {
-                    coroutineScope.launch {
-                        gridState.animateScrollToItem(0)
-                    }
-                },
-                color = Color.White,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 48.dp)
-            )
-        }
-
-        if (usesCompactHeader && headerCountText != null) {
-            CompactTopText(
-                text = headerCountText,
-                progress = compactHeader,
-                isTablet = isTablet,
-                alignEnd = true,
-                fontSize = if (isTablet) 13.sp else 11.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.align(Alignment.TopEnd)
+                onClick = { coroutineScope.launch { gridState.animateScrollToItem(0) } },
+                modifier = Modifier.align(Alignment.TopCenter)
             )
         }
 

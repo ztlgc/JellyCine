@@ -25,6 +25,7 @@
     <string name="library_loading_count">Loading %1$d / %2$d</string>
     <string name="library_count">%1$d items</string>
     <string name="library_shuffle">Shuffle play</string>
+    <string name="library_more">More actions</string>
     <string name="library_view">Switch view</string>
     <string name="library_filter">Filters</string>
     <string name="library_direction">Toggle sort direction</string>

@@ -9,14 +9,18 @@ internal suspend fun loadCachedLibraryCatalog(
     key: String,
     forceRefresh: Boolean = false,
     onCached: (List<BaseItemDto>) -> Unit = {},
-    fetch: suspend () -> List<BaseItemDto>
+    onProgress: suspend (items: List<BaseItemDto>, loaded: Int, total: Int) -> Unit = { _, _, _ -> },
+    fetch: suspend (onPage: suspend (List<BaseItemDto>, Int) -> Unit) -> List<BaseItemDto>
 ): List<BaseItemDto> {
     val cached = cache.load(key)
     if (cached != null) {
         onCached(cached)
         if (!forceRefresh && cache.isFresh(key)) return cached
     }
-    return fetch().also { cache.save(key, it) }
+    // Pages are incomplete subsets in server order, so keep the complete catalog visible during any refresh.
+    return fetch { items, total ->
+        onProgress(cached ?: items, items.size, total)
+    }.also { cache.save(key, it) }
 }
 
 internal suspend fun fetchLibraryCatalog(

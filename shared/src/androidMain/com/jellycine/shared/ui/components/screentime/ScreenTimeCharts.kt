@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -43,7 +46,11 @@ private val BarColor = Color(0xFF22D3EE)
 private val BarColorDark = Color(0xFF0891B2)
 private val SubtextColor = Color.White.copy(alpha = 0.68f)
 
-private data class ChartBucket(val label: String, val watchTimeMs: Long)
+private data class ChartBucket(
+    val label: String,
+    val watchTimeMs: Long,
+    val compactLabel: String = label
+)
 
 @Composable
 fun DailyBreakdownChart(
@@ -84,85 +91,115 @@ fun DailyBreakdownChart(
         }
         Spacer(modifier = Modifier.height(12.dp))
 
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp)
-                .then(
-                    if (onBucketClick != null) Modifier.pointerInput(buckets.size) {
-                        detectTapGestures { offset ->
-                            val count = barCountState.intValue
-                            if (count == 0) return@detectTapGestures
-                            val bw = barWidthPx.floatValue
-                            val bs = barSpacingPx.floatValue
-                            val sx = barStartX.floatValue
-                            val tappedIndex = ((offset.x - sx) / (bw + bs)).toInt()
-                            if (tappedIndex in 0 until count) onBucketClick(tappedIndex)
-                        }
-                    } else Modifier
-                )
-        ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val density = LocalDensity.current
             val barCount = buckets.size
-            if (barCount == 0) return@Canvas
+            val isAnnual = dailyData.size > 31
+            val canvasWidth = with(density) { maxWidth.toPx() }
+            val labelGap = with(density) { 4.dp.toPx() }
+            val barSpacing = with(density) { (if (barCount <= 7) 6.dp else 3.dp).toPx() }
+            val totalSpacing = barSpacing * (barCount - 1).coerceAtLeast(0)
+            val barWidth = if (barCount == 0) 0f else
+                ((canvasWidth - totalSpacing) / barCount).coerceIn(0f, with(density) { 40.dp.toPx() })
+            val stepWidth = barWidth + barSpacing
+            val startX = (canvasWidth - barWidth * barCount - totalSpacing) / 2
+            val textConstraints = Constraints(maxWidth = canvasWidth.toInt().coerceAtLeast(1))
+            val dayStyle = TextStyle(fontSize = 10.sp, color = SubtextColor)
+            val fullLabels = buckets.map { textMeasurer.measure(it.label, style = dayStyle, constraints = textConstraints) }
+            val compactMonths = isAnnual && fullLabels.any { it.size.width + labelGap > stepWidth }
+            val dayLabels = if (compactMonths) buckets.map {
+                textMeasurer.measure(it.compactLabel, style = dayStyle, constraints = textConstraints)
+            } else fullLabels
+            // Allocate another label row only when measured neighbours would overlap.
+            val rowEnds = mutableListOf<Float>()
+            val dayPositions = dayLabels.mapIndexed { index, label ->
+                val x = (startX + index * stepWidth + (barWidth - label.size.width) / 2)
+                    .coerceIn(0f, (canvasWidth - label.size.width).coerceAtLeast(0f))
+                val row = rowEnds.indexOfFirst { x >= it + labelGap }.let {
+                    if (it >= 0) it else rowEnds.size.also { rowEnds.add(Float.NEGATIVE_INFINITY) }
+                }
+                rowEnds[row] = x + label.size.width
+                x to row
+            }
+            val dayRowHeight = dayLabels.maxOfOrNull { it.size.height }?.toFloat() ?: 0f
+            val timeLabels = buckets.map {
+                textMeasurer.measure(
+                    formatWatchTime(it.watchTimeMs),
+                    style = TextStyle(fontSize = 9.sp, color = Color.White),
+                    constraints = textConstraints
+                )
+            }
+            val topLabelHeight = ((timeLabels.maxOfOrNull { it.size.height } ?: 0) + labelGap)
+                .coerceAtLeast(with(density) { 20.dp.toPx() })
+            val bottomLabelHeight = (dayRowHeight * rowEnds.size + labelGap * 2)
+                .coerceAtLeast(with(density) { 24.dp.toPx() })
+            val canvasHeight = with(density) {
+                // Preserve the default 116dp plot; text bands grow with the font.
+                (116.dp.toPx() + topLabelHeight + bottomLabelHeight).toDp()
+            }
 
-            val labelHeight = 24.dp.toPx()
-            val topLabelHeight = 20.dp.toPx()
-            val chartHeight = size.height - labelHeight - topLabelHeight
-            val barSpacing = if (barCount <= 7) 6.dp.toPx() else 3.dp.toPx()
-            val totalSpacing = barSpacing * (barCount - 1)
-            val barWidth = ((size.width - totalSpacing) / barCount).coerceAtMost(40.dp.toPx())
-            val totalBarsWidth = barWidth * barCount + totalSpacing
-            val startX = (size.width - totalBarsWidth) / 2
-
-            barStartX.floatValue = startX
-            barWidthPx.floatValue = barWidth
-            barSpacingPx.floatValue = barSpacing
-            barCountState.intValue = barCount
-
-            buckets.forEachIndexed { index, bucket ->
-                val x = startX + index * (barWidth + barSpacing)
-                val barHeight = if (maxWatchTimeMs > 0)
-                    (bucket.watchTimeMs.toFloat() / maxWatchTimeMs) * chartHeight
-                else 0f
-
-                if (barHeight > 0) {
-                    val barY = topLabelHeight + chartHeight - barHeight
-                    val isSelected = selectedIndex == null || selectedIndex == index
-                    val barColor = if (bucket.watchTimeMs == maxWatchTimeMs) BarColor else BarColorDark
-                    drawRoundRect(
-                        color = if (isSelected) barColor else barColor.copy(alpha = 0.25f),
-                        topLeft = Offset(x, barY),
-                        size = Size(barWidth, barHeight),
-                        cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(canvasHeight)
+                    .then(
+                        if (onBucketClick != null) Modifier.pointerInput(buckets.size) {
+                            detectTapGestures { offset ->
+                                val count = barCountState.intValue
+                                if (count == 0) return@detectTapGestures
+                                val bw = barWidthPx.floatValue
+                                val bs = barSpacingPx.floatValue
+                                val sx = barStartX.floatValue
+                                val tappedIndex = ((offset.x - sx) / (bw + bs)).toInt()
+                                if (tappedIndex in 0 until count) onBucketClick(tappedIndex)
+                            }
+                        } else Modifier
                     )
+            ) {
+                if (barCount == 0) return@Canvas
+                val chartHeight = (size.height - bottomLabelHeight - topLabelHeight).coerceAtLeast(0f)
+                barStartX.floatValue = startX
+                barWidthPx.floatValue = barWidth
+                barSpacingPx.floatValue = barSpacing
+                barCountState.intValue = barCount
 
-                    if (barCount <= 12) {
-                        val timeLabel = formatWatchTime(bucket.watchTimeMs)
-                        val timeMeasured = textMeasurer.measure(
-                            timeLabel,
-                            style = TextStyle(fontSize = 9.sp, color = Color.White)
+                buckets.forEachIndexed { index, bucket ->
+                    val x = startX + index * stepWidth
+                    val barHeight = if (maxWatchTimeMs > 0)
+                        (bucket.watchTimeMs.toFloat() / maxWatchTimeMs) * chartHeight
+                    else 0f
+                    val barY = topLabelHeight + chartHeight - barHeight
+
+                    if (barHeight > 0) {
+                        val isSelected = selectedIndex == null || selectedIndex == index
+                        val barColor = if (bucket.watchTimeMs == maxWatchTimeMs) BarColor else BarColorDark
+                        drawRoundRect(
+                            color = if (isSelected) barColor else barColor.copy(alpha = 0.25f),
+                            topLeft = Offset(x, barY),
+                            size = Size(barWidth, barHeight),
+                            cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
                         )
+                    }
+                    if (if (isAnnual) selectedIndex == index else barCount <= 12 && barHeight > 0) {
+                        val timeMeasured = timeLabels[index]
                         drawText(
                             textLayoutResult = timeMeasured,
                             topLeft = Offset(
-                                x + (barWidth - timeMeasured.size.width) / 2,
-                                barY - timeMeasured.size.height - 2.dp.toPx()
+                                (x + (barWidth - timeMeasured.size.width) / 2)
+                                    .coerceIn(0f, (size.width - timeMeasured.size.width).coerceAtLeast(0f)),
+                                barY - timeMeasured.size.height - labelGap
                             )
                         )
                     }
-                }
-
-                val dayMeasured = textMeasurer.measure(
-                    bucket.label,
-                    style = TextStyle(fontSize = 10.sp, color = SubtextColor)
-                )
-                drawText(
-                    textLayoutResult = dayMeasured,
-                    topLeft = Offset(
-                        x + (barWidth - dayMeasured.size.width) / 2,
-                        topLabelHeight + chartHeight + 6.dp.toPx()
+                    val (labelX, labelRow) = dayPositions[index]
+                    drawText(
+                        textLayoutResult = dayLabels[index],
+                        topLeft = Offset(
+                            labelX,
+                            topLabelHeight + chartHeight + labelGap + labelRow * dayRowHeight
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -198,7 +235,7 @@ private fun aggregateBuckets(dailyData: List<DailyWatchTime>): List<ChartBucket>
             }.entries.sortedBy { it.key }.map { (month, monthDays) ->
                 val totalWatchTimeMs = monthDays.sumOf { it.watchTimeMs }
                 val label = month.getDisplayName(DateTextStyle.SHORT, Locale.getDefault())
-                ChartBucket(label, totalWatchTimeMs)
+                ChartBucket(label, totalWatchTimeMs, month.value.toString())
             }
         }
     }

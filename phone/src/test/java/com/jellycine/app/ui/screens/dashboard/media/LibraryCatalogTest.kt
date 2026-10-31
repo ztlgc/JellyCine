@@ -35,6 +35,20 @@ class LibraryCatalogTest {
         assertEquals(listOf("later", "earlier"), ids(sortLibrary(items, LibrarySort.CREATED, true, 0)))
     }
 
+    @Test fun createdOrderIsStableWhenRefreshReturnsItemsInADifferentOrder() {
+        val items = listOf(
+            BaseItemDto(id = "old", name = "A", dateCreated = "2025-01-01T00:00:00Z"),
+            BaseItemDto(id = "b", name = "Same", dateCreated = "2025-03-01T00:00:00Z"),
+            BaseItemDto(id = "a", name = "Same", dateCreated = "2025-03-01T00:00:00Z"),
+            BaseItemDto(id = "missing", name = "Missing")
+        )
+        for (descending in listOf(true, false)) {
+            val expected = if (descending) listOf("a", "b", "old", "missing") else listOf("old", "a", "b", "missing")
+            assertEquals(expected, ids(sortLibrary(items, LibrarySort.CREATED, descending, 0)))
+            assertEquals(expected, ids(sortLibrary(items.reversed(), LibrarySort.CREATED, descending, 0)))
+        }
+    }
+
     @Test fun randomOrderIsStableAcrossInputOrderAndCanBeReshuffled() {
         val items = (1..200).map { BaseItemDto(id = it.toString(), name = "Item $it") }
         val first = sortLibrary(items, LibrarySort.RANDOM, true, 10)

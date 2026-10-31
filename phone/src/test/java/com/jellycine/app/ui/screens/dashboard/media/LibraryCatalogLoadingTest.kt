@@ -29,6 +29,94 @@ class LibraryCatalogLoadingTest {
         assertEquals(3000, result.map { it.id }.distinct().size)
     }
 
+    @Test fun manualRefreshKeepsCreatedOrderVisibleUntilAllPagesFinish() = runBlocking {
+        val cache = LibraryCatalogCache(temporary.newFolder())
+        val items = listOf(
+            BaseItemDto(id = "oldest", name = "A", dateCreated = "2025-01-01T00:00:00Z"),
+            BaseItemDto(id = "middle", name = "B", dateCreated = "2025-02-01T00:00:00Z"),
+            BaseItemDto(id = "newest", name = "C", dateCreated = "2025-03-01T00:00:00Z")
+        )
+        cache.save("library", items)
+        for (descending in listOf(true, false)) {
+            val expected = sortLibrary(items, LibrarySort.CREATED, descending, 0).map { it.id }
+            val progress = mutableListOf<Int>()
+            var visible = emptyList<BaseItemDto>()
+            val result = loadCachedLibraryCatalog(cache, "library", forceRefresh = true,
+                onCached = { visible = it }, onProgress = { current, loaded, total ->
+                    visible = current
+                    assertEquals(expected, sortLibrary(visible, LibrarySort.CREATED, descending, 0).map { it.id })
+                    assertEquals(3, total)
+                    progress.add(loaded)
+                }) { onPage ->
+                fetchLibraryCatalog(fetchPage = { offset, _ ->
+                    QueryResult(items = listOf(items[offset]), totalRecordCount = items.size)
+                }, onPage = onPage)
+            }
+            assertEquals(listOf(1, 2, 3), progress)
+            assertEquals(expected, sortLibrary(result, LibrarySort.CREATED, descending, 0).map { it.id })
+        }
+    }
+
+    @Test fun manualRefreshAppliesAdditionsAndDeletionsOnlyAfterCompletion() = runBlocking {
+        val cache = LibraryCatalogCache(temporary.newFolder())
+        val kept = BaseItemDto(id = "kept", dateCreated = "2025-02-01T00:00:00Z")
+        val old = listOf(kept, BaseItemDto(id = "deleted", dateCreated = "2025-01-01T00:00:00Z"))
+        val fresh = listOf(kept, BaseItemDto(id = "added", dateCreated = "2025-03-01T00:00:00Z"))
+        cache.save("library", old)
+        val result = loadCachedLibraryCatalog(cache, "library", forceRefresh = true,
+            onProgress = { visible, _, _ -> assertEquals(old, visible) }) { onPage ->
+            fetchLibraryCatalog(fetchPage = { offset, _ ->
+                QueryResult(items = listOf(fresh[offset]), totalRecordCount = fresh.size)
+            }, onPage = onPage)
+        }
+        assertEquals(listOf("added", "kept"), sortLibrary(result, LibrarySort.CREATED, true, 0).map { it.id })
+        assertEquals(fresh, cache.peek("library"))
+    }
+
+    @Test fun firstLoadWithoutSnapshotStillPublishesPages() = runBlocking {
+        val cache = LibraryCatalogCache(temporary.newFolder())
+        val published = mutableListOf<Int>()
+        val result = loadCachedLibraryCatalog(cache, "library",
+            onProgress = { visible, loaded, _ ->
+                assertEquals(loaded, visible.size)
+                published.add(visible.size)
+            }) { onPage ->
+            fetchLibraryCatalog(fetchPage = { offset, _ ->
+                QueryResult(items = listOf(BaseItemDto(id = "$offset")), totalRecordCount = 3)
+            }, onPage = onPage)
+        }
+        assertEquals(listOf(1, 2, 3), published)
+        assertEquals(3, result.size)
+    }
+
+    @Test fun failedManualRefreshNeverPublishesPartialResults() = runBlocking {
+        val directory = temporary.newFolder()
+        val cache = LibraryCatalogCache(directory)
+        val old = listOf(BaseItemDto(id = "old"))
+        cache.save("library", old)
+        var visible = emptyList<BaseItemDto>()
+        var pages = 0
+        try {
+            loadCachedLibraryCatalog(cache, "library", forceRefresh = true,
+                onCached = { visible = it }, onProgress = { current, _, _ ->
+                    visible = current
+                    pages++
+                    assertEquals(old, visible)
+                }) { onPage ->
+                fetchLibraryCatalog(fetchPage = { offset, _ ->
+                    if (offset > 0) error("Offline")
+                    QueryResult(items = listOf(BaseItemDto(id = "partial")), totalRecordCount = 2)
+                }, onPage = onPage)
+            }
+            fail("Network failure should propagate")
+        } catch (_: IllegalStateException) {
+            assertEquals(1, pages)
+            assertEquals(old, visible)
+            assertEquals(old, cache.peek("library"))
+            assertEquals(old, LibraryCatalogCache(directory).load("library"))
+        }
+    }
+
     @Test fun duplicatePagesFailInsteadOfLoopingForever() = runBlocking {
         var calls = 0
         try {

@@ -24,12 +24,14 @@ import com.jellycine.data.network.ApiResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.parameter
+import io.ktor.client.request.header
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpMethod
+import io.ktor.http.HttpHeaders
 import io.ktor.http.URLBuilder
 import io.ktor.http.contentType
 import kotlinx.serialization.json.JsonObject
@@ -97,7 +99,8 @@ internal class MediaServerApiClient(
         anyProviderIdEquals: String?,
         studioIds: String?,
         fields: String?,
-        enableUserData: Boolean?
+        enableUserData: Boolean?,
+        forceRefresh: Boolean
     ): ApiResponse<QueryResult<BaseItemDto>> = get(
         endpoint = "Users/$userId/Items",
         queryParameters = listOf(
@@ -116,7 +119,8 @@ internal class MediaServerApiClient(
             "StudioIds" to studioIds,
             "fields" to fields,
             "EnableUserData" to enableUserData
-        )
+        ),
+        forceRefresh = forceRefresh
     )
 
     override suspend fun getStudios(
@@ -516,11 +520,13 @@ internal class MediaServerApiClient(
 
     private suspend inline fun <reified T> get(
         endpoint: String,
-        queryParameters: List<Pair<String, Any?>> = emptyList()
+        queryParameters: List<Pair<String, Any?>> = emptyList(),
+        forceRefresh: Boolean = false
     ): ApiResponse<T> = execute(
         method = HttpMethod.Get,
         endpoint = endpoint,
-        queryParameters = queryParameters
+        queryParameters = queryParameters,
+        forceRefresh = forceRefresh
     )
 
     private suspend inline fun <reified T> post(
@@ -538,10 +544,12 @@ internal class MediaServerApiClient(
         method: HttpMethod,
         endpoint: String,
         requestBody: Any? = null,
-        queryParameters: List<Pair<String, Any?>> = emptyList()
+        queryParameters: List<Pair<String, Any?>> = emptyList(),
+        forceRefresh: Boolean = false
     ): ApiResponse<T> {
         val response = client.request(endpoint) {
             this.method = method
+            if (forceRefresh) header(HttpHeaders.CacheControl, "no-cache")
             queryParameters.forEach { (name, value) ->
                 value?.let { parameter(name, it) }
             }

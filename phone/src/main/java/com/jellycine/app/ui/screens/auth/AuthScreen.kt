@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -56,6 +57,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -116,12 +118,12 @@ fun AuthScreen(
 
     val login = startAtLogin && !serverUrl.isNullOrBlank()
     val displaySavedServers = preferSavedServers && !login && sessionSnapshot.savedServers.isNotEmpty()
-    var currentStep by remember(login) {
+    var currentStep by rememberSaveable(login) {
         mutableStateOf(if (login) AuthStep.LOGIN else AuthStep.SERVER_CONNECTION)
     }
     val showServerConnection = currentStep == AuthStep.SERVER_CONNECTION && displaySavedServers
-    var selectedServerName by remember(serverName) { mutableStateOf(serverName) }
-    var selectedServerUrl by remember(serverUrl) { mutableStateOf(serverUrl.orEmpty()) }
+    var selectedServerName by rememberSaveable(serverName) { mutableStateOf(serverName) }
+    var selectedServerUrl by rememberSaveable(serverUrl) { mutableStateOf(serverUrl.orEmpty()) }
     val canNavigateBackToServerStep = currentStep == AuthStep.LOGIN && !login
 
     LaunchedEffect(Unit) {
@@ -593,7 +595,7 @@ private fun LoginContent(
 }
 
 @Composable
-private fun ConnectionForm(
+internal fun ConnectionForm(
     modifier: Modifier = Modifier,
     serverUrl: String,
     isLoading: Boolean,
@@ -661,7 +663,7 @@ private fun ConnectionForm(
                 enabled = !isLoading && serverUrl.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
+                    .heightIn(min = 50.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = JellyBlue,
@@ -676,16 +678,20 @@ private fun ConnectionForm(
                         color = Color.White,
                         strokeWidth = 2.dp
                     )
-                } else {
-                    Text(stringResource(R.string.auth_connect_to_server))
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
+                Text(
+                    text = stringResource(R.string.auth_connect_to_server),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
             }
         }
     }
 }
 
 @Composable
-private fun LoginForm(
+internal fun LoginForm(
     username: String,
     password: String,
     isLoading: Boolean,
@@ -799,7 +805,7 @@ private fun LoginForm(
                 enabled = !isBusy && username.isNotBlank(),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
+                    .heightIn(min = 50.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = JellyBlue,
@@ -814,9 +820,13 @@ private fun LoginForm(
                         color = Color.White,
                         strokeWidth = 2.dp
                     )
-                } else {
-                    Text(stringResource(R.string.auth_sign_in))
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
+                Text(
+                    text = stringResource(R.string.auth_sign_in),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
             }
 
             if (showQuickConnect) {
@@ -826,7 +836,7 @@ private fun LoginForm(
                         enabled = !isBusy,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp),
+                            .heightIn(min = 50.dp),
                         shape = RoundedCornerShape(14.dp)
                     ) {
                         if (isQuickConnectLoading && quickConnectCode == null) {
@@ -835,21 +845,24 @@ private fun LoginForm(
                                 strokeWidth = 2.dp,
                                 color = Color.White
                             )
-                        } else {
-                            Text(
-                                text = quickConnectCode?.let {
-                                    stringResource(R.string.auth_quick_connect_code, it)
-                                } ?: if (isQuickConnectLoading) {
-                                    stringResource(R.string.auth_generating_code)
-                                } else {
-                                    stringResource(R.string.auth_quick_connect)
-                                },
-                                color = Color.White
-                            )
+                            Spacer(modifier = Modifier.width(8.dp))
                         }
+                        Text(
+                            text = stringResource(R.string.auth_quick_connect),
+                            color = Color.White,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
                     }
 
                     if (quickConnectCode != null) {
+                        Text(
+                            text = stringResource(R.string.auth_quick_connect_code, quickConnectCode),
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                         Text(
                             text = stringResource(R.string.auth_quick_connect_approval_hint),
                             color = Color.White.copy(alpha = 0.75f),

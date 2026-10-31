@@ -178,6 +178,7 @@ fun CastDevicePicker(
                 }
             } else {
                 LazyColumn(
+                    modifier = Modifier.weight(1f, fill = false),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     items(routes, key = { it.id }) { route ->

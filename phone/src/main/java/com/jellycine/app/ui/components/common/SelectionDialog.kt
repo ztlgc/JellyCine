@@ -52,105 +52,117 @@ fun AmoledSelectionDialog(
         dismissOnRequest = true,
         onDismiss = onDismiss
     ) {
+        SelectionDialogContent(title, options, selectedValue, accentColor, onOptionSelected)
+    }
+}
+
+@Composable
+internal fun SelectionDialogContent(
+    title: String,
+    options: List<SelectionOption>,
+    selectedValue: String,
+    accentColor: Color,
+    onOptionSelected: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = Color.White
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 340.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            options.forEach { option ->
+                val isSelected = option.value == selectedValue
+                val containerColor = if (isSelected)
+                    accentColor.copy(alpha = 0.14f)
+                else
+                    Color.White.copy(alpha = 0.04f)
+                val borderColor = if (isSelected)
+                    accentColor.copy(alpha = 0.7f)
+                else
+                    Color.White.copy(alpha = 0.1f)
 
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(max = 340.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                options.forEach { option ->
-                    val isSelected = option.value == selectedValue
-                    val containerColor = if (isSelected)
-                        accentColor.copy(alpha = 0.14f)
-                    else
-                        Color.White.copy(alpha = 0.04f)
-                    val borderColor = if (isSelected)
-                        accentColor.copy(alpha = 0.7f)
-                    else
-                        Color.White.copy(alpha = 0.1f)
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = containerColor,
-                                shape = RoundedCornerShape(14.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = containerColor,
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = borderColor,
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { onOptionSelected(option.value) }
+                        .heightIn(min = 48.dp)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = option.label,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isSelected) accentColor else Color.White,
+                                modifier = Modifier.weight(1f)
                             )
-                            .border(
-                                width = 1.dp,
-                                color = borderColor,
-                                shape = RoundedCornerShape(14.dp)
-                            )
-                            .clip(RoundedCornerShape(14.dp))
-                            .clickable { onOptionSelected(option.value) }
-                            .heightIn(min = 48.dp)
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
+                            if (option.isDefault) {
                                 Text(
-                                    text = option.label,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isSelected) accentColor else Color.White
-                                )
-                                if (option.isDefault) {
-                                    Text(
-                                        text = stringResource(R.string.ui_default),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = accentColor,
-                                        modifier = Modifier
-                                            .background(
-                                                color = accentColor.copy(alpha = 0.15f),
-                                                shape = RoundedCornerShape(4.dp)
-                                            )
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                            if (option.description.isNotEmpty()) {
-                                Text(
-                                    text = option.description,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Color.White.copy(alpha = 0.6f)
+                                    text = stringResource(R.string.ui_default),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = accentColor,
+                                    modifier = Modifier
+                                        .background(
+                                            color = accentColor.copy(alpha = 0.15f),
+                                            shape = RoundedCornerShape(4.dp)
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
                         }
-                        if (isSelected) {
-                            Box(
-                                modifier = Modifier
-                                    .size(22.dp)
-                                    .background(
-                                        color = accentColor,
-                                        shape = CircleShape
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
+                        if (option.description.isNotEmpty()) {
+                            Text(
+                                text = option.description,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
+                    if (isSelected) {
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .background(
+                                    color = accentColor,
+                                    shape = CircleShape
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
                         }
                     }
                 }

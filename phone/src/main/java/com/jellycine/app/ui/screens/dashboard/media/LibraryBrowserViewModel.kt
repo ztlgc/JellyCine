@@ -42,6 +42,7 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private va
     private var job: Job? = null
     private var collectionsLoaded = false
     private var requestVersion = 0
+    private var forceNetworkRefresh = false
     private var collectionsJob: Job? = null
     private val userDataChanges = mutableListOf<UserDataRefreshEvent>()
     private var lastAppliedUserDataEvent: UserDataRefreshEvent? = null
@@ -69,6 +70,7 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private va
         if (key == next && !refresh && (mutable.value.loading || mutable.value.items.isNotEmpty() || loadedCatalogKey == next)) return
         val changed = key != next
         key = next
+        forceNetworkRefresh = refresh
         val version = ++requestVersion
         job?.cancel(); collectionsJob?.cancel()
         collectionsMutable.value = emptyList(); collectionItemsMutable.value = emptyMap()
@@ -95,19 +97,15 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private va
                 val items = loadCachedLibraryCatalog(catalogCache, next, refresh, onCached = { snapshot ->
                     if (version == requestVersion) mutable.value = mutable.value.copy(
                         items = applyUserDataChanges(snapshot), loaded = snapshot.size, total = snapshot.size)
-                }) {
-                    // Keep a complete cached catalog stable until the entire refresh succeeds.
-                    val hasSnapshot = catalogCache.peek(next) != null
+                }, onProgress = { visible, loaded, total ->
+                    withContext(Dispatchers.Main.immediate) {
+                        if (version == requestVersion) mutable.value = mutable.value.copy(
+                            items = applyUserDataChanges(visible), loaded = loaded, total = total)
+                    }
+                }) { onPage ->
                     // The server is authoritative for changes that predate this full request.
                     userDataChanges.clear()
-                    val fetched = fetchAll(libraryId, true) { batch, total ->
-                        withContext(Dispatchers.Main.immediate) {
-                            if (version == requestVersion) mutable.value = mutable.value.copy(
-                                items = if (hasSnapshot) mutable.value.items else applyUserDataChanges(batch),
-                                loaded = batch.size, total = total)
-                        }
-                    }
-                    applyUserDataChanges(fetched)
+                    applyUserDataChanges(fetchAll(libraryId, true, forceRefresh = refresh, progress = onPage))
                 }
                 if (version != requestVersion) return@launch
                 val updated = applyUserDataChanges(items)
@@ -117,10 +115,18 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private va
                 catalogCache.updateItems(next) { snapshot ->
                     changes.fold(snapshot) { updatedItems, event -> updatedItems.withLibraryUserData(event) }
                 }
-                if (mutable.value.tab == LibraryTab.COLLECTIONS) loadCollections()
+                if (mutable.value.tab == LibraryTab.COLLECTIONS) loadCollections(forceRefresh = refresh)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
-                if (version == requestVersion) mutable.value = mutable.value.copy(loading = false, error = context.userFacingError(e, R.string.my_media_load_error))
+                if (version == requestVersion) {
+                    // Preserve the last complete catalog if a manual refresh fails.
+                    val snapshot = if (refresh) catalogCache.peek(next)?.let(::applyUserDataChanges) else null
+                    mutable.value = mutable.value.copy(
+                        items = snapshot ?: mutable.value.items,
+                        loaded = snapshot?.size ?: mutable.value.loaded,
+                        total = snapshot?.size ?: mutable.value.total,
+                        loading = false, error = context.userFacingError(e, R.string.my_media_load_error))
+                }
             }
         }
     }
@@ -144,22 +150,23 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private va
     private fun applyUserDataChanges(items: List<BaseItemDto>): List<BaseItemDto> =
         userDataChanges.fold(items) { updated, event -> updated.withLibraryUserData(event) }
 
-    suspend fun loadFolder(folderId: String): List<BaseItemDto> {
-        folderSnapshots[folderId]?.let { return it }
+    suspend fun loadFolder(folderId: String, forceRefresh: Boolean = false): List<BaseItemDto> {
+        if (!forceRefresh) folderSnapshots[folderId]?.let { return it }
         val version = requestVersion
-        val items = applyUserDataChanges(fetchAll(folderId, false))
+        val items = applyUserDataChanges(fetchAll(folderId, false, forceRefresh || forceNetworkRefresh))
         if (version == requestVersion) folderSnapshots[folderId] = items
         return items
     }
 
     /** Complete metadata is required for global grouping, file/resolution sorting and stable random pages. */
-    suspend fun fetchAll(parentId: String?, recursive: Boolean, progress: suspend (List<BaseItemDto>, Int) -> Unit = { _, _ -> }): List<BaseItemDto> =
+    suspend fun fetchAll(parentId: String?, recursive: Boolean, forceRefresh: Boolean = false,
+        progress: suspend (List<BaseItemDto>, Int) -> Unit = { _, _ -> }): List<BaseItemDto> =
         withContext(Dispatchers.IO) {
             fetchLibraryCatalog(fetchPage = { offset, limit ->
                 repository.getUserItems(parentId = parentId, recursive = recursive,
                     sortBy = "SortName", sortOrder = "Ascending", startIndex = offset, limit = limit,
                     fields = LIBRARY_FIELDS,
-                    enableUserData = true).getOrThrow()
+                    enableUserData = true, forceRefresh = forceRefresh).getOrThrow()
             }, onPage = progress)
         }
 
@@ -176,10 +183,11 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private va
     fun direction() { mutable.value = mutable.value.copy(descending = !mutable.value.descending); save() }
     fun view() { mutable.value = mutable.value.copy(listView = !mutable.value.listView); save() }
     fun filters(genres: Set<String>, watched: Boolean?) { mutable.value = mutable.value.copy(genres = genres, watched = watched) }
-    fun loadCollections() {
-        if (collectionsLoadingMutable.value || collectionsLoaded) return
+    fun loadCollections(forceRefresh: Boolean = false) {
+        if (collectionsLoadingMutable.value || (collectionsLoaded && !forceRefresh)) return
         collectionsLoadingMutable.value = true; collectionsErrorMutable.value = null
         val version = requestVersion
+        val refreshFromNetwork = forceRefresh || forceNetworkRefresh
         val libraryIds = mutable.value.items.mapNotNull { it.id }.toSet()
         collectionsJob = viewModelScope.launch {
             try {
@@ -188,7 +196,7 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private va
                     while (true) {
                         val page = repository.getUserItems(includeItemTypes = "BoxSet", recursive = true,
                             startIndex = offset, limit = 200, sortBy = "SortName", sortOrder = "Ascending",
-                            fields = LIBRARY_FIELDS, enableUserData = true).getOrThrow()
+                            fields = LIBRARY_FIELDS, enableUserData = true, forceRefresh = refreshFromNetwork).getOrThrow()
                         val batch = page.items.orEmpty(); result.addAll(batch); offset += batch.size
                         if (batch.isEmpty() || (page.totalRecordCount != null && offset >= page.totalRecordCount!!)) break
                         check(result.mapNotNull { it.id }.distinct().size == result.size) { "Server returned duplicate collection pages" }
@@ -198,9 +206,10 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private va
                 val contents = linkedMapOf<String, List<BaseItemDto>>()
                 for (collection in candidates) {
                     val id = collection.id ?: continue
-                    val children = fetchAll(id, true).filter { it.id in libraryIds }
+                    val children = fetchAll(id, true, refreshFromNetwork).filter { it.id in libraryIds }
                     if (children.isNotEmpty()) contents[id] = children
                 }
+                if (version != requestVersion) return@launch
                 collectionItemsMutable.value = contents.mapValues { (_, children) -> applyUserDataChanges(children) }
                 collectionsMutable.value = applyUserDataChanges(candidates.filter { it.id in contents })
                 collectionsLoaded = true
