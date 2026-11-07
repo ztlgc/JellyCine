@@ -85,6 +85,10 @@ fun ViewAllScreen(
     BackHandler { onBackPressed() }
 
     val context = LocalContext.current
+    val auth = remember(context) { com.jellycine.data.repository.AuthRepositoryProvider.getInstance(context) }
+    val session by auth.observeActiveSession().collectAsStateWithLifecycle(initialValue = auth.getActiveSessionSnapshot())
+    val deletedItems by UserDataRefreshSignals.deletedItems.collectAsStateWithLifecycle()
+    val deletedIds = deletedItems[session.activeServerId].orEmpty()
     val screenWidthDp = containerWidthDp()
     val isTablet = isTabletLayout(screenWidthDp)
     val isSeerrCatalog = contentType.isSeerrCatalog()
@@ -182,7 +186,7 @@ fun ViewAllScreen(
             .distinct()
             .sorted()
     }
-    val displayItems = remember(items, uiState.selectedGenres) {
+    val displayItems = remember(items, uiState.selectedGenres, deletedIds) {
         val filteredItems = if (uiState.selectedGenres.size > 1) {
             items.filter { item ->
                 val itemGenres = item.genres.orEmpty().toSet()
@@ -191,9 +195,9 @@ fun ViewAllScreen(
         } else {
             items
         }
-        filteredItems.distinctBy(::viewAllItemKey)
+        filteredItems.filterNot { it.id in deletedIds }.distinctBy(::viewAllItemKey)
     }
-    val headerTotalCount = uiState.totalItems
+    val headerTotalCount = (uiState.totalItems - items.count { it.id in deletedIds }).coerceAtLeast(0)
     val headerCountText = if (headerTotalCount > 0) {
         stringResource(R.string.view_all_count, displayItems.size, headerTotalCount)
     } else {

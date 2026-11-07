@@ -24,6 +24,24 @@ class LibraryDeletionCacheTest {
         assertEquals("b", LibraryCatalogCache(directory).load(b)?.single()?.id)
     }
 
+    @Test fun restoringDurableHideRecordsFiltersOldDiskCachesAndLaterNetworkRefreshes() = runBlocking {
+        val directory = temporary.newFolder()
+        val key = libraryCatalogKey("restored-deletion-server", "url", "user", "library")
+        val otherKey = libraryCatalogKey("restored-other-server", "url", "user", "library")
+        val items = listOf(BaseItemDto(id = "restored-hidden"), BaseItemDto(id = "retained"))
+        val originalCache = LibraryCatalogCache(directory)
+        originalCache.save(key, items)
+        originalCache.save(otherKey, items)
+
+        UserDataRefreshSignals.restoreDeletedItems(mapOf("restored-deletion-server" to setOf("restored-hidden")))
+        assertEquals(listOf("retained"), originalCache.peek(key)?.map { it.id })
+        val reopened = LibraryCatalogCache(directory)
+        assertEquals(listOf("retained"), reopened.load(key)?.map { it.id })
+        assertEquals(items, reopened.load(otherKey))
+        reopened.save(key, items) // The server still returns the video while deletion retries are pending.
+        assertEquals(listOf("retained"), LibraryCatalogCache(directory).load(key)?.map { it.id })
+    }
+
     @Test fun anOlderInFlightRefreshCannotPutTheDeletedVideoBackIntoCache() = runBlocking {
         val directory = temporary.newFolder()
         val key = libraryCatalogKey("delete-race-session", "url", "user", "library")

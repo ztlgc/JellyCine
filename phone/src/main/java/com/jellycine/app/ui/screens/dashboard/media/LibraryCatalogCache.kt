@@ -30,7 +30,7 @@ internal class LibraryCatalogCache(
     private val mutex = Mutex()
 
     @Synchronized
-    fun peek(key: String): List<BaseItemDto>? = memory[key]?.items
+    fun peek(key: String): List<BaseItemDto>? = memory[key]?.items?.let { retainedItems(key, it) }
 
     @Synchronized
     fun isFresh(key: String): Boolean = memory[key]?.let {
@@ -52,9 +52,7 @@ internal class LibraryCatalogCache(
     suspend fun save(key: String, items: List<BaseItemDto>) {
         withContext(Dispatchers.IO) {
             mutex.withLock {
-                val deletedIds = com.jellycine.shared.playback.UserDataRefreshSignals.deletedItems.value.entries
-                    .firstOrNull { (serverId, _) -> key.startsWith("${serverId.length}:$serverId") }?.value.orEmpty()
-                val retainedItems = withoutLibraryPhotos(items).filterNot { it.id in deletedIds }
+                val retainedItems = retainedItems(key, items)
                 val snapshot = Snapshot(key, retainedItems, refreshedAtMs = nowMs())
                 remember(snapshot)
                 writeSnapshot(snapshot)
@@ -100,7 +98,7 @@ internal class LibraryCatalogCache(
     }
 
     private fun updateSnapshot(snapshot: Snapshot, transform: (List<BaseItemDto>) -> List<BaseItemDto>) {
-        val items = withoutLibraryPhotos(transform(snapshot.items))
+        val items = retainedItems(snapshot.key, transform(snapshot.items))
         if (items == snapshot.items) return
         val updated = snapshot.copy(items = items)
         remember(updated)
@@ -110,7 +108,12 @@ internal class LibraryCatalogCache(
     private fun readSnapshot(key: String): Snapshot? = runCatching {
         JellyCineJson.decodeFromString<Snapshot>(file(key).readText())
     }.getOrNull()?.takeIf { it.schema == 1 && it.key == key }
-        ?.let { it.copy(items = withoutLibraryPhotos(it.items)) }
+        ?.let { it.copy(items = retainedItems(it.key, it.items)) }
+
+    private fun retainedItems(key: String, items: List<BaseItemDto>): List<BaseItemDto> {
+        val deletedIds = libraryDeletedIds(key)
+        return withoutLibraryPhotos(items).filterNot { it.id in deletedIds }
+    }
 
     // A disk cache failure must not turn a successful request or local update into a UI error.
     private fun writeSnapshot(snapshot: Snapshot) {
@@ -155,6 +158,10 @@ internal class LibraryCatalogCache(
         }
     }
 }
+
+internal fun libraryDeletedIds(key: String): Set<String> =
+    com.jellycine.shared.playback.UserDataRefreshSignals.deletedItems.value.entries
+        .firstOrNull { (serverId, _) -> key.startsWith("${serverId.length}:$serverId") }?.value.orEmpty()
 
 /** Length prefixes avoid collisions; include the user because watched/favorite data is personal. */
 internal fun libraryCatalogKey(server: String?, url: String?, user: String?, library: String): String =

@@ -110,7 +110,7 @@ fun Favorites(
     LaunchedEffect(refreshEvent) {
         val event = refreshEvent ?: return@LaunchedEffect
         if (event.serverId != null && event.serverId != sessionSnapshot.activeServerId) return@LaunchedEffect
-        if (event.ratingChanged) favorites = favorites.withLibraryUserData(event)
+        if (event.ratingChanged || event.deleted) favorites = favorites.withLibraryUserData(event)
         else refreshKey++
     }
 

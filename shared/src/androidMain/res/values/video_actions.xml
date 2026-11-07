@@ -7,5 +7,8 @@
     <string name="video_detail_deleted">Deleted: %1$s</string>
     <string name="video_detail_delete_failed">Could not delete %1$s: %2$s</string>
     <string name="video_detail_delete_unavailable">Deletion is unavailable for this item or session</string>
+    <string name="video_detail_delete_queued">Removed %1$s locally. Syncing deletion with the server.</string>
+    <string name="video_detail_delete_save_failed">Could not save the deletion task. Please try again.</string>
+    <string name="video_detail_delete_retry_limit">%1$s is hidden locally. Server deletion is still unconfirmed after %2$d retries. Automatic retries have stopped.</string>
     <string name="video_detail_favorite_failed">Could not update favorite. Please check your connection or permissions.</string>
 </resources>

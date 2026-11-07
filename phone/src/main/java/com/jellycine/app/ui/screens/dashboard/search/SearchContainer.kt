@@ -140,7 +140,7 @@ fun SearchContainer(
     onCancel: () -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val sourceState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedDiscoveryTab by viewModel.selectedDiscoveryTab.collectAsStateWithLifecycle()
 
@@ -149,6 +149,17 @@ fun SearchContainer(
     val activeServerId by authRepository.getActiveServerId().collectAsStateWithLifecycle(
         initialValue = authRepository.getActiveSessionSnapshot().activeServerId
     )
+    val deletedItems by com.jellycine.shared.playback.UserDataRefreshSignals.deletedItems.collectAsStateWithLifecycle()
+    val deletedIds = deletedItems[activeServerId].orEmpty()
+    val uiState = remember(sourceState, deletedIds) {
+        sourceState.copy(
+            movieResults = sourceState.movieResults.filterNot { it.id in deletedIds },
+            showResults = sourceState.showResults.filterNot { it.id in deletedIds },
+            episodeResults = sourceState.episodeResults.filterNot { it.id in deletedIds },
+            videoResults = sourceState.videoResults.filterNot { it.id in deletedIds },
+            suggestions = sourceState.suggestions.filterNot { it.id in deletedIds }
+        )
+    }
     val mediaRepository = remember { MediaRepositoryProvider.getInstance(context) }
     val disablePosterEnhancers = disableEmbyPosterEnhancers()
     val focusRequester = remember { FocusRequester() }

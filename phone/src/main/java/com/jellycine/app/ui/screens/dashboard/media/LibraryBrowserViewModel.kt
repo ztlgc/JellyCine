@@ -103,7 +103,7 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private va
                             items = applyUserDataChanges(visible), loaded = loaded, total = total)
                     }
                 }) { onPage ->
-                    // The server is authoritative for changes that predate this full request.
+                    // Reconcile fresh server data with local user-data changes and durable deletion filters.
                     userDataChanges.clear()
                     applyUserDataChanges(fetchAll(libraryId, true, forceRefresh = refresh, progress = onPage))
                 }
@@ -139,7 +139,10 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private va
         lastAppliedUserDataEvent = event
         userDataChanges.add(event)
         val items = mutable.value.items.withLibraryUserData(event)
-        mutable.value = mutable.value.copy(items = items)
+        val removed = mutable.value.items.size - items.size
+        mutable.value = mutable.value.copy(items = items,
+            loaded = (mutable.value.loaded - removed).coerceAtLeast(0),
+            total = (mutable.value.total - removed).coerceAtLeast(0))
         collectionsMutable.value = collectionsMutable.value.withLibraryUserData(event)
         collectionItemsMutable.value = collectionItemsMutable.value.mapValues { (_, children) -> children.withLibraryUserData(event) }
         folderSnapshots.replaceAll { _, children -> children.withLibraryUserData(event) }
@@ -147,8 +150,11 @@ class LibraryBrowserViewModel @Inject constructor(@ApplicationContext private va
         viewModelScope.launch { catalogCache.updateItems(catalogKey) { it.withLibraryUserData(event) } }
     }
 
-    private fun applyUserDataChanges(items: List<BaseItemDto>): List<BaseItemDto> =
-        userDataChanges.fold(items) { updated, event -> updated.withLibraryUserData(event) }
+    private fun applyUserDataChanges(items: List<BaseItemDto>): List<BaseItemDto> {
+        val deletedIds = libraryDeletedIds(key)
+        return userDataChanges.fold(items) { updated, event -> updated.withLibraryUserData(event) }
+            .filterNot { it.id in deletedIds }
+    }
 
     suspend fun loadFolder(folderId: String, forceRefresh: Boolean = false): List<BaseItemDto> {
         if (!forceRefresh) folderSnapshots[folderId]?.let { return it }

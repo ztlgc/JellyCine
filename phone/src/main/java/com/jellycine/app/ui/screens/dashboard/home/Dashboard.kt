@@ -1684,7 +1684,7 @@ fun Dashboard(
         ) {
             val event = userDataRefreshEvent ?: return@LaunchedEffect
             if (event.serverId != null && event.serverId != sessionSnapshot.activeServerId) return@LaunchedEffect
-            if (event.ratingChanged) {
+            if (event.ratingChanged || event.deleted) {
                 for (queryKey in listOf("featured_home", "featured_other_videos", "recent_watching_home",
                     "recent_watching_other_videos", "home_next_up_api_v1")) {
                     val cached = queryManager.getQuery<List<BaseItemDto>>(queryKey)

@@ -729,6 +729,7 @@ fun DetailContent(
         }
     }
 
+    var deletionSaving by remember(item.id, activeServerId) { mutableStateOf(false) }
     if (item.type.equals("Video", ignoreCase = true) && !isSeerDetail) {
         VideoDetailContent(
             item = item,
@@ -740,12 +741,23 @@ fun DetailContent(
             onFavorite = ::toggleFavorite,
             onWatched = ::toggleWatched,
             favoriteSaving = favoriteSaving,
-            canDelete = item.canDelete != false && !item.id.isNullOrBlank() && !activeServerId.isNullOrBlank(),
+            canDelete = !deletionSaving && item.canDelete != false && !item.id.isNullOrBlank() && !activeServerId.isNullOrBlank(),
             onDelete = {
-                val operation = mediaRepository.prepareVideoDeletion(item, activeServerId)
-                if (operation != null && activeServerId != null && item.id != null) {
-                    BackgroundVideoDeletion.submit(context, activeServerId!!, item.id!!, item.name.orEmpty(), operation)
-                    onBackPressed()
+                val target = mediaRepository.prepareVideoDeletion(item, activeServerId)
+                if (target != null && !deletionSaving) {
+                    deletionSaving = true
+                    coroutineScope.launch {
+                        try {
+                            if (com.jellycine.app.deletion.VideoDeletionController.get(context).submit(target)) {
+                                android.widget.Toast.makeText(context, context.getString(R.string.video_detail_delete_queued, target.name), android.widget.Toast.LENGTH_SHORT).show()
+                                onBackPressed()
+                            } else {
+                                android.widget.Toast.makeText(context, context.getString(R.string.video_detail_delete_save_failed), android.widget.Toast.LENGTH_LONG).show()
+                            }
+                        } finally {
+                            deletionSaving = false
+                        }
+                    }
                 } else {
                     android.widget.Toast.makeText(context, context.getString(R.string.video_detail_delete_unavailable), android.widget.Toast.LENGTH_LONG).show()
                 }

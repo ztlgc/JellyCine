@@ -18,6 +18,7 @@ class JellyCineApplication : Application(), SingletonImageLoader.Factory {
 
         // Initialize crash handler for better crash log collection
         CrashHandler.initialize(this)
+        com.jellycine.app.deletion.VideoDeletionController.get(this)
         com.jellycine.app.sync.WatchSyncController.get(this)
     }
 

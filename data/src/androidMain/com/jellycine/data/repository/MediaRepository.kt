@@ -50,6 +50,7 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -62,6 +63,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.decodeFromString
 import okhttp3.OkHttpClient
 
 data class EpisodeNavigationIds(
@@ -74,6 +76,7 @@ class MediaRepository(private val context: Context) {
         private val SERVER_URL_KEY = stringPreferencesKey("server_url")
         private val SERVER_TYPE_KEY = stringPreferencesKey("server_type")
         private val USER_ID_KEY = stringPreferencesKey("user_id")
+        private val SAVED_SERVERS_KEY = stringPreferencesKey("saved_servers_v1")
         private val PROVIDER_KEYS = listOf("Imdb", "Tmdb", "Tvdb")
     }
 
@@ -94,6 +97,7 @@ class MediaRepository(private val context: Context) {
         val api: MediaServerApi,
         val userId: String,
         val serverType: ServerType?,
+        val serverTypeRaw: String?,
         val baseUrl: String,
         val accessToken: String?
     )
@@ -266,6 +270,7 @@ class MediaRepository(private val context: Context) {
                 api = api,
                 userId = config.userId,
                 serverType = config.serverType,
+                serverTypeRaw = config.serverTypeRaw,
                 baseUrl = config.serverUrl,
                 accessToken = config.accessToken
             )
@@ -934,27 +939,93 @@ class MediaRepository(private val context: Context) {
         }
     }
 
-    /** Capture the loaded item's session before leaving the detail route. */
-    fun prepareVideoDeletion(item: BaseItemDto, expectedServerId: String?): (suspend () -> Result<Unit>)? {
+    /** Capture the loaded item's identity before leaving the detail route, without retaining credentials. */
+    fun prepareVideoDeletion(item: BaseItemDto, expectedServerId: String?): VideoDeletionTarget? {
         val itemId = item.id?.takeIf { it.isNotBlank() } ?: return null
         if (item.isFolder == true || item.canDelete == false || !item.type.equals("Video", true)) return null
         val session = cachedSession ?: return null
-        if (AuthSessionIds.buildServerId(session.baseUrl, session.userId) != expectedServerId) return null
-        val snapshotKey = "${trimTrailingSlash(session.baseUrl)}|${session.userId}"
-        return {
-            try {
-                val response = session.api.deleteItem(itemId)
-                if (response.isSuccessful) {
-                    // Cache cleanup failure must not report a completed server deletion as failed.
-                    runCatching { homeSnapshotStore.removeItem(snapshotKey, itemId) }
-                    Result.success(Unit)
-                } else Result.failure(IllegalStateException("HTTP ${response.code()}"))
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
-            } catch (error: Exception) {
-                Result.failure(error)
+        val serverId = AuthSessionIds.buildServerId(session.baseUrl, session.userId)
+        if (serverId != expectedServerId || session.baseUrl.isBlank() || session.userId.isBlank()) return null
+        return VideoDeletionTarget(
+            serverId = serverId,
+            serverUrl = session.baseUrl,
+            userId = session.userId,
+            serverTypeRaw = session.serverTypeRaw,
+            itemId = itemId,
+            name = item.name?.takeIf { it.isNotBlank() } ?: itemId
+        )
+    }
+
+    /** Resolve the original saved account on every attempt, including after a switch or process restart. */
+    suspend fun deleteVideo(target: VideoDeletionTarget): VideoDeletionOutcome {
+        val config = try {
+            getVideoDeletionSessionConfig(target)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        } ?: return VideoDeletionOutcome.SESSION_UNAVAILABLE
+
+        return try {
+            val api = NetworkModule.createMediaServerApi(
+                baseUrl = config.serverUrl,
+                accessToken = config.accessToken,
+                serverType = config.serverType,
+                storageDir = context.filesDir,
+                timeoutConfig = config.timeoutConfig,
+                context = context
+            )
+            val outcome = deleteVideoWithSession(
+                target = target,
+                api = api,
+                serverId = AuthSessionIds.buildServerId(config.serverUrl, config.userId),
+                serverUrl = config.serverUrl,
+                userId = config.userId
+            )
+            if (outcome == VideoDeletionOutcome.COMPLETE) {
+                // Snapshot failures must not misreport a completed server deletion as failed.
+                try {
+                    removeVideoFromLocalSnapshot(target)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // The durable deletion controller also filters accepted targets from local UI.
+                }
             }
+            outcome
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            VideoDeletionOutcome.RETRY
         }
+    }
+
+    private suspend fun getVideoDeletionSessionConfig(target: VideoDeletionTarget): SessionConfig? {
+        val preferences = dataStore.data.first()
+        val savedServers = preferences[SAVED_SERVERS_KEY]?.let { raw ->
+            runCatching { JellyCineJson.decodeFromString<List<AuthRepository.SavedServer>>(raw) }.getOrNull()
+        }.orEmpty()
+        val savedServer = savedServers.firstOrNull { saved ->
+            target.matchesSession(saved.id, saved.serverUrl, saved.userId) &&
+                saved.id == AuthSessionIds.buildServerId(saved.serverUrl, saved.userId)
+        } ?: return null
+        // Never substitute the active account or its legacy token for a missing original session.
+        val accessToken = secureSessionStore.getToken(savedServer.id) ?: return null
+        val serverTypeRaw = target.serverTypeRaw ?: savedServer.serverTypeRaw
+        return SessionConfig(
+            serverUrl = target.serverUrl,
+            serverTypeRaw = serverTypeRaw,
+            serverType = runCatching { ServerType.valueOf(serverTypeRaw) }.getOrNull(),
+            accessToken = accessToken,
+            userId = savedServer.userId,
+            timeoutConfig = networkPreferences.getTimeoutConfig()
+        )
+    }
+
+    /** Optimistic cleanup uses the accepted target's snapshot even if another account is now active. */
+    suspend fun removeVideoFromLocalSnapshot(target: VideoDeletionTarget) {
+        if (target.serverUrl.isBlank() || target.userId.isBlank() || target.itemId.isBlank()) return
+        homeSnapshotStore.removeItem("${trimTrailingSlash(target.serverUrl)}|${target.userId}", target.itemId)
     }
 
     suspend fun setFavoriteStatus(itemId: String, isFavorite: Boolean): Result<Unit> {

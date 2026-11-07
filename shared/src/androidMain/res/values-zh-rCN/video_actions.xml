@@ -7,5 +7,8 @@
     <string name="video_detail_deleted">已删除：%1$s</string>
     <string name="video_detail_delete_failed">删除“%1$s”失败：%2$s</string>
     <string name="video_detail_delete_unavailable">当前视频或登录会话无法删除</string>
+    <string name="video_detail_delete_queued">已移除“%1$s”，正在向服务器同步删除</string>
+    <string name="video_detail_delete_save_failed">无法保存删除任务，请稍后重试</string>
+    <string name="video_detail_delete_retry_limit">“%1$s”已在本机隐藏；已重推 %2$d 次，服务器删除仍未确认，已停止自动重试</string>
     <string name="video_detail_favorite_failed">收藏操作失败，请检查网络或服务器权限</string>
 </resources>

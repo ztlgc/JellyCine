@@ -28,6 +28,14 @@ object UserDataRefreshSignals {
         )
     }
 
+    /** Restore durable deletion filters without emitting one refresh event per record. */
+    @Synchronized
+    fun restoreDeletedItems(items: Map<String, Set<String>>) {
+        val restored = _deletedItems.value.toMutableMap()
+        items.forEach { (serverId, ids) -> restored[serverId] = restored[serverId].orEmpty() + ids }
+        _deletedItems.value = restored
+    }
+
     @Synchronized
     fun notifyItemDeleted(serverId: String, itemId: String) {
         _deletedItems.value = _deletedItems.value + (serverId to (_deletedItems.value[serverId].orEmpty() + itemId))

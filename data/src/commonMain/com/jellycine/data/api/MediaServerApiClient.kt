@@ -100,10 +100,12 @@ internal class MediaServerApiClient(
         studioIds: String?,
         fields: String?,
         enableUserData: Boolean?,
-        forceRefresh: Boolean
+        forceRefresh: Boolean,
+        ids: String?
     ): ApiResponse<QueryResult<BaseItemDto>> = get(
         endpoint = "Users/$userId/Items",
         queryParameters = listOf(
+            "ids" to ids,
             "parentId" to parentId,
             "PersonIds" to personIds,
             "genres" to genres,

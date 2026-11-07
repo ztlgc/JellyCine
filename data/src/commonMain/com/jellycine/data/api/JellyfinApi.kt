@@ -64,7 +64,8 @@ interface MediaServerApi {
         studioIds: String? = null,
         fields: String? = null,
         enableUserData: Boolean? = null,
-        forceRefresh: Boolean = false
+        forceRefresh: Boolean = false,
+        ids: String? = null
     ): ApiResponse<QueryResult<BaseItemDto>>
 
     suspend fun getStudios(
