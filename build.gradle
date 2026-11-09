@@ -13,6 +13,6 @@ plugins {
 ext {
     // 版本格式为 major.minor.patch.revision，其中第四段为定制修订号。
     // versionCode = major*1000000 + minor*10000 + patch*100 + revision，保证随版本号单调递增。
-    appVersionName = "1.3.6.2"
-    appVersionCode = 1 * 1000000 + 3 * 10000 + 6 * 100 + 2
+    appVersionName = "1.3.6.3"
+    appVersionCode = 1 * 1000000 + 3 * 10000 + 6 * 100 + 3
 }

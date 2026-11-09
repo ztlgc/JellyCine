@@ -551,8 +551,10 @@
     <string name="about_update_failed">Could not reach GitHub. Try again later</string>
     <string name="about_update_available">Version %1$s is available</string>
     <string name="update_dialog_title">New version available</string>
-    <string name="update_dialog_message">JellyCine %1$s is out. Download it from the GitHub release page.</string>
-    <string name="update_dialog_download">Download</string>
+    <string name="update_dialog_message">JellyCine %1$s is out. Choose a download source:</string>
+    <string name="update_dialog_github">GitHub</string>
+    <string name="update_dialog_mirror">Mirror · %1$s</string>
+    <string name="update_dialog_mirror_hint">Mirrors are run by the community and may stop working. Use the GitHub link if a download fails.</string>
     <string name="update_dialog_later">Later</string>
 
     <!-- Interface Settings -->

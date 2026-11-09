@@ -512,8 +512,10 @@
     <string name="about_update_failed">无法连接 GitHub，请稍后重试</string>
     <string name="about_update_available">发现新版本 %1$s</string>
     <string name="update_dialog_title">发现新版本</string>
-    <string name="update_dialog_message">JellyCine %1$s 已发布，可前往 GitHub Release 页面下载。</string>
-    <string name="update_dialog_download">前往下载</string>
+    <string name="update_dialog_message">JellyCine %1$s 已发布，请选择下载方式：</string>
+    <string name="update_dialog_github">GitHub 官方</string>
+    <string name="update_dialog_mirror">镜像 · %1$s</string>
+    <string name="update_dialog_mirror_hint">镜像由社区提供，可能失效；下载失败时请改用 GitHub 官方链接。</string>
     <string name="update_dialog_later">稍后</string>
     <!-- Interface Settings -->
     <string name="interface_feature_carousel">精选内容轮播</string>
