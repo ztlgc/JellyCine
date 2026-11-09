@@ -543,6 +543,17 @@
     <string name="about_feedback_subject">JellyCine Feedback</string>
     <string name="about_buy_me_a_coffee">Buy Me a Coffee</string>
     <string name="about_patreon">Patreon</string>
+    <string name="about_section_update">Updates</string>
+    <string name="about_check_update">Check for Updates</string>
+    <string name="about_check_update_subtitle">Check the latest release on GitHub</string>
+    <string name="about_checking_update">Checking for updates…</string>
+    <string name="about_up_to_date">You are on the latest version</string>
+    <string name="about_update_failed">Could not reach GitHub. Try again later</string>
+    <string name="about_update_available">Version %1$s is available</string>
+    <string name="update_dialog_title">New version available</string>
+    <string name="update_dialog_message">JellyCine %1$s is out. Download it from the GitHub release page.</string>
+    <string name="update_dialog_download">Download</string>
+    <string name="update_dialog_later">Later</string>
 
     <!-- Interface Settings -->
     <string name="interface_feature_carousel">Feature Carousel</string>
@@ -576,6 +587,14 @@
     <string name="interface_seerr_studios_subtitle">Show the Studios section on the Home screen.</string>
     <string name="interface_seerr_networks">Networks</string>
     <string name="interface_seerr_networks_subtitle">Show the Networks section on the Home screen.</string>
+    <string name="settings_app_icon">App Icon</string>
+    <string name="settings_app_icon_subtitle">Choose the icon shown on your home screen and in the app drawer.</string>
+    <string name="settings_app_icon_hint">Some launchers refresh after a few seconds. Pinned shortcuts may need to be added again.</string>
+    <string name="settings_app_icon_jellyfish">Jellyfish</string>
+    <string name="settings_app_icon_film_j">Film J</string>
+    <string name="settings_app_icon_projection">Projection</string>
+    <string name="settings_app_icon_jelly_play">Jelly Play</string>
+    <string name="settings_app_icon_private_cinema">Private Cinema</string>
 
     <!-- Screen Time -->
     <string name="settings_screen_time">Screen Time</string>

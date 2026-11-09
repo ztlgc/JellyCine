@@ -29,6 +29,7 @@ class Preferences(context: Context) {
         private const val KEY_DISCORD_RPC_ENABLED = "discord_rpc_enabled"
         private const val KEY_THEME_MUSIC_MODE = "theme_music_mode"
         private const val KEY_THEME_MUSIC_VOLUME = "theme_music_volume"
+        private const val KEY_LAUNCHER_ICON = "launcher_icon"
 
         const val FEATURE_CAROUSEL_HEIGHT_LARGE = "large"
         const val FEATURE_CAROUSEL_HEIGHT_MEDIUM = "medium"
@@ -37,6 +38,8 @@ class Preferences(context: Context) {
         const val THEME_MUSIC_ONCE = "once"
         const val THEME_MUSIC_ENDLESS = "endless"
         const val DEFAULT_THEME_MUSIC_VOLUME = 0.6f
+        const val DEFAULT_LAUNCHER_ICON = "02"
+        private val LAUNCHER_ICON_IDS = setOf("01", "02", "03", "04", "05")
     }
 
     fun isWifiOnlyDownloadsEnabled(): Boolean {
@@ -364,8 +367,30 @@ class Preferences(context: Context) {
         awaitClose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
     }.distinctUntilChanged()
 
-    private fun validateThemeMusicMode(mode: String?): String {
-        return when (mode) {
+    fun getLauncherIcon(): String {
+        return normalizeLauncherIcon(prefs.getString(KEY_LAUNCHER_ICON, DEFAULT_LAUNCHER_ICON))
+    }
+
+    fun setLauncherIcon(iconId: String) {
+        prefs.edit()
+            .putString(KEY_LAUNCHER_ICON, normalizeLauncherIcon(iconId))
+            .apply()
+    }
+
+    fun LauncherIcon(): Flow<String> = callbackFlow {
+        trySend(getLauncherIcon())
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == KEY_LAUNCHER_ICON) trySend(getLauncherIcon())
+        }
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        awaitClose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }.distinctUntilChanged()
+
+    private fun normalizeLauncherIcon(iconId: String?): String {
+        return if (iconId != null && iconId in LAUNCHER_ICON_IDS) iconId else DEFAULT_LAUNCHER_ICON
+    }
+
+    private fun validateThemeMusicMode(mode: String?): String {        return when (mode) {
             THEME_MUSIC_NO -> THEME_MUSIC_NO
             THEME_MUSIC_ENDLESS -> THEME_MUSIC_ENDLESS
             else -> THEME_MUSIC_ONCE

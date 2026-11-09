@@ -46,12 +46,12 @@ class LibraryPhotoFilteringTest {
         assertEquals(listOf(folder, video), result)
     }
 
-    @Test fun oldFreshDiskSnapshotsHidePhotosWithoutRequiringARefresh() = runBlocking {
+    @Test fun freshDiskSnapshotsHidePhotosWithoutRequiringARefresh() = runBlocking {
         val directory = temporary.newFolder()
         val now = 1_000_000L
         LibraryCatalogCache(directory) { now }.save("library", emptyList())
         directory.listFiles()!!.single().writeText("""
-            {"key":"library","items":[{"Id":"photo","Type":"Photo"},{"Id":"folder","Type":"Folder","IsFolder":true},{"Id":"video","Type":"Video"}],"schema":1,"refreshedAtMs":$now}
+            {"key":"library","items":[{"Id":"photo","Type":"Photo"},{"Id":"folder","Type":"Folder","IsFolder":true},{"Id":"video","Type":"Video"}],"schema":2,"refreshedAtMs":$now}
         """.trimIndent())
         val restarted = LibraryCatalogCache(directory) { now + 1_000L }
         val result = loadCachedLibraryCatalog(restarted, "library", onCached = {

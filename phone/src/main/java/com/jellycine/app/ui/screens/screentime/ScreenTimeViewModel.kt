@@ -10,6 +10,8 @@ import com.jellycine.data.repository.computeScreenTimeStats
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -66,10 +68,15 @@ class ScreenTimeViewModel(context: Context) : ViewModel() {
                 if (year == today.year) today else LocalDate.of(year, 12, 31)
         }
         val requested = ScreenTimeUiState(period, year, monthOffset, weekOffset, startDate = start, endDate = end)
-        _screenTimeState.value = requested
+        var loadingState = _screenTimeState.value.loadingStateFor(requested)
+        _screenTimeState.value = loadingState
         loadJob = viewModelScope.launch {
             try {
                 val scope = mediaRepository.getWatchHistoryScopeKey().orEmpty()
+                currentCoroutineContext().ensureActive()
+                // 切换服务器或账号时清空旧快照，不能把上一账号的数据留在新范围内。
+                loadingState = loadingState.loadingStateFor(requested, scope)
+                _screenTimeState.value = loadingState
                 val previousEnd = start.minusDays(1)
                 val previousStart = previousEnd.minusDays(ChronoUnit.DAYS.between(start, end))
                 val zone = ZoneId.systemDefault()
@@ -86,7 +93,8 @@ class ScreenTimeViewModel(context: Context) : ViewModel() {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                _screenTimeState.value = requested.copy(isLoading = false, error = "watch_history_load_failed")
+                currentCoroutineContext().ensureActive()
+                _screenTimeState.value = loadingState.copy(isLoading = false, error = "watch_history_load_failed")
             }
         }
     }

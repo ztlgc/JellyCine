@@ -1,5 +1,5 @@
 <resources>
-    <string name="screen_time_local_caption">On this phone · Actual video watch time</string>
+    <string name="screen_time_local_caption">Videos · Actual watch time</string>
     <string name="screen_time_watched_duration">Watch time</string>
     <string name="screen_time_video_count">Videos opened</string>
     <string name="screen_time_open_count">Times opened</string>
@@ -10,7 +10,17 @@
     <string name="screen_time_no_ranking">No records in this period</string>
     <string name="screen_time_unnamed_video">Untitled video</string>
     <string name="screen_time_load_failed">Could not load watch history</string>
+    <string name="screen_time_refresh_failed">Could not refresh. Showing the last loaded statistics.</string>
     <string name="screen_time_retry">Retry</string>
     <string name="screen_time_previous_period">Previous period</string>
     <string name="screen_time_next_period">Next period</string>
+    <string name="screen_time_period_week_short">Week</string>
+    <string name="screen_time_ranking">Video rankings</string>
+    <string name="screen_time_top_five">Top 5</string>
+    <string name="screen_time_compare_more">%2$s more than the previous %1$d days</string>
+    <string name="screen_time_compare_less">%2$s less than the previous %1$d days</string>
+    <string name="screen_time_compare_same">No change from the previous %1$d days</string>
+    <string name="screen_time_filtered_caption">Showing your chart selection</string>
+    <string name="screen_time_clear_filters">Clear filters</string>
+    <string name="screen_time_average_caption">Daily average includes days without viewing in the selected range</string>
 </resources>

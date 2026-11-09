@@ -54,6 +54,7 @@ interface MediaServerApi {
         genres: String? = null,
         genreIds: String? = null,
         includeItemTypes: String? = null,
+        excludeItemTypes: String? = null,
         recursive: Boolean? = null,
         sortBy: String? = null,
         sortOrder: String? = null,

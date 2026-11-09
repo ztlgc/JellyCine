@@ -114,19 +114,25 @@ class HomeSnapshotStore(
         }
     }
 
-    suspend fun updateRating(expectedSnapshotKey: String, itemId: String, rating: Float?) {
+    suspend fun updateRating(expectedSnapshotKey: String, itemId: String, rating: Float?) =
+        updateItemFields(expectedSnapshotKey, itemId) { it.copy(communityRating = rating) }
+
+    suspend fun updateTags(expectedSnapshotKey: String, itemId: String, tags: List<String>) =
+        updateItemFields(expectedSnapshotKey, itemId) { it.copy(tags = tags) }
+
+    private suspend fun updateItemFields(expectedSnapshotKey: String, itemId: String, transform: (BaseItemDto) -> BaseItemDto) {
         withContext(Dispatchers.IO) {
             homeSnapshotMutex.withLock {
                 val file = getHomeSnapshotFile()
                 val existing = readSnapshot(file)?.takeIf { it.snapshotKey == expectedSnapshotKey } ?: return@withLock
-                fun List<BaseItemDto>.rated() = map { if (it.id == itemId) it.copy(communityRating = rating) else it }
+                fun List<BaseItemDto>.patched() = map { if (it.id == itemId) transform(it) else it }
                 writeSnapshotAtomically(file, existing.copy(
-                    featuredHomeItems = existing.featuredHomeItems.rated(),
-                    continueWatchingItems = existing.continueWatchingItems.rated(),
-                    recentWatchingItems = existing.recentWatchingItems?.rated(),
-                    recentOtherVideoItems = existing.recentOtherVideoItems?.rated(),
-                    nextUpItems = existing.nextUpItems?.rated(),
-                    homeLibrarySections = existing.homeLibrarySections.map { it.copy(items = it.items.rated()) }
+                    featuredHomeItems = existing.featuredHomeItems.patched(),
+                    continueWatchingItems = existing.continueWatchingItems.patched(),
+                    recentWatchingItems = existing.recentWatchingItems?.patched(),
+                    recentOtherVideoItems = existing.recentOtherVideoItems?.patched(),
+                    nextUpItems = existing.nextUpItems?.patched(),
+                    homeLibrarySections = existing.homeLibrarySections.map { it.copy(items = it.items.patched()) }
                 ))
             }
         }

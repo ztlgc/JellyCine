@@ -2,7 +2,7 @@
 
 本仓库只开发 Android 手机端，TV 和 iOS 专用项目、源码及对应打包配置已移除。Android 手机端保留 `phone`、`data`、`shared`、`core` 四个模块。
 
-最近发布：[JellyCine 1.3.6 Android 手机定制版（2026-10-31）](releases/2026-10-31.md)。
+最近发布：[JellyCine 1.3.6.2 Android 手机定制版（2026-11-09）](releases/2026-11-09.md)。
 
 ## 更高增益与服务器评分（2026-10-18）
 

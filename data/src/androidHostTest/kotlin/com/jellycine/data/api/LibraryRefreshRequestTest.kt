@@ -17,6 +17,7 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class LibraryRefreshRequestTest {
     @Test fun manualRefreshBypassesFreshHttpCacheAndRefreshesEveryRequestedPage() = runBlocking {
@@ -69,6 +70,14 @@ class LibraryRefreshRequestTest {
                 assertEquals("200", query["limit"])
                 assertEquals("true", query["EnableUserData"])
             }
+
+            val filtered = api.getUserItems(
+                userId = "user", parentId = "library", recursive = true,
+                startIndex = 0, limit = 200, enableUserData = true,
+                excludeItemTypes = "Photo", forceRefresh = true
+            )
+            assertTrue(filtered.isSuccessful)
+            assertEquals("Photo", requests.last().second["ExcludeItemTypes"])
         } finally {
             client.close()
             diskCache.close()

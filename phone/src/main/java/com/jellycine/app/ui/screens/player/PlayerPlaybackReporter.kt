@@ -95,7 +95,7 @@ internal class PlayerPlaybackReporter(
                     failed = failed
                 )
                 if (result.isSuccess) {
-                    UserDataRefreshSignals.notifyUserDataChanged(mediaId, playbackPositionTicks = stoppedPositionTicks)
+                    publishConfirmedUserData(mediaId, stoppedPositionTicks)
                 } else {
                     Log.e(
                         TAG,
@@ -106,6 +106,19 @@ internal class PlayerPlaybackReporter(
                 Log.e(TAG, "Error reporting playback stopped", error)
             }
         }
+    }
+
+    /**
+     * The server decides whether the stop crossed the watched threshold. Read the confirmed user
+     * data once so libraries do not keep a finished video listed under "resume" until a full scan.
+     */
+    private suspend fun publishConfirmedUserData(mediaId: String, stoppedPositionTicks: Long) {
+        val confirmed = mediaRepository.getItemUserData(mediaId)
+        UserDataRefreshSignals.notifyUserDataChanged(
+            itemId = mediaId,
+            played = confirmed?.played,
+            playbackPositionTicks = confirmed?.playbackPositionTicks ?: stoppedPositionTicks
+        )
     }
 
     fun onPlaybackPauseStateChanged() {

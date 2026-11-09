@@ -21,4 +21,13 @@
     <string name="video_rating_save">保存</string>
     <string name="video_rating_cancel">取消</string>
     <string name="video_rating_save_error">无法确认服务器评分已保存，请检查网络后重试。</string>
+    <string name="video_tags_title">标签</string>
+    <string name="video_tags_add">添加标签</string>
+    <string name="video_tags_empty">暂无标签。</string>
+    <string name="video_tags_input_hint">新标签</string>
+    <string name="video_tags_add_action">添加</string>
+    <string name="video_tags_remove">删除标签 %1$s</string>
+    <string name="video_tags_load_error">无法读取服务器当前标签。</string>
+    <string name="video_tags_unconfirmed_error">服务器尚未确认这些标签，请重新读取或重试。</string>
+    <string name="video_tags_save_error">无法确认服务器标签已保存，请检查网络后重试。</string>
 </resources>

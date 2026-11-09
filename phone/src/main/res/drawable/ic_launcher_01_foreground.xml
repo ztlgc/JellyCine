@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group android:pivotX="256" android:pivotY="256" android:scaleX="0.82" android:scaleY="0.82">
+    <path android:strokeColor="#54BDF2" android:strokeWidth="25" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="@android:color/transparent" android:pathData="M 184 285 C 184 317 158 329 174 360" />
+    <path android:strokeColor="#81DBF5" android:strokeWidth="25" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="@android:color/transparent" android:pathData="M 230 290 C 230 327 209 345 229 382" />
+    <path android:strokeColor="#81DBF5" android:strokeWidth="25" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="@android:color/transparent" android:pathData="M 278 290 C 278 328 301 341 281 378" />
+    <path android:strokeColor="#54BDF2" android:strokeWidth="25" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="@android:color/transparent" android:pathData="M 326 285 C 326 316 350 334 334 357" />
+    <path android:pathData="M 130 263 C 130 184 178 125 256 125 C 334 125 382 184 382 263 C 382 283 368 294 349 294 L 163 294 C 144 294 130 283 130 263 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="512" android:startColor="#BBF5FF" android:endColor="#39A9E8" />
+        </aapt:attr>
+    </path>
+    <path android:fillColor="#173163" android:pathData="M 235 183 C 230 180 225 183 225 190 L 225 250 C 225 257 230 260 235 257 L 285 226 C 291 222 291 218 285 214 Z" />
+    <path android:strokeColor="#E0FBFF" android:strokeWidth="10" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="@android:color/transparent" android:pathData="M 164 229 C 170 193 187 175 209 166" />
+    </group>
+</vector>

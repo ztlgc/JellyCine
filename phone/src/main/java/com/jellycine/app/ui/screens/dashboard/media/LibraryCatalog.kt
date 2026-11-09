@@ -10,7 +10,7 @@ import kotlin.random.Random
 
 enum class LibraryTab(val label: Int) {
     ALL(R.string.library_all), RESUME(R.string.library_resume), COLLECTIONS(R.string.library_collections),
-    GENRES(R.string.library_genres), TAGS(R.string.library_tags), FAVORITES(R.string.library_favorites), FOLDERS(R.string.library_folders)
+    TAGS(R.string.library_tags), FAVORITES(R.string.library_favorites), FOLDERS(R.string.library_folders)
 }
 
 enum class LibrarySort(val label: Int, val descendingDefault: Boolean = true) {

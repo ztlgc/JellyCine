@@ -100,7 +100,7 @@ fun LibraryBrowserScreen(
     }
     BackHandler { back() }
     val media = remember(state.items, contentType) { libraryMedia(state.items, contentType) }
-    val grouped = state.tab in setOf(LibraryTab.GENRES, LibraryTab.TAGS) && group == null
+    val grouped = state.tab == LibraryTab.TAGS && group == null
     val collectionRoot = state.tab == LibraryTab.COLLECTIONS && group == null
     val source = remember(media, state.items, state.tab, folderItems, group, collectionContents, collections) {
         when (state.tab) {
@@ -108,11 +108,12 @@ fun LibraryBrowserScreen(
             LibraryTab.RESUME -> state.items.filter { it.isLibraryPlayable() && (it.userData?.playbackPositionTicks ?: 0) > 0 && it.userData?.played != true }
             LibraryTab.FAVORITES -> media.filter { it.userData?.isFavorite == true }
             LibraryTab.FOLDERS -> {
+                // The catalog carries refreshed metadata (for example the community rating) and
+                // user data; the folder query only decides which children this level contains.
                 val catalog = state.items.associateBy { it.id }
-                folderItems.map { item -> catalog[item.id]?.let { item.copy(userData = it.userData) } ?: item }
+                folderItems.map { item -> catalog[item.id] ?: item }
             }
             LibraryTab.COLLECTIONS -> if (group == null) collections else libraryMedia(collectionContents[group].orEmpty(), contentType)
-            LibraryTab.GENRES -> media.filter { group == null || group in it.genres.orEmpty() }
             LibraryTab.TAGS -> media.filter { group == null || group in it.tags.orEmpty() }
         }
     }
@@ -123,7 +124,7 @@ fun LibraryBrowserScreen(
         sortLibrary(filtered.filterNot { it.id in deletedIds }, state.sort, state.descending, state.randomSeed)
     }
     val groups = remember(filtered, grouped, state.tab, state.sort, state.descending, state.randomSeed) {
-        if (!grouped) emptyList() else filtered.flatMap { if (state.tab == LibraryTab.GENRES) it.genres.orEmpty() else it.tags.orEmpty() }
+        if (!grouped) emptyList() else filtered.flatMap { it.tags.orEmpty() }
             .filter { it.isNotBlank() }.distinct().let { names ->
                 sortLibrary(names.map { BaseItemDto(id = it, name = it) }, state.sort, state.descending, state.randomSeed).map { it.name!! }
             }
@@ -216,7 +217,7 @@ fun LibraryBrowserScreen(
                     Surface(onClick = { group = name }, color = Color(0xFF1C1E22), shape = RoundedCornerShape(12.dp)) {
                         Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text(name, color = Color.White)
-                            Text(filtered.count { name in (if (state.tab == LibraryTab.GENRES) it.genres.orEmpty() else it.tags.orEmpty()) }.toString(), color = Color.Gray)
+                            Text(filtered.count { name in it.tags.orEmpty() }.toString(), color = Color.Gray)
                         }
                     }
                 } else {
@@ -357,10 +358,13 @@ private fun LibraryBrowserCard(
 ) {
     val context = LocalContext.current
     val repository = remember(context) { MediaRepositoryProvider.getInstance(context) }
-    var image by remember(item.id) { mutableStateOf<String?>(null) }
-    LaunchedEffect(item.id) {
+    val imageTag = item.imageTags?.get("Primary")
+    // A refresh can replace the artwork without changing the item id; keep the tag in the key so
+    // the card requests the new image instead of continuing to show the old URL.
+    var image by remember(item.id, imageTag) { mutableStateOf<String?>(null) }
+    LaunchedEffect(item.id, imageTag) {
         image = withContext(Dispatchers.IO) { repository.getImageUrlString(item.id!!, width = 360,
-            enableImageEnhancers = false, imageTag = item.imageTags?.get("Primary"), autoOrient = true) }
+            enableImageEnhancers = false, imageTag = imageTag, autoOrient = true) }
     }
     val folder = item.isFolder == true || item.type in setOf("Folder", "PhotoAlbum", "BoxSet", "Series")
     val video = !folder && (item.isLibraryPlayable() && item.type != "Audio")

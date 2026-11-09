@@ -1157,7 +1157,6 @@ fun Dashboard(
     isTabActive: Boolean = true,
     dashboardScrollState: LazyListState? = null
 ) {
-    var selectedCategory by rememberSaveable { mutableStateOf(HomeCategory.HOME) }
     val context = LocalContext.current
     val appContext = remember(context) { context.applicationContext }
     val mediaRepository = remember { com.jellycine.data.repository.MediaRepositoryProvider.getInstance(context) }
@@ -1165,7 +1164,6 @@ fun Dashboard(
     val downloadRepository = remember { DownloadRepositoryProvider.getInstance(context) }
     val preferences = remember { Preferences(context) }
     val authRepository = remember { com.jellycine.data.repository.AuthRepositoryProvider.getInstance(context) }
-    val scope = rememberCoroutineScope()
     val serverSwitchViewModel: ServerSwitchViewModel = viewModel {
         ServerSwitchViewModel(context.applicationContext as android.app.Application)
     }
@@ -1184,18 +1182,6 @@ fun Dashboard(
             NetworkModule.hasLocalNetworkTransport(appContext)) &&
             !preferences.isForceOfflineEnabled()
     )
-    val featureCarouselEnabled by preferences.FeatureCarouselEnabled()
-        .collectAsStateWithLifecycle(
-            initialValue = preferences.isFeatureCarouselEnabled()
-        )
-    val featureCarouselHeight by preferences.FeatureCarouselHeight()
-        .collectAsStateWithLifecycle(
-            initialValue = preferences.getFeatureCarouselHeight()
-        )
-    val autoplayTrailersEnabled by preferences.autoplayTrailersEnabled()
-        .collectAsStateWithLifecycle(
-            initialValue = preferences.isAutoplayTrailersEnabled()
-        )
     val continueWatchingEnabled by preferences.ContinueWatchingEnabled()
         .collectAsStateWithLifecycle(
             initialValue = preferences.isContinueWatchingEnabled()
@@ -1247,7 +1233,7 @@ fun Dashboard(
     val HeaderUserName = currentUsername
         ?.takeIf { it.isNotBlank() }
         ?: context.getString(R.string.ui_user)
-    var noCarouselProfileImageUrl by remember(dashboardSessionKey) {
+    var headerProfileImageUrl by remember(dashboardSessionKey) {
         mutableStateOf(persistedHomeSnapshot?.profileImageUrl)
     }
     val usersForCurrentServer = remember(
@@ -1266,33 +1252,6 @@ fun Dashboard(
                 }.thenBy { it.username.lowercase() }
             )
     }
-    LaunchedEffect(featureCarouselEnabled, dashboardSessionKey, HeaderUserName) {
-        if (featureCarouselEnabled) return@LaunchedEffect
-
-        if (!noCarouselProfileImageUrl.isNullOrBlank()) return@LaunchedEffect
-
-        val user = withContext(Dispatchers.IO) {
-            try {
-                mediaRepository.getCurrentUser().getOrNull()
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                null
-            }
-        }
-        currentCoroutineContext().ensureActive()
-        val profileUrl = withContext(Dispatchers.IO) {
-            try {
-                mediaRepository.getUserProfileImageUrl(user?.primaryImageTag)
-            } catch (error: CancellationException) {
-                throw error
-            } catch (_: Exception) {
-                null
-            }
-        }
-        currentCoroutineContext().ensureActive()
-        noCarouselProfileImageUrl = profileUrl
-    }
     val queryManager = remember(dashboardSessionKey) {
         DashboardHomeQueryStore.get(dashboardSessionKey)
     }
@@ -1309,8 +1268,8 @@ fun Dashboard(
     LaunchedEffect(dashboardSessionKey, persistedHomeSnapshot) {
         val snapshot = persistedHomeSnapshot ?: return@LaunchedEffect
         val persistedProfileUrl = snapshot.profileImageUrl
-        if (!persistedProfileUrl.isNullOrBlank() && noCarouselProfileImageUrl.isNullOrBlank()) {
-            noCarouselProfileImageUrl = persistedProfileUrl
+        if (!persistedProfileUrl.isNullOrBlank() && headerProfileImageUrl.isNullOrBlank()) {
+            headerProfileImageUrl = persistedProfileUrl
         }
     }
 
@@ -1333,7 +1292,7 @@ fun Dashboard(
             }
             currentCoroutineContext().ensureActive()
             if (!profileUrl.isNullOrBlank()) {
-                noCarouselProfileImageUrl = profileUrl
+                headerProfileImageUrl = profileUrl
             }
             authRepository.updateActiveServerProfileImage(
                 profileImageUrl = profileUrl ?: persistedHomeSnapshot?.profileImageUrl
@@ -1366,68 +1325,17 @@ fun Dashboard(
 
     CompositionLocalProvider(LocalQueryManager provides queryManager) {
 
-        val featuredQuery = useQuery(
-            key = "featured_$selectedCategory",
-            config = QueryConfig(
-                staleTime = 300_000L,
-                enabled = isTabActive && isNetworkAvailable && featureCarouselEnabled && selectedCategory != HomeCategory.OTHER_VIDEOS,
-                requestTimeoutMs = networkRequestTimeoutMs
-            )
-        ) {
-            val result = when (selectedCategory) {
-                HomeCategory.MOVIES -> mediaRepository.getUserItems(
-                    parentId = null,
-                    includeItemTypes = "Movie",
-                    sortBy = "Random",
-                    sortOrder = null,
-                    limit = 10,
-                    startIndex = 0,
-                    recursive = true,
-                    fields = "BasicSyncInfo,Genres,CommunityRating,CriticRating,ProductionYear,PremiereDate,OfficialRating,Overview,RemoteTrailers"
-                )
-                HomeCategory.TV_SHOWS -> mediaRepository.getUserItems(
-                    parentId = null,
-                    includeItemTypes = "Series",
-                    sortBy = "Random",
-                    sortOrder = null,
-                    limit = 10,
-                    startIndex = 0,
-                    recursive = true,
-                    fields = "BasicSyncInfo,Genres,CommunityRating,CriticRating,ProductionYear,PremiereDate,OfficialRating,Overview,RemoteTrailers"
-                )
-                else -> mediaRepository.getUserItems(
-                    parentId = null,
-                    includeItemTypes = "Movie,Series",
-                    sortBy = "Random",
-                    sortOrder = null,
-                    limit = 10,
-                    startIndex = 0,
-                    recursive = true,
-                    fields = "BasicSyncInfo,Genres,CommunityRating,CriticRating,ProductionYear,PremiereDate,OfficialRating,Overview,RemoteTrailers"
-                )
-            }
-
-            result.fold(
-                onSuccess = { query ->
-                    query.items
-                        .orEmpty()
-                        .filter { it.id != null && !it.name.isNullOrBlank() }
-                },
-                onFailure = { throw it }
-            )
-        }
-
         val continueWatchingQuery = useQuery(
-            key = "recent_watching_$selectedCategory",
+            key = "recent_watching_home",
             config = QueryConfig(
                 staleTime = 60_000L,
-                enabled = isTabActive && (selectedCategory == HomeCategory.HOME || selectedCategory == HomeCategory.OTHER_VIDEOS) && isNetworkAvailable && continueWatchingEnabled,
+                enabled = isTabActive && isNetworkAvailable && continueWatchingEnabled,
                 retryCount = 2,
                 retryDelay = 250L,
                 requestTimeoutMs = networkRequestTimeoutMs
             )
         ) {
-            val result = mediaRepository.getRecentWatchingItems(otherVideosOnly = selectedCategory == HomeCategory.OTHER_VIDEOS, limit = 24)
+            val result = mediaRepository.getRecentWatchingItems(otherVideosOnly = false, limit = 24)
             result.fold(
                 onSuccess = { items ->
                     val validItems = items
@@ -1450,7 +1358,7 @@ fun Dashboard(
             key = "home_next_up_api_v1",
             config = QueryConfig(
                 staleTime = 60_000L,
-                enabled = isTabActive && selectedCategory == HomeCategory.HOME && isNetworkAvailable && nextUpEnabled,
+                enabled = isTabActive && isNetworkAvailable && nextUpEnabled,
                 retryCount = 2,
                 retryDelay = 250L,
                 requestTimeoutMs = networkRequestTimeoutMs
@@ -1507,7 +1415,7 @@ fun Dashboard(
             key = "home_library_burst_v2",
             config = QueryConfig(
                 staleTime = 300_000L,
-                enabled = isTabActive && (selectedCategory == HomeCategory.HOME || selectedCategory == HomeCategory.OTHER_VIDEOS) && isNetworkAvailable,
+                enabled = isTabActive && isNetworkAvailable,
                 retryCount = 1,
                 retryDelay = 200L,
                 requestTimeoutMs = networkRequestTimeoutMs
@@ -1537,7 +1445,7 @@ fun Dashboard(
             key = "home_my_media_libraries",
             config = QueryConfig(
                 staleTime = 300_000L,
-                enabled = isTabActive && (selectedCategory == HomeCategory.HOME || selectedCategory == HomeCategory.OTHER_VIDEOS) && isNetworkAvailable,
+                enabled = isTabActive && isNetworkAvailable,
                 retryCount = 1,
                 retryDelay = 200L,
                 requestTimeoutMs = networkRequestTimeoutMs
@@ -1572,7 +1480,7 @@ fun Dashboard(
             key = "home_local_studio_names",
             config = QueryConfig(
                 staleTime = 300_000L,
-                enabled = isTabActive && selectedCategory == HomeCategory.HOME && isNetworkAvailable,
+                enabled = isTabActive && isNetworkAvailable,
                 retryCount = 1,
                 retryDelay = 200L,
                 requestTimeoutMs = networkRequestTimeoutMs
@@ -1582,23 +1490,15 @@ fun Dashboard(
         }
         val localStudioNames = localStudioNamesQuery.data
 
-        val persistedFeaturedItems = if (selectedCategory == HomeCategory.HOME && isNetworkAvailable) {
-            persistedHomeSnapshot?.featuredHomeItems.orEmpty()
-        } else {
-            emptyList()
-        }
-        val FeaturedItems = if (selectedCategory == HomeCategory.OTHER_VIDEOS) emptyList() else featuredQuery.data ?: persistedFeaturedItems
-
         val persistedContinueWatchingItems = if (isNetworkAvailable && continueWatchingEnabled) {
-            if (selectedCategory == HomeCategory.OTHER_VIDEOS) persistedHomeSnapshot?.recentOtherVideoItems.orEmpty()
-            else persistedHomeSnapshot?.recentWatchingItems ?: persistedHomeSnapshot?.continueWatchingItems.orEmpty()
+            persistedHomeSnapshot?.recentWatchingItems ?: persistedHomeSnapshot?.continueWatchingItems.orEmpty()
         } else {
             emptyList()
         }
         val deletedIds = deletedMediaItems[sessionSnapshot.activeServerId].orEmpty()
         val ContinueWatchingItems = (continueWatchingQuery.data ?: persistedContinueWatchingItems).filterNot { it.id in deletedIds }
 
-        val persistedNextUpItems = if (selectedCategory == HomeCategory.HOME && isNetworkAvailable && nextUpEnabled) {
+        val persistedNextUpItems = if (isNetworkAvailable && nextUpEnabled) {
             persistedHomeSnapshot?.nextUpItems.orEmpty()
         } else {
             emptyList()
@@ -1615,8 +1515,7 @@ fun Dashboard(
         val LibrarySections = (homeLibraryBurstQuery.data ?: persistedLibrarySections).map {
             it.copy(items = withoutLibraryPhotos(it.items).filterNot { video -> video.id in deletedIds })
         }.filter {
-            !it.collectionType.equals("photos", true) &&
-                (selectedCategory != HomeCategory.OTHER_VIDEOS || it.collectionType.equals("homevideos", true))
+            !it.collectionType.equals("photos", true)
         }
 
         val persistedMyMediaLibraries = if (isNetworkAvailable) {
@@ -1624,12 +1523,8 @@ fun Dashboard(
         } else {
             emptyList()
         }
-        val MyMediaLibraries = if (selectedCategory == HomeCategory.HOME || selectedCategory == HomeCategory.OTHER_VIDEOS) {
-            HomeCategory.librariesForCategory(selectedCategory, homeMyMediaLibrariesQuery.data ?: persistedMyMediaLibraries)
-                .filterNot { it.collectionType.equals("photos", true) }
-        } else {
-            emptyList()
-        }
+        val MyMediaLibraries = (homeMyMediaLibrariesQuery.data ?: persistedMyMediaLibraries)
+            .filterNot { it.collectionType.equals("photos", true) }
         val seerrStudios = remember { SeerrCatalog.popularStudios(limit = 12) }
         val seerrNetworks = remember { SeerrCatalog.popularNetworks() }
 
@@ -1639,16 +1534,12 @@ fun Dashboard(
                 item.localMatchNames.any { it.trim().lowercase() in names }
             }
         }
-        val SeerrStudios = if (
-            selectedCategory == HomeCategory.HOME && seerrStudiosEnabled
-        ) {
+        val SeerrStudios = if (seerrStudiosEnabled) {
             availableInLibrary(seerrStudios)
         } else {
             emptyList()
         }
-        val SeerrNetworks = if (
-            selectedCategory == HomeCategory.HOME && seerrNetworksEnabled
-        ) {
+        val SeerrNetworks = if (seerrNetworksEnabled) {
             availableInLibrary(seerrNetworks)
         } else {
             emptyList()
@@ -1659,14 +1550,14 @@ fun Dashboard(
                 queryManager.refreshStaleQueries()
             }
         }
-        LaunchedEffect(isTabActive, selectedCategory, isNetworkAvailable) {
-            if (isTabActive && selectedCategory == HomeCategory.HOME && isNetworkAvailable) {
+        LaunchedEffect(isTabActive, isNetworkAvailable) {
+            if (isTabActive && isNetworkAvailable) {
                 queryManager.invalidateQuery("home_library_burst_v2")
                 if (continueWatchingEnabled) {
                     val cachedContinueWatching =
-                        queryManager.getQuery<List<BaseItemDto>>("recent_watching_$selectedCategory")
+                        queryManager.getQuery<List<BaseItemDto>>("recent_watching_home")
                     if (cachedContinueWatching.data.isNullOrEmpty()) {
-                        queryManager.invalidateQuery("recent_watching_$selectedCategory")
+                        queryManager.invalidateQuery("recent_watching_home")
                     }
                 }
                 if (nextUpEnabled) {
@@ -1685,8 +1576,7 @@ fun Dashboard(
             val event = userDataRefreshEvent ?: return@LaunchedEffect
             if (event.serverId != null && event.serverId != sessionSnapshot.activeServerId) return@LaunchedEffect
             if (event.ratingChanged || event.deleted) {
-                for (queryKey in listOf("featured_home", "featured_other_videos", "recent_watching_home",
-                    "recent_watching_other_videos", "home_next_up_api_v1")) {
+                for (queryKey in listOf("recent_watching_home", "home_next_up_api_v1")) {
                     val cached = queryManager.getQuery<List<BaseItemDto>>(queryKey)
                     cached.data?.let { queryManager.setQuery(queryKey, cached.copy(data = it.withLibraryUserData(event))) }
                 }
@@ -1700,20 +1590,15 @@ fun Dashboard(
             queryManager.invalidateQuery("home_library_burst_v2")
             if (continueWatchingEnabled) {
                 queryManager.invalidateQuery("recent_watching_home")
-                queryManager.invalidateQuery("recent_watching_other_videos")
             }
             if (nextUpEnabled) {
                 queryManager.invalidateQuery("home_next_up_api_v1")
             }
         }
-        LaunchedEffect(continueWatchingQuery.data?.hashCode(), selectedCategory, isNetworkAvailable) {
+        LaunchedEffect(continueWatchingQuery.data?.hashCode(), isNetworkAvailable) {
             if (!isNetworkAvailable) return@LaunchedEffect
             val items = continueWatchingQuery.data ?: return@LaunchedEffect
-            if (selectedCategory == HomeCategory.OTHER_VIDEOS) {
-                mediaRepository.persistHomeSnapshot(recentOtherVideoItems = items)
-            } else {
-                mediaRepository.persistHomeSnapshot(recentWatchingItems = items)
-            }
+            mediaRepository.persistHomeSnapshot(recentWatchingItems = items)
             if (items.isEmpty()) return@LaunchedEffect
             ImagePreloader.continueWatchingImages(
                 items = items,
@@ -1736,12 +1621,6 @@ fun Dashboard(
                 maxItems = items.size.coerceAtMost(4),
                 priorityCount = 4
             )
-        }
-
-        LaunchedEffect(featuredQuery.data?.hashCode(), selectedCategory, isNetworkAvailable) {
-            if (selectedCategory != HomeCategory.HOME || !isNetworkAvailable) return@LaunchedEffect
-            val items = featuredQuery.data ?: return@LaunchedEffect
-            mediaRepository.persistHomeSnapshot(featuredHomeItems = items)
         }
 
         LaunchedEffect(homeLibraryBurstQuery.data?.hashCode(), isNetworkAvailable) {
@@ -1771,11 +1650,10 @@ fun Dashboard(
         }
 
         LaunchedEffect(
-            selectedCategory,
             MyMediaLibraries.hashCode(),
             isNetworkAvailable
         ) {
-            if (selectedCategory != HomeCategory.HOME || !isNetworkAvailable) return@LaunchedEffect
+            if (!isNetworkAvailable) return@LaunchedEffect
             if (MyMediaLibraries.isEmpty()) return@LaunchedEffect
             ImagePreloader.MyMedia(
                 libraries = MyMediaLibraries,
@@ -1785,16 +1663,6 @@ fun Dashboard(
             )
         }
 
-        val featureParallaxOffsetPx by remember {
-            derivedStateOf {
-                if (lazyColumnState.firstVisibleItemIndex == 0) {
-                    lazyColumnState.firstVisibleItemScrollOffset.toFloat()
-                } else {
-                    0f
-                }
-            }
-        }
-
         if (!isNetworkAvailable) {
             Column(Modifier.fillMaxSize()) {
                 BrandHeader(
@@ -1802,7 +1670,7 @@ fun Dashboard(
                     modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)),
                     showUserIcon = true,
                     userName = currentUsername,
-                    userImageUrl = currentProfileImageUrl ?: noCarouselProfileImageUrl,
+                    userImageUrl = currentProfileImageUrl ?: headerProfileImageUrl,
                     userServerTypeRaw = currentServerType,
                     onProfileClick = onNavigateToSettings,
                     onServerClick = serverSwitchDialogsState::openServers
@@ -1829,54 +1697,28 @@ fun Dashboard(
                 verticalArrangement = Arrangement.spacedBy(1.dp),
                 contentPadding = PaddingValues(bottom = dashboardContentBottomPadding())
             ) {
-                if (featureCarouselEnabled && selectedCategory != HomeCategory.HOME && selectedCategory != HomeCategory.OTHER_VIDEOS) {
-                    item(key = "feature_tab") {
-                        FeatureTab(
-                            featuredItems = FeaturedItems,
-                            isLoading = featuredQuery.isLoading && FeaturedItems.isEmpty(),
-                            error = featuredQuery.error,
-                            selectedCategory = selectedCategory,
-                            showCarousel = selectedCategory != HomeCategory.OTHER_VIDEOS,
-                            carouselHeight = featureCarouselHeight,
-                            verticalParallaxOffsetPx = featureParallaxOffsetPx,
-                            onItemClick = onNavigateToDetail,
-                            onLogout = onLogout,
-                            onProfileClick = onNavigateToSettings,
-                            onCategorySelected = { category ->
-                                selectedCategory = category
-                                scope.launch { lazyColumnState.scrollToItem(0) }
-                            }
-                        )
-                    }
-                } else {
-                    item(key = "no_carousel_top_header") {
-                        TopHeader(
-                            serverName = currentServerName,
-                            serverTypeRaw = currentServerType,
-                            userName = HeaderUserName,
-                            userImageUrl = noCarouselProfileImageUrl,
-                            onProfileClick = onNavigateToSettings,
-                            onServerClick = serverSwitchDialogsState::openServers,
-                            selectedCategory = selectedCategory,
-                            onCategorySelected = {
-                                selectedCategory = it
-                                scope.launch { lazyColumnState.scrollToItem(0) }
-                            }
-                        )
-                    }
+                item(key = "home_top_header") {
+                    BrandHeader(
+                        serverName = currentServerName,
+                        modifier = Modifier
+                            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)),
+                        showUserIcon = true,
+                        userName = HeaderUserName,
+                        userImageUrl = headerProfileImageUrl,
+                        userServerTypeRaw = currentServerType,
+                        onProfileClick = onNavigateToSettings,
+                        onServerClick = serverSwitchDialogsState::openServers
+                    )
                 }
 
                 val ShowMyMediaSection =
-                    selectedCategory == HomeCategory.OTHER_VIDEOS || selectedCategory == HomeCategory.HOME && (
-                        MyMediaLibraries.isNotEmpty() ||
-                            (homeMyMediaLibrariesQuery.isLoading && MyMediaLibraries.isEmpty())
-                        )
+                    MyMediaLibraries.isNotEmpty() ||
+                        (homeMyMediaLibrariesQuery.isLoading && MyMediaLibraries.isEmpty())
 
-                val ShowContinueWatchingSection =
-                    continueWatchingEnabled && (selectedCategory == HomeCategory.HOME || selectedCategory == HomeCategory.OTHER_VIDEOS)
+                val ShowContinueWatchingSection = continueWatchingEnabled
 
                 val ShowNextUpSection =
-                    nextUpEnabled && selectedCategory == HomeCategory.HOME && (
+                    nextUpEnabled && (
                         NextUpItems.isNotEmpty() ||
                             nextUpQuery.isError ||
                             (nextUpQuery.isLoading && persistedNextUpItems.isNotEmpty())
@@ -1924,74 +1766,44 @@ fun Dashboard(
                     }
                 }
 
-                if (selectedCategory == HomeCategory.HOME || selectedCategory == HomeCategory.OTHER_VIDEOS) {
-                    val topPadding = if (!ShowMyMediaSection && !ShowContinueWatchingSection && !ShowNextUpSection) 16.dp else 0.dp
+                val topPadding = if (!ShowMyMediaSection && !ShowContinueWatchingSection && !ShowNextUpSection) 16.dp else 0.dp
 
-                    if (topPadding > 0.dp) {
-                        item(key = "home_libraries_top_padding") {
-                            Spacer(modifier = Modifier.height(topPadding))
-                        }
+                if (topPadding > 0.dp) {
+                    item(key = "home_libraries_top_padding") {
+                        Spacer(modifier = Modifier.height(topPadding))
                     }
+                }
 
-                    val libraries = LibrarySections
-                    if (homeLibraryBurstQuery.isError && libraries.isEmpty()) {
-                        item(key = "home_libraries_error") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.dashboard_failed_load_libraries),
-                                    color = Color.White.copy(alpha = 0.6f),
-                                    fontSize = 13.sp
-                                )
-                            }
-                        }
-                    } else if (libraries.isNotEmpty()) {
-                        itemsIndexed(
-                            items = libraries,
-                            key = { index, section -> section.libraryId.ifBlank { "library_$index" } }
-                        ) { index, section ->
-                            BurstLibrarySection(
-                                section = section,
-                                mediaRepository = mediaRepository,
-                                disablePosterEnhancers = disablePosterEnhancers,
-                                onItemClick = onNavigateToDetail,
-                                onNavigateToViewAll = onNavigateToViewAll
-                            )
-
-                            if (index < libraries.lastIndex) {
-                                Spacer(modifier = Modifier.height(2.dp))
-                            }
-                        }
-                    }
-                } else if (selectedCategory == HomeCategory.MOVIES) {
-                    val topPadding = if (ContinueWatchingItems.isEmpty() && !continueWatchingQuery.isLoading) 16.dp else 0.dp
-
-                    item(key = "movies_genres") {
-                        Column(
-                            modifier = Modifier.padding(top = topPadding)
+                val libraries = LibrarySections
+                if (homeLibraryBurstQuery.isError && libraries.isEmpty()) {
+                    item(key = "home_libraries_error") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
-                            MovieGenreSections(
-                                disablePosterEnhancers = disablePosterEnhancers,
-                                onItemClick = onNavigateToDetail,
-                                onNavigateToViewAll = onNavigateToViewAll
+                            Text(
+                                text = stringResource(R.string.dashboard_failed_load_libraries),
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 13.sp
                             )
                         }
                     }
-                } else if (selectedCategory == HomeCategory.TV_SHOWS) {
-                    val topPadding = if (ContinueWatchingItems.isEmpty() && !continueWatchingQuery.isLoading) 16.dp else 0.dp
+                } else if (libraries.isNotEmpty()) {
+                    itemsIndexed(
+                        items = libraries,
+                        key = { index, section -> section.libraryId.ifBlank { "library_$index" } }
+                    ) { index, section ->
+                        BurstLibrarySection(
+                            section = section,
+                            mediaRepository = mediaRepository,
+                            disablePosterEnhancers = disablePosterEnhancers,
+                            onItemClick = onNavigateToDetail,
+                            onNavigateToViewAll = onNavigateToViewAll
+                        )
 
-                    item(key = "tv_genres") {
-                        Column(
-                            modifier = Modifier.padding(top = topPadding)
-                        ) {
-                            TVShowGenreSections(
-                                disablePosterEnhancers = disablePosterEnhancers,
-                                onItemClick = onNavigateToDetail,
-                                onNavigateToViewAll = onNavigateToViewAll
-                            )
+                        if (index < libraries.lastIndex) {
+                            Spacer(modifier = Modifier.height(2.dp))
                         }
                     }
                 }
@@ -2075,33 +1887,6 @@ fun Dashboard(
             )
         }
     )
-}
-
-@Composable
-private fun TopHeader(
-    serverName: String?,
-    serverTypeRaw: String?,
-    userName: String?,
-    userImageUrl: String?,
-    onProfileClick: (() -> Unit)? = null,
-    onServerClick: (() -> Unit)? = null,
-    selectedCategory: String = HomeCategory.HOME,
-    onCategorySelected: (String) -> Unit = {}
-) {
-    Column {
-        BrandHeader(
-            serverName = serverName,
-            modifier = Modifier
-                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)),
-            showUserIcon = true,
-            userName = userName,
-            userImageUrl = userImageUrl,
-            userServerTypeRaw = serverTypeRaw,
-            onProfileClick = onProfileClick,
-            onServerClick = onServerClick
-        )
-        CategoryChipMenu(selectedCategory, onCategorySelected, Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
-    }
 }
 
 @Composable

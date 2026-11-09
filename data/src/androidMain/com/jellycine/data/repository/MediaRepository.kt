@@ -33,6 +33,7 @@ import com.jellycine.data.model.AdminSessionInfo
 import com.jellycine.data.model.SeerrItemIds
 import com.jellycine.data.model.SystemInfoFull
 import com.jellycine.data.model.UserDto
+import com.jellycine.data.model.UserItemDataDto
 import com.jellycine.data.network.HttpStatusException
 import com.jellycine.data.network.JellyCineJson
 import com.jellycine.data.network.NetworkModule
@@ -456,11 +457,25 @@ class MediaRepository(private val context: Context) {
         }
     }
 
+    /** Server-confirmed user data only; used after playback stops, not as a detail payload. */
+    suspend fun getItemUserData(itemId: String): UserItemDataDto? {
+        return try {
+            val api = getApi() ?: return null
+            val userId = getUserId() ?: return null
+            val response = api.getItemById(userId = userId, itemId = itemId, fields = "UserData")
+            if (response.isSuccessful) response.body()?.userData else null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     suspend fun getItemById(itemId: String): Result<BaseItemDto> {
         return try {
             val api = getApi() ?: return Result.failure(Exception(string(R.string.data_error_api_not_available)))
             val userId = getUserId() ?: return Result.failure(Exception(string(R.string.data_error_user_id_not_available)))
-            val detailFields = "People,Studios,Genres,Overview,ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,OfficialRating,UserData,Chapters,ProviderIds,IndexNumber,ParentIndexNumber,RemoteTrailers,MediaStreams,MediaSources"
+            val detailFields = "People,Studios,Genres,Tags,Overview,ChildCount,RecursiveItemCount,EpisodeCount,SeriesName,SeriesId,OfficialRating,UserData,Chapters,ProviderIds,IndexNumber,ParentIndexNumber,RemoteTrailers,MediaStreams,MediaSources"
             val response = api.getItemById(
                 userId = userId,
                 itemId = itemId,
@@ -722,6 +737,7 @@ class MediaRepository(private val context: Context) {
         genres: String? = null,
         genreIds: String? = null,
         includeItemTypes: String? = null,
+        excludeItemTypes: String? = null,
         recursive: Boolean? = null,
         sortBy: String? = null,
         sortOrder: String? = null,
@@ -745,6 +761,7 @@ class MediaRepository(private val context: Context) {
                 genres = genres,
                 genreIds = genreIds,
                 includeItemTypes = includeItemTypes,
+                excludeItemTypes = excludeItemTypes,
                 recursive = recursive,
                 sortBy = sortBy,
                 sortOrder = sortOrder,
@@ -919,13 +936,32 @@ class MediaRepository(private val context: Context) {
     suspend fun saveVideoRating(itemId: String, score: Float, expectedServerId: String): Result<BaseItemDto> =
         videoRatingOperation(itemId, expectedServerId, score)
 
+    /** Tags are read through the same full-document load as the rating, so one request serves both. */
+    suspend fun saveVideoTags(itemId: String, tags: List<String>, expectedServerId: String): Result<BaseItemDto> {
+        return try {
+            val session = getApiSession() ?: throw VideoRatingSessionException()
+            if (AuthSessionIds.buildServerId(session.baseUrl, session.userId) != expectedServerId) {
+                throw VideoRatingSessionException()
+            }
+            val confirmed = VideoRatingUpdater(session.api, session.userId, isEmby = session.serverType == ServerType.EMBY).saveTags(itemId, tags)
+            runCatching { homeSnapshotStore.updateTags(
+                "${trimTrailingSlash(session.baseUrl)}|${session.userId}", itemId, confirmed.tags.orEmpty()
+            ) }
+            Result.success(confirmed)
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+    }
+
     private suspend fun videoRatingOperation(itemId: String, expectedServerId: String, score: Float?): Result<BaseItemDto> {
         return try {
             val session = getApiSession() ?: throw VideoRatingSessionException()
             if (AuthSessionIds.buildServerId(session.baseUrl, session.userId) != expectedServerId) {
                 throw VideoRatingSessionException()
             }
-            val updater = VideoRatingUpdater(session.api, session.userId)
+            val updater = VideoRatingUpdater(session.api, session.userId, isEmby = session.serverType == ServerType.EMBY)
             val confirmed = if (score == null) updater.load(itemId) else updater.save(itemId, score)
             // A cache failure must not misreport a completed server write.
             runCatching { homeSnapshotStore.updateRating(

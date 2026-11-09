@@ -1,4 +1,9 @@
-"""Export the selected Private Cinema SVG as phone-only Android vector resources."""
+"""Export the selected Private Cinema SVG as historical Android vector resources.
+
+Superseded by design/icon-concepts/export_android_icons.py, which owns the current
+phone resources. This script now writes into a local history folder so rerunning it
+cannot overwrite the shipped icons.
+"""
 from pathlib import Path
 import math
 import shutil
@@ -8,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 SOURCE = REPO / 'design/icon-concepts'
-RES = REPO / 'phone/src/main/res'
+RES = HERE / 'historical-android-res'
 NS = '{http://www.w3.org/2000/svg}'
 BACKGROUND = '#38233F'
 GOLD = '#F0CE88'

@@ -17,6 +17,8 @@ class AudioGainProcessor : BaseAudioProcessor() {
     @Volatile private var normalizationEnabled = false
     @Volatile private var dsp: PcmGainDsp? = null
     private var pendingByte: Int? = null
+    private var endOfStreamQueued = false
+    private var pendingDrain = false
 
     fun setGainPercent(percent: Int) {
         multiplier = PlaybackOptions.gainMultiplier(percent)
@@ -38,6 +40,8 @@ class AudioGainProcessor : BaseAudioProcessor() {
     }
 
     override fun queueInput(inputBuffer: ByteBuffer) {
+        // Media3 pumps empty input while draining; it must not replace pending output.
+        if (!inputBuffer.hasRemaining() || endOfStreamQueued) return
         val samples = FloatArray((inputBuffer.remaining() + if (pendingByte == null) 0 else 1) / 2)
         var position = 0
         val littleEndian = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN
@@ -54,12 +58,29 @@ class AudioGainProcessor : BaseAudioProcessor() {
     }
 
     override fun onQueueEndOfStream() {
-        writeOutput(dsp?.drain() ?: FloatArray(0))
+        // An ended upstream processor may signal EOS repeatedly while Sonic drains.
+        if (endOfStreamQueued) return
+        endOfStreamQueued = true
+        pendingDrain = true
         pendingByte = null
     }
 
+    override fun getOutput(): ByteBuffer {
+        val output = super.getOutput()
+        if (output.hasRemaining() || !pendingDrain) return output
+        // Wait until the previous output has been handed off before reusing its buffer.
+        pendingDrain = false
+        val tail = dsp?.drain() ?: FloatArray(0)
+        if (tail.isNotEmpty()) writeOutput(tail)
+        return super.getOutput()
+    }
+
+    override fun isEnded(): Boolean = super.isEnded() && !pendingDrain
+
     override fun onFlush() {
         pendingByte = null
+        endOfStreamQueued = false
+        pendingDrain = false
         dsp = if (inputAudioFormat == AudioFormat.NOT_SET) null else {
             PcmGainDsp(inputAudioFormat.sampleRate, inputAudioFormat.channelCount).also {
                 it.setSettings(multiplier, normalizationEnabled)
@@ -70,6 +91,8 @@ class AudioGainProcessor : BaseAudioProcessor() {
     override fun onReset() {
         dsp = null
         pendingByte = null
+        endOfStreamQueued = false
+        pendingDrain = false
     }
 
     private fun writeOutput(samples: FloatArray) {

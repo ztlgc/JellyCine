@@ -34,7 +34,8 @@ internal class LibraryCatalogCache(
 
     @Synchronized
     fun isFresh(key: String): Boolean = memory[key]?.let {
-        it.refreshedAtMs > 0 && nowMs() - it.refreshedAtMs in 0 until FULL_REFRESH_INTERVAL_MS
+        it.schema == CURRENT_SCHEMA && it.refreshedAtMs > 0 &&
+            nowMs() - it.refreshedAtMs in 0 until FULL_REFRESH_INTERVAL_MS
     } == true
 
     @Synchronized
@@ -53,7 +54,7 @@ internal class LibraryCatalogCache(
         withContext(Dispatchers.IO) {
             mutex.withLock {
                 val retainedItems = retainedItems(key, items)
-                val snapshot = Snapshot(key, retainedItems, refreshedAtMs = nowMs())
+                val snapshot = Snapshot(key, retainedItems, schema = CURRENT_SCHEMA, refreshedAtMs = nowMs())
                 remember(snapshot)
                 writeSnapshot(snapshot)
                 runCatching {
@@ -82,13 +83,18 @@ internal class LibraryCatalogCache(
             items.map { if (it.id == itemId) it.copy(communityRating = rating) else it }
         }
 
+    suspend fun updateTags(serverId: String, itemId: String, tags: List<String>) =
+        updateSessionItems(serverId) { items ->
+            items.map { if (it.id == itemId) it.copy(tags = tags) else it }
+        }
+
     private suspend fun updateSessionItems(serverId: String, transform: (List<BaseItemDto>) -> List<BaseItemDto>) = withContext(Dispatchers.IO) {
         mutex.withLock {
             val prefix = "${serverId.length}:$serverId"
             val snapshots = linkedMapOf<String, Snapshot>()
             directory.listFiles { it.extension == "json" }?.forEach { file ->
                 runCatching { JellyCineJson.decodeFromString<Snapshot>(file.readText()) }.getOrNull()
-                    ?.takeIf { it.schema == 1 && it.key.startsWith(prefix) }?.let { snapshots[it.key] = it }
+                    ?.takeIf { it.schema in 1..CURRENT_SCHEMA && it.key.startsWith(prefix) }?.let { snapshots[it.key] = it }
             }
             synchronized(this@LibraryCatalogCache) {
                 memory.values.filter { it.key.startsWith(prefix) }.forEach { snapshots[it.key] = it }
@@ -107,7 +113,7 @@ internal class LibraryCatalogCache(
 
     private fun readSnapshot(key: String): Snapshot? = runCatching {
         JellyCineJson.decodeFromString<Snapshot>(file(key).readText())
-    }.getOrNull()?.takeIf { it.schema == 1 && it.key == key }
+    }.getOrNull()?.takeIf { it.schema in 1..CURRENT_SCHEMA && it.key == key }
         ?.let { it.copy(items = retainedItems(it.key, it.items)) }
 
     private fun retainedItems(key: String, items: List<BaseItemDto>): List<BaseItemDto> {
@@ -150,6 +156,8 @@ internal class LibraryCatalogCache(
     }
 
     companion object {
+        // Older catalogs did not explicitly request CommunityRating; show them while refreshing once.
+        private const val CURRENT_SCHEMA = 2
         const val FULL_REFRESH_INTERVAL_MS = 30 * 60 * 1000L
         @Volatile private var instance: LibraryCatalogCache? = null
 

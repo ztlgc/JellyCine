@@ -25,6 +25,7 @@ import com.jellycine.shared.ui.theme.JellyCineTheme
 import com.jellycine.app.ui.navigation.AppNavigation
 import com.jellycine.app.ui.splash.SplashScreen
 import com.jellycine.app.ui.splash.SplashViewModel
+import com.jellycine.app.update.AppUpdateDialog
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -84,6 +85,7 @@ class JellyCineActivity : ComponentActivity() {
 
                     Box(modifier = Modifier.fillMaxSize()) {
                         AppNavigation()
+                        AppUpdateDialog()
                         if (shouldShowSplash) {
                             SplashScreen(
                                 onSplashComplete = {

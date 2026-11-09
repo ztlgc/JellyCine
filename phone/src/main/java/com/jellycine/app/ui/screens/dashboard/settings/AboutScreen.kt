@@ -29,6 +29,7 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Gavel
 import androidx.compose.material.icons.rounded.Policy
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.StarRate
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -43,7 +44,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,6 +60,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.jellycine.app.BuildConfig
+import com.jellycine.app.update.AppUpdateController
+import com.jellycine.app.update.AppUpdateState
 import com.jellycine.shared.R
 
 private const val GithubUrl = "https://github.com/sureshfizzy/JellyCine"
@@ -81,6 +86,8 @@ fun AboutScreen(
     onBackPressed: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val updateController = remember(context) { AppUpdateController.get(context) }
+    val updateState by updateController.state.collectAsStateWithLifecycle()
 
     BackHandler { onBackPressed() }
 
@@ -143,6 +150,18 @@ fun AboutScreen(
                         title = stringResource(R.string.about_open_source_license),
                         subtitle = stringResource(R.string.about_open_source_license_subtitle),
                         onClick = { openUrl(context, LicenseUrl) }
+                    )
+                }
+            }
+
+            item { AboutSectionLabel(stringResource(R.string.about_section_update)) }
+            item {
+                AboutSectionCard {
+                    AboutActionRow(
+                        icon = Icons.Rounded.Refresh,
+                        title = stringResource(R.string.about_check_update),
+                        subtitle = updateStatusText(updateState),
+                        onClick = { updateController.checkNow() }
                     )
                 }
             }
@@ -333,6 +352,15 @@ private fun AboutActionRow(
             tint = Color.White.copy(alpha = 0.42f)
         )
     }
+}
+
+@Composable
+private fun updateStatusText(state: AppUpdateState): String = when (state) {
+    AppUpdateState.Idle -> stringResource(R.string.about_check_update_subtitle)
+    AppUpdateState.Checking -> stringResource(R.string.about_checking_update)
+    AppUpdateState.UpToDate -> stringResource(R.string.about_up_to_date)
+    AppUpdateState.Failed -> stringResource(R.string.about_update_failed)
+    is AppUpdateState.Available -> stringResource(R.string.about_update_available, state.release.version.toString())
 }
 
 private fun openUrl(context: Context, url: String) {

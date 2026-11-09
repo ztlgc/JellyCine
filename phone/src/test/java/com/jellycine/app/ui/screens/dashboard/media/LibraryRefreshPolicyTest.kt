@@ -12,6 +12,61 @@ import org.junit.rules.TemporaryFolder
 class LibraryRefreshPolicyTest {
     @get:Rule val temporary = TemporaryFolder()
 
+    @Test fun libraryRequestsIncludeServerRatingsBeforeAnyDetailPageRead() {
+        assertTrue("CommunityRating" in LibraryBrowserViewModel.LIBRARY_FIELDS.split(','))
+    }
+
+    @Test fun legacyCatalogIsDisplayedButRefetchedOnceToLoadRatings() = runBlocking {
+        val directory = temporary.newFolder()
+        val now = 1_000_000L
+        LibraryCatalogCache(directory) { now }.save("library", emptyList())
+        directory.listFiles()!!.single().writeText("""
+            {"key":"library","items":[{"Id":"video","Type":"Video"}],"schema":1,"refreshedAtMs":$now}
+        """.trimIndent())
+        val cache = LibraryCatalogCache(directory) { now + 1_000L }
+        val old = listOf(BaseItemDto(id = "video", type = "Video"))
+        val rated = listOf(old.single().copy(communityRating = 8.6f))
+        var visible: List<BaseItemDto>? = null
+        var requests = 0
+        val result = loadCachedLibraryCatalog(cache, "library", onCached = { visible = it }) {
+            assertEquals(old, visible)
+            assertFalse(cache.isFresh("library"))
+            requests++
+            rated
+        }
+        assertEquals(rated, result)
+        val restarted = LibraryCatalogCache(directory) { now + 2_000L }
+        assertEquals(rated, loadCachedLibraryCatalog(restarted, "library") {
+            error("The refreshed catalog must survive restart without another request")
+        })
+        assertEquals(1, requests)
+    }
+
+    @Test fun legacyCatalogUpdatesAndFailedRefreshDoNotMarkMissingRatingsFresh() = runBlocking {
+        val directory = temporary.newFolder()
+        val now = 1_000_000L
+        val key = libraryCatalogKey("server", "url", "user", "library")
+        LibraryCatalogCache(directory) { now }.save(key, emptyList())
+        directory.listFiles()!!.single().writeText("""
+            {"key":"$key","items":[{"Id":"video","Type":"Video"},{"Id":"other","Type":"Video"}],"refreshedAtMs":$now}
+        """.trimIndent())
+        val cache = LibraryCatalogCache(directory) { now + 1_000L }
+        cache.updateRating("server", "video", 8.6f)
+        assertEquals(8.6f, cache.load(key)?.first()?.communityRating)
+        assertFalse(cache.isFresh(key))
+        var visible: List<BaseItemDto>? = null
+        try {
+            loadCachedLibraryCatalog(cache, key, onCached = { visible = it }) { error("Offline") }
+            fail("An old catalog still needs a server refresh")
+        } catch (_: IllegalStateException) {
+            assertEquals(cache.peek(key), visible)
+            assertEquals(2, visible?.size)
+            val restarted = LibraryCatalogCache(directory) { now + 2_000L }
+            assertEquals(visible, restarted.load(key))
+            assertFalse(restarted.isFresh(key))
+        }
+    }
+
     @Test fun ratingUpdatesEveryCachedLibraryInItsSessionWithoutChangingUserDataOrFreshness() = runBlocking {
         var now = 1_000_000L
         val directory = temporary.newFolder()

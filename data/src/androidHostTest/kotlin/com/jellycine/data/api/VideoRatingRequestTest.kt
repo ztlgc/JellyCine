@@ -4,6 +4,8 @@ import com.jellycine.data.network.HttpStatusException
 import com.jellycine.data.repository.VideoRatingNotConfirmedException
 import com.jellycine.data.repository.VideoRatingPermissionException
 import com.jellycine.data.repository.VideoRatingUpdater
+import com.jellycine.data.repository.VideoTagsNotConfirmedException
+import com.jellycine.data.repository.normalizeVideoTags
 import com.sun.net.httpserver.HttpServer
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -119,7 +121,80 @@ class VideoRatingRequestTest {
         }
     }
 
+    @Test fun tagsAreNormalizedLockedAndConfirmedByReadback() = runBlocking {
+        withServer(original.replace("\"LockedFields\":[\"Name\"]", "\"LockedFields\":[\"Name\",\"Tags\"]")
+            .replace("\"Name\":\"家庭旅行\"", "\"Name\":\"家庭旅行\",\"Tags\":[\"旧\"]")) { api, requests ->
+            val tags = normalizeVideoTags(listOf("  家庭 ", "", "旅行", "家庭", "  "))
+            assertEquals(listOf("家庭", "旅行"), tags)
+            val saved = VideoRatingUpdater(api, "user").saveTags("video", tags)
+            assertEquals(listOf("家庭", "旅行"), saved.tags)
+            val post = Json.parseToJsonElement(requests.first { it.method == "POST" }.body).jsonObject
+            assertEquals(listOf("家庭", "旅行"), post["Tags"]!!.jsonArray.map { it.jsonPrimitive.content })
+            assertEquals(1, post["LockedFields"]!!.jsonArray.count { it.jsonPrimitive.content == "Tags" })
+            assertEquals("家庭旅行", post["Name"]!!.jsonPrimitive.content)
+            assertEquals("保留简介", post["Overview"]!!.jsonPrimitive.content)
+        }
+    }
+
+    @Test fun tagWriteWithoutMatchingReadbackIsNotReportedAsSaved() = runBlocking {
+        withServer(original.replace("\"Name\":\"家庭旅行\"", "\"Name\":\"家庭旅行\",\"Tags\":[\"旧\"]"),
+            readback = original.replace("\"Name\":\"家庭旅行\"", "\"Name\":\"家庭旅行\",\"Tags\":[\"旧\"]")) { api, _ ->
+            assertFailsWith<VideoTagsNotConfirmedException> {
+                VideoRatingUpdater(api, "user").saveTags("video", listOf("新"))
+            }
+        }
+    }
+
+    @Test fun clearingAllTagsIsWrittenAndConfirmed() = runBlocking {
+        withServer(original.replace("\"Name\":\"家庭旅行\"", "\"Name\":\"家庭旅行\",\"Tags\":[\"旧\"]")) { api, requests ->
+            val saved = VideoRatingUpdater(api, "user").saveTags("video", listOf("  ", ""))
+            assertTrue(saved.tags.isNullOrEmpty())
+            val post = Json.parseToJsonElement(requests.first { it.method == "POST" }.body).jsonObject
+            assertEquals(0, post["Tags"]!!.jsonArray.size)
+            assertEquals("家庭旅行", post["Name"]!!.jsonPrimitive.content)
+        }
+    }
+
+    @Test fun readOnlyAccountCannotWriteTags() = runBlocking {
+        withServer(original.replace("\"CanEditItems\":true", "\"CanEditItems\":false")) { api, requests ->
+            assertFailsWith<VideoRatingPermissionException> { VideoRatingUpdater(api, "user").saveTags("video", listOf("a")) }
+            assertEquals(listOf("GET"), requests.map { it.method })
+        }
+    }
+
+    @Test fun embyUsesTagItemsAndPreservesExistingTagIdentity() = runBlocking {
+        val document = original.dropLast(1) + """, "Tags":["旧"],"TagItems":[{"Name":"旧","Id":42}]}"""
+        withServer(document, emby = true) { api, requests ->
+            val updater = VideoRatingUpdater(api, "user", isEmby = true)
+            assertEquals(listOf("旧"), updater.load("video").tags)
+            assertEquals(listOf("旧", "酒店"), updater.saveTags("video", listOf("旧", "酒店")).tags)
+            val posted = Json.parseToJsonElement(requests.first { it.method == "POST" }.body).jsonObject
+            val tagItems = posted["TagItems"]!!.jsonArray
+            assertEquals(42, tagItems[0].jsonObject["Id"]!!.jsonPrimitive.int)
+            assertEquals("酒店", tagItems[1].jsonObject["Name"]!!.jsonPrimitive.content)
+            assertNull(tagItems[1].jsonObject["Id"])
+            assertEquals(emptyList(), updater.saveTags("video", emptyList()).tags)
+        }
+    }
+
+    @Test fun embyFirstTagIsWrittenWhenBothFieldsWereAbsent() = runBlocking {
+        withServer(original, emby = true) { api, _ ->
+            assertEquals(listOf("酒店"), VideoRatingUpdater(api, "user", isEmby = true)
+                .saveTags("video", listOf("酒店")).tags)
+        }
+    }
+
+    @Test fun staleEmbyTagItemsCannotBeConfirmedByMatchingTags() = runBlocking {
+        val readback = original.dropLast(1) + """, "Tags":["酒店"],"TagItems":[{"Name":"旧","Id":42}]}"""
+        withServer(original, readback = readback) { api, _ ->
+            assertFailsWith<VideoTagsNotConfirmedException> {
+                VideoRatingUpdater(api, "user", isEmby = true).saveTags("video", listOf("酒店"))
+            }
+        }
+    }
+
     private suspend fun withServer(initial: String, postStatus: Int = 204, readback: String? = null,
+        emby: Boolean = false,
         block: suspend (MediaServerApi, List<Request>) -> Unit) {
         val requests = CopyOnWriteArrayList<Request>()
         val document = AtomicReference(initial)
@@ -130,7 +205,15 @@ class VideoRatingRequestTest {
             requests += Request(exchange.requestMethod, exchange.requestURI.path, exchange.requestURI.rawQuery, body,
                 exchange.requestHeaders.getFirst("Content-Type"))
             if (exchange.requestMethod == "POST") {
-                if (postStatus == 204) document.set(body)
+                if (postStatus == 204) {
+                    if (emby) {
+                        // 模拟 Emby：忽略 Tags，仅接受 TagItems，GET 不返回 Tags。
+                        val before = Json.parseToJsonElement(document.get()).jsonObject
+                        val posted = Json.parseToJsonElement(body).jsonObject
+                        val accepted = posted["TagItems"] ?: before["TagItems"] ?: JsonArray(emptyList())
+                        document.set(JsonObject((posted - "Tags") + ("TagItems" to accepted)).toString())
+                    } else document.set(body)
+                }
                 exchange.sendResponseHeaders(postStatus, -1)
                 exchange.close()
             } else {

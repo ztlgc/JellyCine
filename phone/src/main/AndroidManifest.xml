@@ -52,12 +52,84 @@
             android:exported="true"
             android:theme="@style/Theme.JellyCine.Splash"
             android:launchMode="singleTop"
-            android:configChanges="orientation|screenSize|keyboardHidden|colorMode">
+            android:configChanges="orientation|screenSize|keyboardHidden|colorMode" />
+
+        <!-- Selectable launcher icons. Icon 02 is enabled by default; AppIconSwitcher
+             enables exactly one alias at runtime. -->
+        <activity-alias
+            android:name=".ui.activity.JellyCineLauncher01"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_01"
+            android:roundIcon="@mipmap/ic_launcher_01"
+            android:label="@string/app_name"
+            android:targetActivity=".ui.activity.JellyCineActivity"
+            android:theme="@style/Theme.JellyCine.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ui.activity.JellyCineLauncher02"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_02"
+            android:roundIcon="@mipmap/ic_launcher_02"
+            android:label="@string/app_name"
+            android:targetActivity=".ui.activity.JellyCineActivity"
+            android:theme="@style/Theme.JellyCine.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ui.activity.JellyCineLauncher03"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_03"
+            android:roundIcon="@mipmap/ic_launcher_03"
+            android:label="@string/app_name"
+            android:targetActivity=".ui.activity.JellyCineActivity"
+            android:theme="@style/Theme.JellyCine.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ui.activity.JellyCineLauncher04"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_04"
+            android:roundIcon="@mipmap/ic_launcher_04"
+            android:label="@string/app_name"
+            android:targetActivity=".ui.activity.JellyCineActivity"
+            android:theme="@style/Theme.JellyCine.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".ui.activity.JellyCineLauncher05"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_05"
+            android:roundIcon="@mipmap/ic_launcher_05"
+            android:label="@string/app_name"
+            android:targetActivity=".ui.activity.JellyCineActivity"
+            android:theme="@style/Theme.JellyCine.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
         <!-- File Provider for sharing logs -->
         <provider

@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jellycine.shared.R
 import java.time.LocalDate
+import java.util.Locale
 
 private val CardBackground = Color(0xFF1A1A1A)
 private val CardBorder = Color.White.copy(alpha = 0.08f)
@@ -142,17 +143,27 @@ fun SectionCard(
     }
 }
 
-fun formatWatchTime(durationMs: Long): String {
+fun formatWatchTime(durationMs: Long, locale: Locale = Locale.getDefault()): String {
     val seconds = durationMs.coerceAtLeast(0L) / 1000
     val hours = seconds / 3600
     val mins = seconds / 60 % 60
     val secs = seconds % 60
-    return when {
-        hours > 0 -> "${hours}h ${mins}m"
-        mins > 0 -> "${mins}m ${secs}s"
-        seconds > 0 -> "${secs}s"
-        durationMs > 0 -> "<1s"
-        else -> "0s"
+    return if (locale.language == "zh") {
+        when {
+            hours > 0 -> if (mins == 0L) "${hours}小时" else "${hours}小时${mins}分"
+            mins > 0 -> if (secs == 0L) "${mins}分" else "${mins}分${secs}秒"
+            seconds > 0 -> "${secs}秒"
+            durationMs > 0 -> "<1秒"
+            else -> "0秒"
+        }
+    } else {
+        when {
+            hours > 0 -> if (mins == 0L) "${hours}h" else "${hours}h ${mins}m"
+            mins > 0 -> if (secs == 0L) "${mins}m" else "${mins}m ${secs}s"
+            seconds > 0 -> "${secs}s"
+            durationMs > 0 -> "<1s"
+            else -> "0s"
+        }
     }
 }
 

@@ -769,6 +769,7 @@ fun DetailContent(
             onImageError = onBackdropLoadError,
             rating = {
                 VideoRatingSection(sessionId = activeServerId, item = item, repository = mediaRepository)
+                VideoTagsSection(sessionId = activeServerId, item = item, repository = mediaRepository)
             },
             moreActions = {
                 Box {

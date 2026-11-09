@@ -1,5 +1,5 @@
 <resources>
-    <string name="screen_time_local_caption">本机 · 普通视频实际观看时长</string>
+    <string name="screen_time_local_caption">普通视频 · 实际观看时长</string>
     <string name="screen_time_watched_duration">观看时长</string>
     <string name="screen_time_video_count">视频数</string>
     <string name="screen_time_open_count">打开次数</string>
@@ -10,7 +10,17 @@
     <string name="screen_time_no_ranking">所选时段暂无记录</string>
     <string name="screen_time_unnamed_video">未命名视频</string>
     <string name="screen_time_load_failed">无法读取观看记录</string>
+    <string name="screen_time_refresh_failed">刷新失败，当前显示上次读取的统计</string>
     <string name="screen_time_retry">重试</string>
     <string name="screen_time_previous_period">上一时段</string>
     <string name="screen_time_next_period">下一时段</string>
+    <string name="screen_time_period_week_short">周</string>
+    <string name="screen_time_ranking">视频排行</string>
+    <string name="screen_time_top_five">前五名</string>
+    <string name="screen_time_compare_more">较前 %1$d 天多 %2$s</string>
+    <string name="screen_time_compare_less">较前 %1$d 天少 %2$s</string>
+    <string name="screen_time_compare_same">与前 %1$d 天相同</string>
+    <string name="screen_time_filtered_caption">已按图表选择筛选</string>
+    <string name="screen_time_clear_filters">清除筛选</string>
+    <string name="screen_time_average_caption">日均时长包含所选日期内未观看的日期</string>
 </resources>

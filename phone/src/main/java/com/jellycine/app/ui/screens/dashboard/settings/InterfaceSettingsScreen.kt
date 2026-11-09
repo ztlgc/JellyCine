@@ -1,6 +1,7 @@
 package com.jellycine.app.ui.screens.dashboard.settings
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
@@ -47,16 +49,23 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jellycine.app.icon.AppIconSwitcher
+import com.jellycine.app.icon.LauncherIconStyle
 import com.jellycine.shared.R
 import com.jellycine.shared.preferences.Preferences
 import com.jellycine.shared.ui.components.common.ThemeMusicSettingsItem
@@ -108,6 +117,7 @@ fun InterfaceSettingsScreen(
         .collectAsStateWithLifecycle(
             initialValue = preferences.isShowReviewsEnabled()
         )
+    var selectedLauncherIcon by remember { mutableStateOf(AppIconSwitcher.current(context)) }
     BackHandler { onBackPressed() }
 
     Scaffold(
@@ -147,6 +157,15 @@ fun InterfaceSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(bottom = 24.dp)
         ) {
+            item {
+                AppIconSettingsItem(
+                    selected = selectedLauncherIcon,
+                    onSelect = { style ->
+                        AppIconSwitcher.select(context, style)
+                        selectedLauncherIcon = style
+                    }
+                )
+            }
             item {
                 InterfaceSection {
                     FeatureCarouselSettingsItem(
@@ -249,6 +268,84 @@ private fun SettingsLabel(text: String) {
         color = Color.White.copy(alpha = 0.72f),
         modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
     )
+}
+
+@Composable
+private fun AppIconSettingsItem(
+    selected: LauncherIconStyle,
+    onSelect: (LauncherIconStyle) -> Unit
+) {
+    InterfaceSection {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.settings_app_icon),
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White
+            )
+            Text(
+                text = stringResource(R.string.settings_app_icon_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.72f)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                LauncherIconStyle.entries.forEach { style ->
+                    val isSelected = style == selected
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(14.dp))
+                            .selectable(
+                                selected = isSelected,
+                                role = Role.RadioButton,
+                                onClick = { onSelect(style) }
+                            )
+                            .padding(vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Image(
+                            painter = painterResource(id = style.previewRes),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .border(
+                                    width = if (isSelected) 2.dp else 1.dp,
+                                    color = if (isSelected) {
+                                        Color(0xFF6FA8FF)
+                                    } else {
+                                        Color.White.copy(alpha = 0.16f)
+                                    },
+                                    shape = RoundedCornerShape(14.dp)
+                                )
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(style.nameRes),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isSelected) Color.White else Color.White.copy(alpha = 0.68f),
+                            textAlign = TextAlign.Center,
+                            maxLines = 2
+                        )
+                    }
+                }
+            }
+            Text(
+                text = stringResource(R.string.settings_app_icon_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.55f),
+                modifier = Modifier.padding(top = 10.dp)
+            )
+        }
+    }
 }
 
 @Composable

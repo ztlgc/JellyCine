@@ -21,4 +21,13 @@
     <string name="video_rating_save">Save</string>
     <string name="video_rating_cancel">Cancel</string>
     <string name="video_rating_save_error">Could not confirm the saved server rating. Check the connection and retry.</string>
+    <string name="video_tags_title">Tags</string>
+    <string name="video_tags_add">Add tags</string>
+    <string name="video_tags_empty">No tags yet.</string>
+    <string name="video_tags_input_hint">New tag</string>
+    <string name="video_tags_add_action">Add</string>
+    <string name="video_tags_remove">Remove tag %1$s</string>
+    <string name="video_tags_load_error">Could not read the current server tags.</string>
+    <string name="video_tags_unconfirmed_error">The server has not confirmed these tags. Reload or retry before leaving.</string>
+    <string name="video_tags_save_error">Could not confirm the saved server tags. Check the connection and retry.</string>
 </resources>

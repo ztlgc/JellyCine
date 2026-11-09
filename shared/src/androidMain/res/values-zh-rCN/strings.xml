@@ -504,6 +504,17 @@
     <string name="about_feedback_subject">JellyCine 反馈</string>
     <string name="about_buy_me_a_coffee">给我买杯咖啡</string>
     <string name="about_patreon">Patreon</string>
+    <string name="about_section_update">应用更新</string>
+    <string name="about_check_update">检查更新</string>
+    <string name="about_check_update_subtitle">从 GitHub Release 检查新版本</string>
+    <string name="about_checking_update">正在检查更新…</string>
+    <string name="about_up_to_date">已是最新版本</string>
+    <string name="about_update_failed">无法连接 GitHub，请稍后重试</string>
+    <string name="about_update_available">发现新版本 %1$s</string>
+    <string name="update_dialog_title">发现新版本</string>
+    <string name="update_dialog_message">JellyCine %1$s 已发布，可前往 GitHub Release 页面下载。</string>
+    <string name="update_dialog_download">前往下载</string>
+    <string name="update_dialog_later">稍后</string>
     <!-- Interface Settings -->
     <string name="interface_feature_carousel">精选内容轮播</string>
     <string name="interface_feature_carousel_subtitle">在主屏幕上显示精选内容轮播。</string>
@@ -528,6 +539,14 @@
     <string name="interface_seerr_studios_subtitle">在首页显示制片公司。</string>
     <string name="interface_seerr_networks">电视网</string>
     <string name="interface_seerr_networks_subtitle">在首页显示电视网。</string>
+    <string name="settings_app_icon">应用图标</string>
+    <string name="settings_app_icon_subtitle">选择桌面和应用列表中的图标样式。</string>
+    <string name="settings_app_icon_hint">部分启动器需要几秒刷新；已固定的旧图标可能需要重新添加。</string>
+    <string name="settings_app_icon_jellyfish">灵动水母</string>
+    <string name="settings_app_icon_film_j">胶片字母 J</string>
+    <string name="settings_app_icon_projection">光影放映</string>
+    <string name="settings_app_icon_jelly_play">果冻播放</string>
+    <string name="settings_app_icon_private_cinema">私人影院</string>
     <!-- Connections Settings -->
     <string name="settings_connections">连接</string>
     <string name="settings_connections_subtitle">Seerr，Discord</string>
